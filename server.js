@@ -706,9 +706,9 @@ function insertSampleData() {
       inventory.forEach(inv => invStmt.run(inv));
       invStmt.finalize();
 
-      // Raw materials
-      db.run("INSERT INTO raw_materials_inventory (material, current_stock, reorder_level, committed_stock) VALUES ('Steel', 1500, 500, 0)");
-      db.run("INSERT INTO raw_materials_inventory (material, current_stock, reorder_level, committed_stock) VALUES ('Copper', 350, 100, 0)");
+      // Raw materials - Initialize with 0 stock (user will set starting inventory)
+      db.run("INSERT INTO raw_materials_inventory (material, current_stock, reorder_level, committed_stock) VALUES ('Steel', 0, 500, 0)");
+      db.run("INSERT INTO raw_materials_inventory (material, current_stock, reorder_level, committed_stock) VALUES ('Copper Anode', 0, 100, 0)");
 
       console.log('✅ Sample data inserted');
     }
@@ -1203,6 +1203,28 @@ app.delete('/api/client-purchase-orders/:id/items/:itemId', (req, res) => {
     db.run(`DELETE FROM client_po_line_items WHERE id=? AND po_id=?`, [itemId, id], function(err){
       if (err) return res.status(500).json({ error: err.message });
       res.json({ message: 'Item deleted' });
+    });
+  });
+});
+
+// Update delivered quantity for a line item
+app.put('/api/client-po-line-items/:itemId/delivered', (req, res) => {
+  const { itemId } = req.params;
+  const { delivered } = req.body;
+
+  db.get(`SELECT quantity FROM client_po_line_items WHERE id=?`, [itemId], (e, row) => {
+    if (e) return res.status(500).json({ error: e.message });
+    if (!row) return res.status(404).json({ error: 'Item not found' });
+
+    const deliveredQty = Number(delivered || 0);
+    const totalQty = Number(row.quantity || 0);
+
+    if (deliveredQty < 0) return res.status(400).json({ error: 'Delivered quantity cannot be negative' });
+    if (deliveredQty > totalQty) return res.status(400).json({ error: 'Delivered quantity cannot exceed ordered quantity' });
+
+    db.run(`UPDATE client_po_line_items SET delivered=? WHERE id=?`, [deliveredQty, itemId], function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: 'Delivered quantity updated', delivered: deliveredQty });
     });
   });
 });
@@ -2208,7 +2230,7 @@ app.get('/api/dashboard/risk-analysis', (req, res) => {
       }
 
       const steel = materials.find(m => m.material === 'Steel') || { available_stock: 0 };
-      const copper = materials.find(m => m.material === 'Copper') || { available_stock: 0 };
+      const copper = materials.find(m => m.material === 'Copper Anode' || m.material === 'Copper') || { available_stock: 0 };
 
       res.json({
         steel: {
@@ -2226,6 +2248,30 @@ app.get('/api/dashboard/risk-analysis', (req, res) => {
       });
     });
   });
+});
+
+// Update raw materials inventory (for setting starting amounts or manual adjustments)
+app.put('/api/raw-materials/:material', (req, res) => {
+  const { material } = req.params;
+  const { current_stock, reorder_level } = req.body;
+
+  if (current_stock === undefined || current_stock < 0) {
+    return res.status(400).json({ error: 'current_stock must be >= 0' });
+  }
+
+  db.run(
+    `INSERT INTO raw_materials_inventory (material, current_stock, reorder_level, updated_at)
+     VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(material) DO UPDATE SET
+       current_stock = excluded.current_stock,
+       reorder_level = COALESCE(excluded.reorder_level, reorder_level),
+       updated_at = CURRENT_TIMESTAMP`,
+    [material, Number(current_stock), reorder_level !== undefined ? Number(reorder_level) : null],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: 'Raw material inventory updated', material, current_stock });
+    }
+  );
 });
 
 // ============= PDF IMPORT: Client PO + Vendor PO (Preview + Confirm) =============

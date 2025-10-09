@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Client PO List</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+  <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
+    <h1 class="text-2xl font-bold mb-4">Client PO List Test</h1>
+
+    <div class="mb-6">
+      <h2 class="text-lg font-semibold mb-2">Create New PO</h2>
+      <div class="grid grid-cols-2 gap-3">
+        <input id="poId" class="border rounded px-3 py-2" placeholder="PO ID (e.g., TEST-001)" />
+        <select id="customerId" class="border rounded px-3 py-2">
+          <option value="">Select Customer</option>
+        </select>
+        <input id="poDate" type="date" class="border rounded px-3 py-2" />
+        <input id="dueDate" type="date" class="border rounded px-3 py-2" />
+      </div>
+      <button onclick="createPO()" class="mt-3 px-4 py-2 bg-green-600 text-white rounded">Create PO</button>
+    </div>
+
+    <div>
+      <h2 class="text-lg font-semibold mb-2">Existing POs</h2>
+      <button onclick="loadPOs()" class="mb-3 px-4 py-2 bg-blue-600 text-white rounded">Refresh List</button>
+      <div id="poList" class="border rounded p-4 min-h-[200px]">
+        Loading...
+      </div>
+    </div>
+
+    <div id="status" class="mt-4 p-3 rounded hidden"></div>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:3000';
+
+    // Load customers
+    async function loadCustomers() {
+      const res = await fetch(`${API_URL}/api/customers`);
+      const customers = await res.json();
+      const select = document.getElementById('customerId');
+      customers.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = `${c.id} - ${c.name}`;
+        select.appendChild(opt);
+      });
+    }
+
+    // Load POs
+    async function loadPOs() {
+      try {
+        const res = await fetch(`${API_URL}/api/client-purchase-orders?_t=${Date.now()}`);
+        const pos = await res.json();
+        const list = document.getElementById('poList');
+
+        if (!pos || pos.length === 0) {
+          list.innerHTML = '<p class="text-gray-500">No POs found</p>';
+          return;
+        }
+
+        list.innerHTML = pos.map(po => `
+          <div class="border-b py-3">
+            <div class="font-bold">${po.id} - ${po.customer_name || po.customer_id}</div>
+            <div class="text-sm text-gray-600">
+              PO Date: ${po.po_date} | Due: ${po.due_date} | Status: ${po.status}
+            </div>
+            <div class="text-sm text-gray-500">${po.notes || 'No notes'}</div>
+          </div>
+        `).join('');
+
+        showStatus(`Loaded ${pos.length} PO(s)`, 'success');
+      } catch(e) {
+        showStatus('Error loading POs: ' + e.message, 'error');
+      }
+    }
+
+    // Create PO
+    async function createPO() {
+      const poId = document.getElementById('poId').value;
+      const customerId = document.getElementById('customerId').value;
+      const poDate = document.getElementById('poDate').value;
+      const dueDate = document.getElementById('dueDate').value;
+
+      if (!poId || !customerId || !poDate || !dueDate) {
+        showStatus('Please fill all fields', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/api/purchase-orders`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: poId,
+            customer_id: customerId,
+            po_date: poDate,
+            due_date: dueDate,
+            currency: 'INR',
+            status: 'Pending'
+          })
+        });
+
+        const result = await res.json();
+
+        if (res.ok) {
+          showStatus('PO created successfully!', 'success');
+          document.getElementById('poId').value = '';
+          document.getElementById('poDate').value = '';
+          document.getElementById('dueDate').value = '';
+          // Auto refresh list
+          setTimeout(loadPOs, 500);
+        } else {
+          showStatus('Error: ' + (result.error || 'Failed to create PO'), 'error');
+        }
+      } catch(e) {
+        showStatus('Error creating PO: ' + e.message, 'error');
+      }
+    }
+
+    function showStatus(message, type) {
+      const status = document.getElementById('status');
+      status.className = `mt-4 p-3 rounded ${type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+      status.textContent = message;
+      status.classList.remove('hidden');
+      setTimeout(() => status.classList.add('hidden'), 5000);
+    }
+
+    // Set today's date as default
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('poDate').value = today;
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    document.getElementById('dueDate').value = nextWeek.toISOString().split('T')[0];
+
+    // Load initial data
+    loadCustomers();
+    loadPOs();
+  </script>
+</body>
+</html>
