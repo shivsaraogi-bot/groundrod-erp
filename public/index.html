@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nikkon Ferro - Ground Rod ERP System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box; 
+    }
+    body { 
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    table {
+      border-collapse: collapse;
+    }
+    th, td {
+      text-align: center !important;
+      vertical-align: middle !important;
+    }
+    .sharp-theme {
+      border-radius: 4px;
+    }
+    .btn-sharp {
+      border-radius: 4px;
+    }
+    input, select, textarea {
+      border-radius: 4px !important;
+    }
+    .card-sharp {
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    }
+    /* Hide horizontal scrollbar for tab ribbon but allow scroll */
+    .nav-scroll { overflow-x: auto; }
+    .nav-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+    .nav-scroll::-webkit-scrollbar { display: none; }
+    /* Give the ribbon a tiny bottom padding to avoid cutoff */
+    .ribbon-wrap { padding-bottom: 6px; margin-bottom: -6px; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <div id="root"></div>
+  
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    :root{
+      --brand-primary:#167DB7; /* from logo */
+      --brand-secondary:#6CB0D8;
+      --brand-dark:#0b4f79;
+    }
+    /* Brand overrides for quick theming */
+    .bg-blue-600{ background-color: var(--brand-primary) !important; }
+    .bg-blue-500{ background-color: var(--brand-primary) !important; }
+    .text-blue-600{ color: var(--brand-primary) !important; }
+    .border-blue-600{ border-color: var(--brand-primary) !important; }
+    .hover\:bg-blue-50:hover{ background-color: rgba(22,125,183,0.06) !important; }
+  </style>
+  
+  <script type="text/babel" src="app.restored.js"></script>
+</body>
+</html>
