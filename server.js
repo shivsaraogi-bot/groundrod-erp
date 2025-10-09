@@ -204,7 +204,11 @@ async function handleVendorPoPreview(req, res, allowParse){
   }
 }
 
-const db = new sqlite3.Database('./groundrod.db', (err) => {
+const DB_PATH = process.env.DB_PATH
+  ? path.resolve(process.env.DB_PATH)
+  : path.join(__dirname, 'groundrod.db');
+
+const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) {
     console.error('Error opening database:', err);
   } else {
