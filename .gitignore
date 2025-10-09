@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Database files (local development only)
+*.db
+*.sqlite
+*.sqlite3
+groundrod.db
+erp_database.db
+
+# Claude Code settings (personal settings)
+.claude/settings.local.json
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build/Output files
+dist/
+build/
+*.log
+
+# Backup files
+*.backup
+*.bak
+*.old.js
+*.old
+
+# OS files
+Thumbs.db
+desktop.ini
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Uploads (large files)
+uploads/*.pdf
+uploads/*.png
+uploads/*.jpg
+uploads/*.jpeg
+
+# Keep uploads directory structure
+!uploads/.gitkeep
