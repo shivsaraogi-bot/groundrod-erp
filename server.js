@@ -204,9 +204,12 @@ async function handleVendorPoPreview(req, res, allowParse){
   }
 }
 
+// Use persistent disk on Render (/var/data) or local path for development
 const DB_PATH = process.env.DB_PATH
   ? path.resolve(process.env.DB_PATH)
-  : path.join(__dirname, 'groundrod.db');
+  : (fs.existsSync('/var/data')
+      ? '/var/data/groundrod.db'
+      : path.join(__dirname, 'groundrod.db'));
 
 const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) {
