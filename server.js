@@ -721,7 +721,7 @@ function initializeDatabase() {
     db.all("PRAGMA table_info(products)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('category')) db.run("ALTER TABLE products ADD COLUMN category TEXT", ()=>{}); if(!n.includes('product_type')) db.run("ALTER TABLE products ADD COLUMN product_type TEXT DEFAULT 'ground_rod'", ()=>{}); if(!n.includes('custom_bom')) db.run("ALTER TABLE products ADD COLUMN custom_bom INTEGER DEFAULT 0", ()=>{}); if(!n.includes('width')) db.run("ALTER TABLE products ADD COLUMN width REAL", ()=>{}); if(!n.includes('height')) db.run("ALTER TABLE products ADD COLUMN height REAL", ()=>{}); if(!n.includes('thickness')) db.run("ALTER TABLE products ADD COLUMN thickness REAL", ()=>{}); } });
     db.all("PRAGMA table_info(vendor_po_line_items)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('description')) db.run("ALTER TABLE vendor_po_line_items ADD COLUMN description TEXT", ()=>{}); if(!n.includes('unit')) db.run("ALTER TABLE vendor_po_line_items ADD COLUMN unit TEXT", ()=>{}); } });
     db.all("PRAGMA table_info(inventory)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('committed')) db.run("ALTER TABLE inventory ADD COLUMN committed INTEGER DEFAULT 0", ()=>{}); } });
-    db.all("PRAGMA table_info(client_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN is_deleted INTEGER DEFAULT 0", ()=>{}); } });
+    db.all("PRAGMA table_info(client_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN is_deleted INTEGER DEFAULT 0", ()=>{}); if(!n.includes('advance_percent')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN advance_percent REAL", ()=>{}); if(!n.includes('balance_payment_terms')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN balance_payment_terms TEXT", ()=>{}); if(!n.includes('mode_of_delivery')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN mode_of_delivery TEXT", ()=>{}); if(!n.includes('expected_delivery_date')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN expected_delivery_date TEXT", ()=>{}); if(!n.includes('pdf_path')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN pdf_path TEXT", ()=>{}); } });
     db.all("PRAGMA table_info(vendor_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE vendor_purchase_orders ADD COLUMN is_deleted INTEGER DEFAULT 0", ()=>{}); } });
     db.all("PRAGMA table_info(shipments)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE shipments ADD COLUMN is_deleted INTEGER DEFAULT 0", ()=>{}); } });
     db.all("PRAGMA table_info(production_history)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE production_history ADD COLUMN is_deleted INTEGER DEFAULT 0", ()=>{}); } });
@@ -1404,16 +1404,16 @@ app.put('/api/client-po-line-items/:itemId/delivered', (req, res) => {
 
 // Aliases for Client PO used by UI (/api/purchase-orders)
 app.post('/api/purchase-orders', (req, res) => {
-  let { id, customer_id, po_date, due_date, currency = 'INR', delivery_terms, payment_terms, advance_amount = 0, payment_days = 0, priority = 'Normal', status = 'Pending', notes = '', line_items = [] } = req.body;
+  let { id, customer_id, po_date, due_date, currency = 'INR', delivery_terms, payment_terms, advance_amount = 0, payment_days = 0, priority = 'Normal', status = 'Pending', notes = '', line_items = [], advance_percent = 0, balance_payment_terms = '', mode_of_delivery = '', expected_delivery_date = '' } = req.body;
   const norm = (s)=>{ if(!s) return s; const m=String(s).replace(/\//g,'-').match(/^([0-3]\d)-([01]\d)-(\d{4})$/); return m? `${m[3]}-${m[2]}-${m[1]}` : s; };
-  po_date = norm(po_date); due_date = norm(due_date);
+  po_date = norm(po_date); due_date = norm(due_date); expected_delivery_date = norm(expected_delivery_date);
 
   db.serialize(() => {
     db.run('BEGIN');
     db.run(
-      `INSERT INTO client_purchase_orders (id, customer_id, po_date, due_date, currency, delivery_terms, payment_terms, advance_amount, payment_days, priority, status, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, customer_id, po_date, due_date, currency, delivery_terms, payment_terms, advance_amount, payment_days, priority, status, notes],
+      `INSERT INTO client_purchase_orders (id, customer_id, po_date, due_date, currency, delivery_terms, payment_terms, advance_amount, payment_days, priority, status, notes, advance_percent, balance_payment_terms, mode_of_delivery, expected_delivery_date)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, customer_id, po_date, due_date, currency, delivery_terms, payment_terms, advance_amount, payment_days, priority, status, notes, advance_percent, balance_payment_terms, mode_of_delivery, expected_delivery_date],
       function(err) {
         if (err) {
           try { db.run('ROLLBACK'); } catch(_){}
@@ -3660,6 +3660,46 @@ app.get('/api/attachments/:entityType/:entityId', (req, res) => {
       res.json(rows || []);
     }
   );
+});
+
+// Upload Client PO PDF
+if (upload) {
+  app.post('/api/purchase-orders/:id/upload-pdf', upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+      const { id } = req.params;
+      const dir = path.join(__dirname, 'uploads', 'client_po_pdfs');
+      await ensureDir(dir);
+
+      const fileName = `${id}_${Date.now()}_${req.file.originalname}`;
+      const filePath = path.join(dir, fileName);
+      await fsp.writeFile(filePath, req.file.buffer);
+
+      const relativePath = path.relative(__dirname, filePath).replace(/\\/g, '/');
+
+      db.run(
+        `UPDATE client_purchase_orders SET pdf_path = ? WHERE id = ?`,
+        [relativePath, id],
+        function(err) {
+          if (err) return res.status(500).json({ error: err.message });
+          res.json({ message: 'PDF uploaded successfully', pdf_path: relativePath });
+        }
+      );
+    } catch (err) {
+      res.status(500).json({ error: err.message || 'Upload failed' });
+    }
+  });
+}
+
+// Get Client PO PDF
+app.get('/api/purchase-orders/:id/pdf', (req, res) => {
+  const { id } = req.params;
+  db.get('SELECT pdf_path FROM client_purchase_orders WHERE id=?', [id], (err, row) => {
+    if (err || !row || !row.pdf_path) return res.status(404).send('PDF not found');
+    const fullPath = path.isAbsolute(row.pdf_path) ? row.pdf_path : path.join(__dirname, row.pdf_path);
+    res.sendFile(fullPath, (e) => { if (e) res.status(404).send('File not found'); });
+  });
 });
 
 // Download attachment
