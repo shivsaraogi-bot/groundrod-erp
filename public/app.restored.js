@@ -3438,7 +3438,8 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
   async function saveEdit(){
     const diameterMM = editForm.diameterUnit ? convertToMM(editForm.steel_diameter, editForm.diameterUnit) : Number(editForm.steel_diameter);
     const lengthMM = editForm.lengthUnit ? convertToMM(editForm.length, editForm.lengthUnit) : Number(editForm.length);
-    await fetch(`${API_URL}/products/${editForm.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...editForm, steel_diameter:diameterMM, length:lengthMM, copper_coating:Number(editForm.copper_coating) }) });
+    const urlId = editForm.originalId || editForm.id;
+    await fetch(`${API_URL}/products/${urlId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...editForm, steel_diameter:diameterMM, length:lengthMM, copper_coating:Number(editForm.copper_coating) }) });
     setEditingProduct(null);
     onRefresh?.();
   }
@@ -3488,6 +3489,7 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
 
   function handleRowClick(product){
     setEditForm({
+      originalId: product.id,
       id: product.id,
       description: product.description,
       steel_diameter: product.steel_diameter || product.diameter,
@@ -3671,7 +3673,7 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
           React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-2 gap-4' },
             React.createElement('div', null,
               React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Product ID'),
-              React.createElement('input', { className:'border rounded px-3 py-2 w-full bg-gray-100', value:editForm.id || '', disabled:true })
+              React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.id || '', onChange:e=>setEditForm({...editForm, id:e.target.value}) })
             ),
             React.createElement('div', { className:'md:col-span-1' },
               React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Description'),
