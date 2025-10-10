@@ -1007,26 +1007,57 @@ app.post('/api/products', (req, res) => {
 });
 
 app.put('/api/products/:id', (req, res) => {
-  const { id } = req.params;
+  const oldId = req.params.id;
+  const newId = (req.body.id || oldId).toString();
   const description = (req.body.description||'').toString();
   const steel_diameter = Number(req.body.steel_diameter ?? req.body.diameter);
   const copper_coating = Number(req.body.copper_coating ?? req.body.coating);
   const length = Number(req.body.length ?? req.body.length_mm);
   const active = req.body.active ?? 1;
   const category = (req.body.category||'').toString() || null;
-  
+
   const runUpdate = (schema)=>{
-    const sets = ['description=?','steel_diameter=?','copper_coating=?','length=?','active=?'];
-    const vals = [description, steel_diameter, copper_coating, length, active];
-    if (category !== null){ sets.push('category=?'); vals.push(category); }
-    sets.push('updated_at=CURRENT_TIMESTAMP');
-    if (schema.hasDiameter) { sets.splice(sets.length-1, 0, 'diameter=?'); vals.splice(vals.length, 0, steel_diameter); }
-    if (schema.hasCoating) { sets.splice(sets.length-1, 0, 'coating=?'); vals.splice(vals.length, 0, copper_coating); }
-    const sql = `UPDATE products SET ${sets.join(', ')} WHERE id=?`;
-    db.run(sql, [...vals, id], function(err){
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ message: 'Product updated successfully' });
-    });
+    // If ID changed, update all related tables
+    if (oldId !== newId) {
+      db.serialize(() => {
+        // Update BOM entries
+        db.run('UPDATE bom SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        // Update inventory
+        db.run('UPDATE inventory SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        // Update client PO line items
+        db.run('UPDATE client_po_line_items SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        // Update shipment items
+        db.run('UPDATE shipment_items SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        // Update production history
+        db.run('UPDATE production_history SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+
+        // Update product ID itself
+        const sets = ['id=?','description=?','steel_diameter=?','copper_coating=?','length=?','active=?'];
+        const vals = [newId, description, steel_diameter, copper_coating, length, active];
+        if (category !== null){ sets.push('category=?'); vals.push(category); }
+        sets.push('updated_at=CURRENT_TIMESTAMP');
+        if (schema.hasDiameter) { sets.splice(sets.length-1, 0, 'diameter=?'); vals.splice(vals.length, 0, steel_diameter); }
+        if (schema.hasCoating) { sets.splice(sets.length-1, 0, 'coating=?'); vals.splice(vals.length, 0, copper_coating); }
+        const sql = `UPDATE products SET ${sets.join(', ')} WHERE id=?`;
+        db.run(sql, [...vals, oldId], function(err){
+          if (err) return res.status(500).json({ error: err.message });
+          res.json({ message: 'Product updated successfully', newId });
+        });
+      });
+    } else {
+      // ID didn't change, just update product fields
+      const sets = ['description=?','steel_diameter=?','copper_coating=?','length=?','active=?'];
+      const vals = [description, steel_diameter, copper_coating, length, active];
+      if (category !== null){ sets.push('category=?'); vals.push(category); }
+      sets.push('updated_at=CURRENT_TIMESTAMP');
+      if (schema.hasDiameter) { sets.splice(sets.length-1, 0, 'diameter=?'); vals.splice(vals.length, 0, steel_diameter); }
+      if (schema.hasCoating) { sets.splice(sets.length-1, 0, 'coating=?'); vals.splice(vals.length, 0, copper_coating); }
+      const sql = `UPDATE products SET ${sets.join(', ')} WHERE id=?`;
+      db.run(sql, [...vals, oldId], function(err){
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Product updated successfully' });
+      });
+    }
   };
   if (productsSchema._ready) runUpdate(productsSchema); else refreshProductsSchema(runUpdate);
 });
