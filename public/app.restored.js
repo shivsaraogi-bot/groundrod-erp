@@ -3036,8 +3036,16 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
   const [editing, setEditing] = useState(null);
   const [openItems, setOpenItems] = useState({});
   const [itemsCache, setItemsCache] = useState({});
-  const [newItem, setNewItem] = useState({ item:'', description:'', qty:0, unit:'kg' });
+  const [rawMaterials, setRawMaterials] = useState([]);
+  const [newItem, setNewItem] = useState({ item:'', description:'', qty:0, unit_price:0, unit:'kg' });
   const [cols, setCols] = useState({ id:true, vendor:true, po_date:true, due_date:true, status:true, notes:true });
+
+  // Fetch raw materials list
+  React.useEffect(() => {
+    fetch(`${API_URL}/raw-materials`).then(r => r.json()).then(data => {
+      setRawMaterials(data || []);
+    }).catch(() => setRawMaterials([]));
+  }, []);
   async function add(){ await fetch(`${API_URL}/vendor-purchase-orders`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) }); setForm({ id:'', vendor_id:'', po_date:'', due_date:'', status:'Pending', notes:'' }); onRefresh?.(); }
   async function save(v){ await fetch(`${API_URL}/vendor-purchase-orders/${v.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(v) }); setEditing(null); onRefresh?.(); }
   async function del(id){ if(!confirm('Delete Vendor PO?')) return; await fetch(`${API_URL}/vendor-purchase-orders/${id}`, { method:'DELETE' }); onRefresh?.(); }
@@ -3055,7 +3063,7 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
     if (res.ok){
       const idata = await (await fetch(`${API_URL}/vendor-purchase-orders/${vpo.id}/items`)).json();
       setItemsCache({ ...itemsCache, [vpo.id]: idata });
-      setNewItem({ item:'', description:'', qty:0, unit:'kg' });
+      setNewItem({ item:'', description:'', qty:0, unit_price:0, unit:'kg' });
     }
   }
   async function updateItem(vpoId, item){
@@ -3142,26 +3150,32 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
         ),
         Object.keys(openItems).filter(id => openItems[id]).map(id => (
           React.createElement('div', { key:id, className:'mt-3 ml-2 border-l-4 border-blue-300 pl-4' },
-            React.createElement('div', { className:'text-sm text-gray-700 mb-2' }, `Items for VPO ${id}`),
-            React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-5 gap-2 mb-2' },
-              React.createElement('input', { className:'border rounded px-2 py-1', placeholder:'Item', value:newItem.item, onChange:e=>setNewItem({...newItem,item:e.target.value}) }),
-              React.createElement('input', { className:'border rounded px-2 py-1 md:col-span-2', placeholder:'Description', value:newItem.description, onChange:e=>setNewItem({...newItem,description:e.target.value}) }),
-              React.createElement('input', { className:'border rounded px-2 py-1', type:'number', placeholder:'Qty', value:newItem.qty, onChange:e=>setNewItem({...newItem,qty:Number(e.target.value||0)}) }),
-              React.createElement('select', { className:'border rounded px-2 py-1', value:newItem.unit, onChange:e=>setNewItem({...newItem,unit:e.target.value}) }, ['kg','pcs','litre'].map(u=> React.createElement('option', { key:u, value:u }, u))),
-              React.createElement('button', { className:'px-3 py-1 bg-green-600 text-white rounded', onClick:()=>addItem({ id }) }, 'Add Item')
+            React.createElement('div', { className:'text-sm font-semibold text-gray-700 mb-2' }, `Materials for VPO ${id}`),
+            React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-6 gap-2 mb-2' },
+              React.createElement('select', { className:'border rounded px-2 py-1', value:newItem.item, onChange:e=>setNewItem({...newItem,item:e.target.value}) },
+                React.createElement('option', { value:'' }, 'Select Material'),
+                rawMaterials.map(rm => React.createElement('option', { key:rm.material, value:rm.material }, rm.material))
+              ),
+              React.createElement('input', { className:'border rounded px-2 py-1', placeholder:'Description (optional)', value:newItem.description, onChange:e=>setNewItem({...newItem,description:e.target.value}) }),
+              React.createElement('input', { className:'border rounded px-2 py-1', type:'number', placeholder:'Quantity', value:newItem.qty, onChange:e=>setNewItem({...newItem,qty:Number(e.target.value||0)}) }),
+              React.createElement('input', { className:'border rounded px-2 py-1', type:'number', placeholder:'Unit Price', value:newItem.unit_price, onChange:e=>setNewItem({...newItem,unit_price:Number(e.target.value||0)}) }),
+              React.createElement('select', { className:'border rounded px-2 py-1', value:newItem.unit, onChange:e=>setNewItem({...newItem,unit:e.target.value}) }, ['kg','pcs','litre','MT'].map(u=> React.createElement('option', { key:u, value:u }, u))),
+              React.createElement('button', { className:'px-3 py-1 bg-green-600 text-white rounded', onClick:()=>addItem({ id }) }, 'Add')
             ),
             React.createElement('div', { className:'overflow-x-auto' },
               React.createElement('table', { className:'min-w-full border-collapse' },
                 React.createElement('thead', null,
-                  React.createElement('tr', { className:'bg-gray-100' }, ['Item','Description','Qty','Unit','Actions'].map(h=> React.createElement('th', { key:h, className:'p-2' }, h)))
+                  React.createElement('tr', { className:'bg-gray-100' }, ['Material','Description','Quantity','Unit Price','Unit','Line Total','Actions'].map(h=> React.createElement('th', { key:h, className:'p-2 text-sm' }, h)))
                 ),
                 React.createElement('tbody', null,
                   (itemsCache[id]||[]).map(it => (
                     React.createElement('tr', { key:it.id, className:'border-b' },
-                      React.createElement('td', { className:'p-2' }, React.createElement('input', { className:'border rounded px-2 py-1 w-full', defaultValue:it.item, onChange:e=>it.item=e.target.value })),
+                      React.createElement('td', { className:'p-2' }, it.material_type || it.item),
                       React.createElement('td', { className:'p-2' }, React.createElement('input', { className:'border rounded px-2 py-1 w-full', defaultValue:it.description, onChange:e=>it.description=e.target.value })),
-                      React.createElement('td', { className:'p-2' }, React.createElement('input', { type:'number', className:'border rounded px-2 py-1 w-24 text-right', defaultValue:it.qty, onChange:e=>it.qty=Number(e.target.value||0) })),
-                      React.createElement('td', { className:'p-2' }, React.createElement('select', { className:'border rounded px-2 py-1', defaultValue:it.unit, onChange:e=>it.unit=e.target.value }, ['kg','pcs','litre'].map(u=> React.createElement('option', { key:u, value:u }, u)))),
+                      React.createElement('td', { className:'p-2' }, React.createElement('input', { type:'number', className:'border rounded px-2 py-1 w-24 text-right', defaultValue:it.quantity || it.qty, onChange:e=>it.quantity=Number(e.target.value||0) })),
+                      React.createElement('td', { className:'p-2' }, React.createElement('input', { type:'number', className:'border rounded px-2 py-1 w-24 text-right', defaultValue:it.unit_price || 0, onChange:e=>it.unit_price=Number(e.target.value||0) })),
+                      React.createElement('td', { className:'p-2 text-sm' }, it.unit || 'kg'),
+                      React.createElement('td', { className:'p-2 text-right font-semibold' }, ((it.quantity || it.qty || 0) * (it.unit_price || 0)).toFixed(2)),
                       React.createElement('td', { className:'p-2 text-right space-x-2' },
                         React.createElement('button', { className:'px-2 py-1 bg-blue-600 text-white rounded text-sm', onClick:()=>updateItem(id, it) }, 'Save'),
                         React.createElement('button', { className:'px-2 py-1 bg-red-600 text-white rounded text-sm', onClick:()=>deleteItem(id, it.id) }, 'Delete')
