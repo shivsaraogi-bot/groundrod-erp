@@ -888,6 +888,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
             },
               React.createElement('option', { value: 'FOB' }, 'FOB'),
               React.createElement('option', { value: 'CIF' }, 'CIF'),
+              React.createElement('option', { value: 'Factory ex works' }, 'Factory ex works'),
               React.createElement('option', { value: 'Door Delivery to Warehouse' }, 'Door Delivery to Warehouse'),
               React.createElement('option', { value: 'DDP' }, 'DDP')
             )
@@ -1314,6 +1315,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                 },
                   React.createElement('option', { value: 'FOB' }, 'FOB'),
                   React.createElement('option', { value: 'CIF' }, 'CIF'),
+                  React.createElement('option', { value: 'Factory ex works' }, 'Factory ex works'),
                   React.createElement('option', { value: 'Door Delivery to Warehouse' }, 'Door Delivery to Warehouse'),
                   React.createElement('option', { value: 'DDP' }, 'DDP')
                 )
@@ -2361,6 +2363,7 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
               },
                 React.createElement('option', { value: 'FOB' }, 'FOB'),
                 React.createElement('option', { value: 'CIF' }, 'CIF'),
+                React.createElement('option', { value: 'Factory ex works' }, 'Factory ex works'),
                 React.createElement('option', { value: 'Door Delivery to Warehouse' }, 'Door Delivery to Warehouse'),
                 React.createElement('option', { value: 'DDP' }, 'DDP')
               )

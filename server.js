@@ -1476,12 +1476,20 @@ app.post('/api/purchase-orders', (req, res) => {
 
 app.put('/api/purchase-orders/:id', (req, res) => {
   const { id } = req.params;
-  let { customer_id, po_date, due_date, currency='INR', delivery_terms, payment_terms, advance_amount=0, payment_days=0, priority='Normal', status='Pending', notes='' } = req.body;
+  let { customer_id, po_date, due_date, currency='INR', delivery_terms, payment_terms, advance_amount=0, payment_days=0, priority='Normal', status='Pending', notes='', advance_percent, balance_payment_terms, mode_of_delivery, expected_delivery_date } = req.body;
+
+  // Support both old and new field names
+  const finalAdvancePercent = advance_percent !== undefined ? advance_percent : advance_amount;
+  const finalBalancePaymentTerms = balance_payment_terms !== undefined ? balance_payment_terms : payment_terms;
+  const finalModeOfDelivery = mode_of_delivery !== undefined ? mode_of_delivery : delivery_terms;
+
   const norm = (s)=>{ if(!s) return s; const m=String(s).replace(/\//g,'-').match(/^([0-3]\d)-([01]\d)-(\d{4})$/); return m? `${m[3]}-${m[2]}-${m[1]}` : s; };
   po_date = norm(po_date); due_date = norm(due_date);
+  expected_delivery_date = norm(expected_delivery_date);
+
   db.run(
-    `UPDATE client_purchase_orders SET customer_id=?, po_date=?, due_date=?, currency=?, delivery_terms=?, payment_terms=?, advance_amount=?, payment_days=?, priority=?, status=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-    [customer_id, po_date, due_date, currency, delivery_terms, payment_terms, advance_amount, payment_days, priority, status, notes, id],
+    `UPDATE client_purchase_orders SET customer_id=?, po_date=?, due_date=?, currency=?, advance_percent=?, balance_payment_terms=?, mode_of_delivery=?, expected_delivery_date=?, priority=?, status=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+    [customer_id, po_date, due_date, currency, finalAdvancePercent, finalBalancePaymentTerms, finalModeOfDelivery, expected_delivery_date, priority, status, notes, id],
     function(err){ if (err) return res.status(500).json({ error: err.message }); res.json({ message: 'Client PO updated' }); }
   );
 });
