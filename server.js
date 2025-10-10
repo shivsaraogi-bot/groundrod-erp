@@ -17,10 +17,11 @@ app.use(express.static('public'));
 // Serve uploaded PDFs statically as well
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Optional PDF import deps (guarded)
-let multer = null; let pdfParse = null; let csvParse = null;
+let multer = null; let pdfParse = null; let csvParse = null; let AfterShip = null;
 try { multer = require('multer'); } catch(_) {}
 try { pdfParse = require('pdf-parse'); } catch(_) {}
 try { csvParse = require('csv-parse/sync'); } catch(_) {}
+try { AfterShip = require('aftership').default || require('aftership'); } catch(_) {}
 const upload = multer ? multer({ storage: multer.memoryStorage() }) : null;
 
 function normalizeDateInput(d){
@@ -739,7 +740,7 @@ function initializeDatabase() {
     db.all("PRAGMA table_info(client_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN is_deleted INTEGER", ()=>{}); if(!n.includes('advance_percent')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN advance_percent REAL", ()=>{}); if(!n.includes('balance_payment_terms')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN balance_payment_terms TEXT", ()=>{}); if(!n.includes('mode_of_delivery')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN mode_of_delivery TEXT", ()=>{}); if(!n.includes('expected_delivery_date')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN expected_delivery_date TEXT", ()=>{}); if(!n.includes('pdf_path')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN pdf_path TEXT", ()=>{}); } });
     db.all("PRAGMA table_info(invoices)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('advance_percent')) db.run("ALTER TABLE invoices ADD COLUMN advance_percent REAL", ()=>{}); if(!n.includes('balance_payment_terms')) db.run("ALTER TABLE invoices ADD COLUMN balance_payment_terms TEXT", ()=>{}); if(!n.includes('mode_of_delivery')) db.run("ALTER TABLE invoices ADD COLUMN mode_of_delivery TEXT", ()=>{}); if(!n.includes('expected_delivery_date')) db.run("ALTER TABLE invoices ADD COLUMN expected_delivery_date TEXT", ()=>{}); } });
     db.all("PRAGMA table_info(vendor_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE vendor_purchase_orders ADD COLUMN is_deleted INTEGER", ()=>{}); } });
-    db.all("PRAGMA table_info(shipments)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE shipments ADD COLUMN is_deleted INTEGER", ()=>{}); if(!n.includes('carrier')) db.run("ALTER TABLE shipments ADD COLUMN carrier TEXT", ()=>{}); if(!n.includes('destination')) db.run("ALTER TABLE shipments ADD COLUMN destination TEXT", ()=>{}); if(!n.includes('tracking_number')) db.run("ALTER TABLE shipments ADD COLUMN tracking_number TEXT", ()=>{}); } });
+    db.all("PRAGMA table_info(shipments)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE shipments ADD COLUMN is_deleted INTEGER", ()=>{}); if(!n.includes('carrier')) db.run("ALTER TABLE shipments ADD COLUMN carrier TEXT", ()=>{}); if(!n.includes('destination')) db.run("ALTER TABLE shipments ADD COLUMN destination TEXT", ()=>{}); if(!n.includes('tracking_number')) db.run("ALTER TABLE shipments ADD COLUMN tracking_number TEXT", ()=>{}); if(!n.includes('tracking_status')) db.run("ALTER TABLE shipments ADD COLUMN tracking_status TEXT", ()=>{}); if(!n.includes('tracking_last_updated')) db.run("ALTER TABLE shipments ADD COLUMN tracking_last_updated DATETIME", ()=>{}); if(!n.includes('estimated_delivery')) db.run("ALTER TABLE shipments ADD COLUMN estimated_delivery TEXT", ()=>{}); if(!n.includes('carrier_detected')) db.run("ALTER TABLE shipments ADD COLUMN carrier_detected TEXT", ()=>{}); } });
     db.all("PRAGMA table_info(production_history)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE production_history ADD COLUMN is_deleted INTEGER", ()=>{}); } });
     insertSampleData();
   });
@@ -2300,6 +2301,96 @@ app.delete('/api/shipments/:id/items/:itemId', (req, res) => {
       });
     });
   });
+});
+
+// ============= Shipment Tracking (AfterShip Integration) =============
+app.post('/api/shipments/:id/refresh-tracking', async (req, res) => {
+  const { id } = req.params;
+
+  if (!AfterShip) {
+    return res.status(501).json({ error: 'AfterShip package not available' });
+  }
+
+  const apiKey = process.env.AFTERSHIP_API_KEY;
+  if (!apiKey) {
+    return res.status(400).json({ error: 'AFTERSHIP_API_KEY not configured. Please set it as an environment variable on Render.' });
+  }
+
+  try {
+    // Get shipment from database
+    db.get(`SELECT * FROM shipments WHERE id=?`, [id], async (err, shipment) => {
+      if (err || !shipment) {
+        return res.status(404).json({ error: 'Shipment not found' });
+      }
+
+      if (!shipment.tracking_number) {
+        return res.status(400).json({ error: 'No tracking number available for this shipment' });
+      }
+
+      try {
+        // Initialize AfterShip client
+        const aftership = new AfterShip(apiKey);
+
+        // First, try to create tracking (in case it doesn't exist)
+        try {
+          await aftership.tracking.createTracking({
+            tracking_number: shipment.tracking_number,
+            ...(shipment.carrier_detected && { slug: shipment.carrier_detected })
+          });
+        } catch (createErr) {
+          // Tracking might already exist, that's OK
+          console.log('Tracking already exists or create failed:', createErr.message);
+        }
+
+        // Get tracking info
+        const result = await aftership.tracking.getTracking(shipment.tracking_number, {
+          ...(shipment.carrier_detected && { slug: shipment.carrier_detected })
+        });
+
+        const tracking = result.data.tracking;
+
+        // Extract useful info
+        const status = tracking.tag || 'Unknown'; // InfoReceived, InTransit, OutForDelivery, Delivered, Exception, etc.
+        const carrierDetected = tracking.slug;
+        const estimatedDelivery = tracking.expected_delivery || null;
+        const lastCheckpoint = tracking.checkpoints && tracking.checkpoints.length > 0
+          ? tracking.checkpoints[tracking.checkpoints.length - 1]
+          : null;
+
+        // Update database
+        db.run(
+          `UPDATE shipments
+           SET tracking_status=?, carrier_detected=?, estimated_delivery=?, tracking_last_updated=CURRENT_TIMESTAMP
+           WHERE id=?`,
+          [status, carrierDetected, estimatedDelivery, id],
+          function(updateErr) {
+            if (updateErr) {
+              return res.status(500).json({ error: updateErr.message });
+            }
+
+            res.json({
+              message: 'Tracking status updated',
+              status: status,
+              carrier_detected: carrierDetected,
+              estimated_delivery: estimatedDelivery,
+              last_checkpoint: lastCheckpoint,
+              raw_tracking: tracking
+            });
+          }
+        );
+
+      } catch (apiErr) {
+        console.error('AfterShip API Error:', apiErr);
+        res.status(500).json({
+          error: 'Failed to fetch tracking info from AfterShip',
+          details: apiErr.message
+        });
+      }
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/inventory', (req, res) => {

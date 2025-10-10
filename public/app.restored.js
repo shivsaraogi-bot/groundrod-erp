@@ -1885,6 +1885,36 @@ function Shipments({ shipments }){
     tracking_number: ''
   });
 
+  // Helper function to render tracking status badge
+  function renderTrackingStatus(status) {
+    if (!status) return React.createElement('span', { className: 'text-gray-400 text-xs' }, '-');
+
+    const statusColors = {
+      'Pending': 'bg-gray-200 text-gray-700',
+      'InfoReceived': 'bg-blue-200 text-blue-800',
+      'InTransit': 'bg-yellow-200 text-yellow-800',
+      'OutForDelivery': 'bg-orange-200 text-orange-800',
+      'Delivered': 'bg-green-200 text-green-800',
+      'Exception': 'bg-red-200 text-red-800',
+      'Expired': 'bg-gray-300 text-gray-700',
+      'AttemptFail': 'bg-red-200 text-red-800'
+    };
+
+    const statusLabels = {
+      'InfoReceived': 'Info Received',
+      'InTransit': 'In Transit',
+      'OutForDelivery': 'Out for Delivery',
+      'AttemptFail': 'Delivery Failed'
+    };
+
+    const colorClass = statusColors[status] || 'bg-gray-200 text-gray-700';
+    const label = statusLabels[status] || status;
+
+    return React.createElement('span', {
+      className: `px-2 py-1 rounded text-xs font-semibold ${colorClass}`
+    }, label);
+  }
+
   React.useEffect(() => {
     fetchClientPOs();
   }, []);
@@ -1970,6 +2000,23 @@ function Shipments({ shipments }){
     if (!confirm('Delete Shipment?')) return;
     await fetch(`${API_URL}/shipments/${id}`, { method: 'DELETE' });
     window.location.reload();
+  }
+
+  async function refreshTracking(id){
+    try {
+      const res = await fetch(`${API_URL}/shipments/${id}/refresh-tracking`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Tracking status updated: ${data.status}\n${data.last_checkpoint ? 'Last checkpoint: ' + data.last_checkpoint.message : ''}`);
+        window.location.reload();
+      } else {
+        alert(`Error: ${data.error}${data.details ? '\n' + data.details : ''}`);
+      }
+    } catch (err) {
+      alert(`Error refreshing tracking: ${err.message}`);
+    }
   }
 
   return (
@@ -2068,16 +2115,30 @@ function Shipments({ shipments }){
           { key: 'container_number', label: 'Container', render: (val) => val || '-' },
           { key: 'carrier', label: 'Carrier', render: (val) => val || '-' },
           { key: 'tracking_number', label: 'Tracking #', render: (val) => val || '-' },
-          { key: 'destination', label: 'Destination', render: (val) => val || '-' }
+          { key: 'tracking_status', label: 'Status', render: (val) => renderTrackingStatus(val) },
+          { key: 'estimated_delivery', label: 'Est. Delivery', render: (val) => val || '-' },
+          { key: 'destination', label: 'Destination', render: (val) => val || '-' },
+          {
+            key: 'actions',
+            label: 'Actions',
+            render: (val, row) => row.tracking_number
+              ? React.createElement('button', {
+                  onClick: (e) => { e.stopPropagation(); refreshTracking(row.id); },
+                  className: 'px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700',
+                  title: 'Refresh tracking status from carrier'
+                }, '🔄 Refresh')
+              : React.createElement('span', { className: 'text-gray-400 text-xs' }, 'No tracking')
+          }
         ],
         primaryKey: 'id',
         onRowClick: handleRowClick,
         onDelete: del,
         onExport: (data, cols) => downloadCSV('shipments.csv', cols.map(c=>({key:c.key,label:c.label})), data),
         filterOptions: [
-          { key: 'po_id', label: 'PO', values: [...new Set(shipments.map(s => s.po_id).filter(Boolean))] }
+          { key: 'po_id', label: 'PO', values: [...new Set(shipments.map(s => s.po_id).filter(Boolean))] },
+          { key: 'tracking_status', label: 'Status', values: [...new Set(shipments.map(s => s.tracking_status).filter(Boolean))] }
         ],
-        defaultVisibleColumns: { id: true, po_id: true, shipment_date: true, bl_number: true, container_number: true, carrier: true, tracking_number: true, destination: true }
+        defaultVisibleColumns: { id: true, po_id: true, shipment_date: true, bl_number: false, container_number: false, carrier: true, tracking_number: true, tracking_status: true, estimated_delivery: true, destination: false, actions: true }
       }),
 
       React.createElement(EditModal, {

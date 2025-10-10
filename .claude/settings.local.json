@@ -20,7 +20,15 @@
       "Bash(npm install:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\nFix critical production bugs - blank screen issue\n\n- Removed orphaned clientPreview code fragment causing ReferenceError\n- Fixed EnhancedTable filterOptions to use values array instead of options\n- Added null safety for filter.values array\n- Updated cache version to v6.1\n\nFixes:\n- Uncaught ReferenceError: clientPreview is not defined\n- TypeError: Cannot read properties of undefined (reading ''map'')\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(powershell:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git reset:*)",
+      "Bash(copy sample-vendors.csv publicsample-vendors.csv)",
+      "Bash(copy sample-customers.csv publicsample-customers.csv)",
+      "Bash(copy sample-products.csv publicsample-products.csv)",
+      "Bash(npm rebuild:*)",
+      "Bash(del groundrod.db)",
+      "Bash(copy groundrod-test.db groundrod.db)",
+      "Bash(git remote get-url:*)"
     ],
     "deny": [],
     "ask": []
