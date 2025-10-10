@@ -2923,18 +2923,17 @@ if (upload && csvParse) {
             continue;
           }
 
-          // Insert product
+          // Insert product (weight is calculated, not stored)
           await new Promise((resolve, reject) => {
             db.run(
-              `INSERT INTO products (id, description, steel_diameter, copper_coating, length, weight, cost_price, hs_code, export_description)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              `INSERT INTO products (id, description, steel_diameter, copper_coating, length, cost_price, hs_code, export_description)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
               [
                 productId,
                 description || '',
                 steelDiameter,
                 copperCoating,
                 length,
-                parseFloat(row.weight || normalizedRow.weight || 0),
                 parseFloat(row.cost_price || normalizedRow.costprice || 0),
                 row.hs_code || normalizedRow.hscode || '',
                 row.export_description || description || ''
