@@ -377,6 +377,12 @@ function initializeDatabase() {
     db.run("ALTER TABLE vendors ADD COLUMN city TEXT", (err) => { /* ignore if already exists */ });
     db.run("ALTER TABLE vendors ADD COLUMN country TEXT", (err) => { /* ignore if already exists */ });
 
+    // Add missing columns to vendor_purchase_orders table
+    db.run("ALTER TABLE vendor_purchase_orders ADD COLUMN currency TEXT DEFAULT 'INR'", (err) => { /* ignore if already exists */ });
+    db.run("ALTER TABLE vendor_purchase_orders ADD COLUMN delivery_terms TEXT", (err) => { /* ignore if already exists */ });
+    db.run("ALTER TABLE vendor_purchase_orders ADD COLUMN payment_terms TEXT", (err) => { /* ignore if already exists */ });
+    db.run("ALTER TABLE vendor_purchase_orders ADD COLUMN status TEXT DEFAULT 'Pending'", (err) => { /* ignore if already exists */ });
+
     // Add columns to vendor_po_line_items for product purchasing
     db.run("ALTER TABLE vendor_po_line_items ADD COLUMN item_type TEXT DEFAULT 'Raw Material'", (err) => { /* ignore if already exists */ });
     db.run("ALTER TABLE vendor_po_line_items ADD COLUMN product_id TEXT", (err) => { /* ignore if already exists */ });
