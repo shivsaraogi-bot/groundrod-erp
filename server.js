@@ -717,14 +717,15 @@ function initializeDatabase() {
     console.log('✅ Database tables initialized');
     // Lightweight migrations for evolving schema - all wrapped in error handlers to prevent crashes
     db.all("PRAGMA table_info(customers)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('city')) db.run("ALTER TABLE customers ADD COLUMN city TEXT", ()=>{}); if(!n.includes('country')) db.run("ALTER TABLE customers ADD COLUMN country TEXT", ()=>{}); } });
-    db.all("PRAGMA table_info(vendors)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('city')) db.run("ALTER TABLE vendors ADD COLUMN city TEXT", ()=>{}); if(!n.includes('country')) db.run("ALTER TABLE vendors ADD COLUMN country TEXT", ()=>{}); if(!n.includes('vendor_type')) db.run("ALTER TABLE vendors ADD COLUMN vendor_type TEXT DEFAULT 'Other'", ()=>{}); } });
-    db.all("PRAGMA table_info(products)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('category')) db.run("ALTER TABLE products ADD COLUMN category TEXT", ()=>{}); if(!n.includes('product_type')) db.run("ALTER TABLE products ADD COLUMN product_type TEXT DEFAULT 'ground_rod'", ()=>{}); if(!n.includes('custom_bom')) db.run("ALTER TABLE products ADD COLUMN custom_bom INTEGER DEFAULT 0", ()=>{}); if(!n.includes('width')) db.run("ALTER TABLE products ADD COLUMN width REAL", ()=>{}); if(!n.includes('height')) db.run("ALTER TABLE products ADD COLUMN height REAL", ()=>{}); if(!n.includes('thickness')) db.run("ALTER TABLE products ADD COLUMN thickness REAL", ()=>{}); } });
+    db.all("PRAGMA table_info(vendors)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('city')) db.run("ALTER TABLE vendors ADD COLUMN city TEXT", ()=>{}); if(!n.includes('country')) db.run("ALTER TABLE vendors ADD COLUMN country TEXT", ()=>{}); if(!n.includes('vendor_type')) db.run("ALTER TABLE vendors ADD COLUMN vendor_type TEXT", ()=>{}); } });
+    db.all("PRAGMA table_info(products)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('category')) db.run("ALTER TABLE products ADD COLUMN category TEXT", ()=>{}); if(!n.includes('product_type')) db.run("ALTER TABLE products ADD COLUMN product_type TEXT", ()=>{}); if(!n.includes('custom_bom')) db.run("ALTER TABLE products ADD COLUMN custom_bom INTEGER", ()=>{}); if(!n.includes('width')) db.run("ALTER TABLE products ADD COLUMN width REAL", ()=>{}); if(!n.includes('height')) db.run("ALTER TABLE products ADD COLUMN height REAL", ()=>{}); if(!n.includes('thickness')) db.run("ALTER TABLE products ADD COLUMN thickness REAL", ()=>{}); } });
     db.all("PRAGMA table_info(vendor_po_line_items)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('description')) db.run("ALTER TABLE vendor_po_line_items ADD COLUMN description TEXT", ()=>{}); if(!n.includes('unit')) db.run("ALTER TABLE vendor_po_line_items ADD COLUMN unit TEXT", ()=>{}); } });
-    db.all("PRAGMA table_info(inventory)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('committed')) db.run("ALTER TABLE inventory ADD COLUMN committed INTEGER DEFAULT 0", ()=>{}); } });
-    db.all("PRAGMA table_info(client_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN is_deleted INTEGER DEFAULT 0", ()=>{}); if(!n.includes('advance_percent')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN advance_percent REAL", ()=>{}); if(!n.includes('balance_payment_terms')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN balance_payment_terms TEXT", ()=>{}); if(!n.includes('mode_of_delivery')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN mode_of_delivery TEXT", ()=>{}); if(!n.includes('expected_delivery_date')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN expected_delivery_date TEXT", ()=>{}); if(!n.includes('pdf_path')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN pdf_path TEXT", ()=>{}); } });
-    db.all("PRAGMA table_info(vendor_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE vendor_purchase_orders ADD COLUMN is_deleted INTEGER DEFAULT 0", ()=>{}); } });
-    db.all("PRAGMA table_info(shipments)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE shipments ADD COLUMN is_deleted INTEGER DEFAULT 0", ()=>{}); } });
-    db.all("PRAGMA table_info(production_history)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE production_history ADD COLUMN is_deleted INTEGER DEFAULT 0", ()=>{}); } });
+    db.all("PRAGMA table_info(inventory)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('committed')) db.run("ALTER TABLE inventory ADD COLUMN committed INTEGER", ()=>{}); } });
+    db.all("PRAGMA table_info(client_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN is_deleted INTEGER", ()=>{}); if(!n.includes('advance_percent')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN advance_percent REAL", ()=>{}); if(!n.includes('balance_payment_terms')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN balance_payment_terms TEXT", ()=>{}); if(!n.includes('mode_of_delivery')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN mode_of_delivery TEXT", ()=>{}); if(!n.includes('expected_delivery_date')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN expected_delivery_date TEXT", ()=>{}); if(!n.includes('pdf_path')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN pdf_path TEXT", ()=>{}); } });
+    db.all("PRAGMA table_info(invoices)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('advance_percent')) db.run("ALTER TABLE invoices ADD COLUMN advance_percent REAL", ()=>{}); if(!n.includes('balance_payment_terms')) db.run("ALTER TABLE invoices ADD COLUMN balance_payment_terms TEXT", ()=>{}); if(!n.includes('mode_of_delivery')) db.run("ALTER TABLE invoices ADD COLUMN mode_of_delivery TEXT", ()=>{}); if(!n.includes('expected_delivery_date')) db.run("ALTER TABLE invoices ADD COLUMN expected_delivery_date TEXT", ()=>{}); } });
+    db.all("PRAGMA table_info(vendor_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE vendor_purchase_orders ADD COLUMN is_deleted INTEGER", ()=>{}); } });
+    db.all("PRAGMA table_info(shipments)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE shipments ADD COLUMN is_deleted INTEGER", ()=>{}); } });
+    db.all("PRAGMA table_info(production_history)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE production_history ADD COLUMN is_deleted INTEGER", ()=>{}); } });
     insertSampleData();
   });
 }
@@ -1354,13 +1355,13 @@ app.post('/api/client-purchase-orders/:id/items', (req, res) => {
 });
 
 app.put('/api/client-purchase-orders/:id/items/:itemId', (req, res) => {
-  const { id, itemId } = req.params; const { product_id, quantity, unit_price } = req.body;
+  const { id, itemId } = req.params; const { product_id, quantity, unit_price, currency, due_date } = req.body;
   db.get(`SELECT delivered FROM client_po_line_items WHERE id=? AND po_id=?`, [itemId, id], (e, row)=>{
     if (e) return res.status(500).json({ error: e.message });
     if (!row) return res.status(404).json({ error: 'Item not found' });
     const qty = Number(quantity||0); if (qty < (row.delivered||0)) return res.status(400).json({ error: 'Quantity cannot be less than delivered' });
     const up = Number(unit_price||0);
-    db.run(`UPDATE client_po_line_items SET product_id=?, quantity=?, unit_price=?, line_total=? WHERE id=? AND po_id=?`, [product_id, qty, up, qty*up, itemId, id], function(err){
+    db.run(`UPDATE client_po_line_items SET product_id=?, quantity=?, unit_price=?, currency=?, due_date=?, line_total=? WHERE id=? AND po_id=?`, [product_id, qty, up, currency || 'INR', due_date || null, qty*up, itemId, id], function(err){
       if (err) return res.status(500).json({ error: err.message });
       res.json({ message: 'Item updated' });
     });
@@ -3210,7 +3211,7 @@ app.get('/api/invoices/:invoice_number', (req, res) => {
 // Create invoice from Client PO
 app.post('/api/invoices/generate-from-po/:po_id', (req, res) => {
   const { po_id } = req.params;
-  const { invoice_number, invoice_date, due_date, tax_rate = 0 } = req.body;
+  const { invoice_number, invoice_date, due_date, tax_rate = 0, advance_percent, balance_payment_terms, mode_of_delivery, expected_delivery_date } = req.body;
 
   if (!invoice_number || !invoice_date) {
     return res.status(400).json({ error: 'Invoice number and date are required' });
@@ -3244,15 +3245,20 @@ app.post('/api/invoices/generate-from-po/:po_id', (req, res) => {
             invoice_number, po_id, invoice_date, due_date,
             customer_name, customer_address, customer_gstin,
             subtotal, tax_amount, total_amount,
-            outstanding_amount, payment_status, currency, notes
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            outstanding_amount, payment_status, currency, notes,
+            advance_percent, balance_payment_terms, mode_of_delivery, expected_delivery_date
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             invoice_number, po_id, invoice_date, due_date || invoice_date,
             customer?.name || po.customer_id,
             customer?.office_address || '',
             customer?.gstin || '',
             subtotal, tax_amount, total_amount,
-            total_amount, 'Pending', po.currency || 'INR', po.notes || ''
+            total_amount, 'Pending', po.currency || 'INR', po.notes || '',
+            advance_percent ?? po.advance_percent,
+            balance_payment_terms || po.balance_payment_terms,
+            mode_of_delivery || po.mode_of_delivery,
+            expected_delivery_date || po.expected_delivery_date
           ],
           function(err4) {
             if (err4) {

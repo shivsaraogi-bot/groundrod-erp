@@ -443,8 +443,13 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
     due_date: '',
     currency: 'INR',
     status: 'Pending',
-    notes: ''
+    notes: '',
+    advance_percent: 0,
+    balance_payment_terms: 'on_dispatch',
+    mode_of_delivery: 'FOB',
+    expected_delivery_date: ''
   });
+  const [pdfFile, setPdfFile] = useState(null);
 
   // Line items state
   const [newItems, setNewItems] = useState([]);
@@ -632,9 +637,24 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
       const result = await res.json().catch(() => ({}));
 
       if (res.ok) {
+        // Upload PDF if selected
+        if (pdfFile && result.id) {
+          const formData = new FormData();
+          formData.append('file', pdfFile);
+          try {
+            await fetch(`${API_URL}/purchase-orders/${result.id}/upload-pdf`, {
+              method: 'POST',
+              body: formData
+            });
+          } catch (pdfErr) {
+            console.error('Failed to upload PDF:', pdfErr);
+          }
+        }
+
         alert(result.message || 'Client PO created successfully');
-        setForm({ id: '', customer_id: '', po_date: '', due_date: '', currency: 'INR', status: 'Pending', notes: '' });
+        setForm({ id: '', customer_id: '', po_date: '', due_date: '', currency: 'INR', status: 'Pending', notes: '', advance_percent: 0, balance_payment_terms: 'on_dispatch', mode_of_delivery: 'FOB', expected_delivery_date: '' });
         setNewItems([]);
+        setPdfFile(null);
         await refreshLocalOrders();
         if (onRefresh) await onRefresh();
 
@@ -679,19 +699,41 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
 
   async function saveEdit() {
     try {
+      // Save PO header
       const res = await fetch(`${API_URL}/purchase-orders/${editForm.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editForm)
       });
 
-      if (res.ok) {
-        setEditingPO(null);
-        await refreshLocalOrders();
-        if (onRefresh) await onRefresh();
-      } else {
+      if (!res.ok) {
         alert('Failed to update PO');
+        return;
       }
+
+      // Save each line item
+      for (const item of editLineItems) {
+        const lineRes = await fetch(`${API_URL}/client-purchase-orders/${editForm.id}/items/${item.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            product_id: item.product_id,
+            quantity: Number(item.quantity),
+            unit_price: Number(item.unit_price),
+            currency: item.currency,
+            due_date: item.due_date
+          })
+        });
+
+        if (!lineRes.ok) {
+          console.error(`Failed to update line item ${item.id}`);
+        }
+      }
+
+      setEditingPO(null);
+      await refreshLocalOrders();
+      if (onRefresh) await onRefresh();
+      alert('Client PO updated successfully');
     } catch (e) {
       alert(`Error: ${e.message}`);
     }
@@ -783,6 +825,72 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
             value: form.notes,
             onChange: e => setForm({ ...form, notes: e.target.value })
           })
+        ),
+
+        // Payment & Delivery Terms
+        React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-4 gap-3 border-t pt-3' },
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Advance Payment (%)'),
+            React.createElement('input', {
+              type: 'number',
+              min: '0',
+              max: '100',
+              className: 'border rounded px-3 py-2 w-full',
+              placeholder: '0',
+              value: form.advance_percent,
+              onChange: e => setForm({ ...form, advance_percent: Number(e.target.value) })
+            })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Balance Payment Terms'),
+            React.createElement('select', {
+              className: 'border rounded px-3 py-2 w-full',
+              value: form.balance_payment_terms,
+              onChange: e => setForm({ ...form, balance_payment_terms: e.target.value })
+            },
+              React.createElement('option', { value: 'on_dispatch' }, 'On Dispatch'),
+              React.createElement('option', { value: 'at_door_delivery' }, 'At Door Delivery'),
+              React.createElement('option', { value: '30_days_net_bl' }, '30 Days Net B/L'),
+              React.createElement('option', { value: '45_days_net_bl' }, '45 Days Net B/L'),
+              React.createElement('option', { value: '60_days_net_bl' }, '60 Days Net B/L'),
+              React.createElement('option', { value: '75_days_net_bl' }, '75 Days Net B/L'),
+              React.createElement('option', { value: '90_days_net_bl' }, '90 Days Net B/L')
+            )
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Mode of Delivery'),
+            React.createElement('select', {
+              className: 'border rounded px-3 py-2 w-full',
+              value: form.mode_of_delivery,
+              onChange: e => setForm({ ...form, mode_of_delivery: e.target.value })
+            },
+              React.createElement('option', { value: 'FOB' }, 'FOB'),
+              React.createElement('option', { value: 'CIF' }, 'CIF'),
+              React.createElement('option', { value: 'Door Delivery to Warehouse' }, 'Door Delivery to Warehouse'),
+              React.createElement('option', { value: 'DDP' }, 'DDP')
+            )
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Expected Delivery Date'),
+            React.createElement('input', {
+              type: 'date',
+              className: 'border rounded px-3 py-2 w-full',
+              value: form.expected_delivery_date,
+              onChange: e => setForm({ ...form, expected_delivery_date: e.target.value })
+            })
+          )
+        ),
+
+        // PDF Upload
+        React.createElement('div', { className: 'border-t pt-3' },
+          React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-2' }, 'Upload Client PO PDF'),
+          React.createElement('input', {
+            type: 'file',
+            accept: '.pdf',
+            className: 'border rounded px-3 py-2 w-full',
+            onChange: e => setPdfFile(e.target.files?.[0] || null)
+          }),
+          pdfFile && React.createElement('div', { className: 'text-sm text-gray-600 mt-1' }, `Selected: ${pdfFile.name}`)
         ),
 
         // Line Items Section
@@ -1142,7 +1250,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
               React.createElement('table', { className: 'min-w-full border-collapse text-sm' },
                 React.createElement('thead', null,
                   React.createElement('tr', { className: 'bg-gray-100' },
-                    ['Product', 'Description', 'Ordered', 'Delivered', 'Remaining', 'Unit Price', 'Currency', 'Due Date'].map(h =>
+                    ['Product', 'Description', 'Quantity', 'Delivered', 'Remaining', 'Unit Price', 'Currency', 'Due Date'].map(h =>
                       React.createElement('th', { key: h, className: 'p-2 border' }, h)
                     )
                   )
@@ -1150,14 +1258,75 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                 React.createElement('tbody', null,
                   editLineItems.map((item, idx) =>
                     React.createElement('tr', { key: idx },
-                      React.createElement('td', { className: 'p-2 border font-mono text-sm' }, item.product_id),
-                      React.createElement('td', { className: 'p-2 border text-sm' }, item.product_description),
-                      React.createElement('td', { className: 'p-2 border text-right' }, item.quantity),
-                      React.createElement('td', { className: 'p-2 border text-right' }, item.delivered || 0),
-                      React.createElement('td', { className: 'p-2 border text-right' }, (item.quantity - (item.delivered || 0))),
-                      React.createElement('td', { className: 'p-2 border text-right' }, formatCurrency(item.unit_price, item.currency || 'INR')),
-                      React.createElement('td', { className: 'p-2 border text-center' }, item.currency || 'INR'),
-                      React.createElement('td', { className: 'p-2 border text-center' }, item.due_date || '-')
+                      React.createElement('td', { className: 'p-2 border' },
+                        React.createElement('select', {
+                          className: 'border rounded px-2 py-1 w-full text-sm',
+                          value: item.product_id || '',
+                          onChange: e => {
+                            const updated = [...editLineItems];
+                            updated[idx].product_id = e.target.value;
+                            const product = products.find(p => p.id === e.target.value);
+                            if (product) updated[idx].product_description = product.description;
+                            setEditLineItems(updated);
+                          }
+                        },
+                          React.createElement('option', { value: '' }, 'Select Product'),
+                          products.map(p => React.createElement('option', { key: p.id, value: p.id }, `${p.id} - ${p.description}`))
+                        )
+                      ),
+                      React.createElement('td', { className: 'p-2 border text-sm' }, item.product_description || '-'),
+                      React.createElement('td', { className: 'p-2 border' },
+                        React.createElement('input', {
+                          type: 'number',
+                          className: 'border rounded px-2 py-1 w-20 text-right',
+                          value: item.quantity || 0,
+                          onChange: e => {
+                            const updated = [...editLineItems];
+                            updated[idx].quantity = Number(e.target.value);
+                            setEditLineItems(updated);
+                          }
+                        })
+                      ),
+                      React.createElement('td', { className: 'p-2 border text-right text-gray-600' }, item.delivered || 0),
+                      React.createElement('td', { className: 'p-2 border text-right text-gray-600' }, (item.quantity - (item.delivered || 0))),
+                      React.createElement('td', { className: 'p-2 border' },
+                        React.createElement('input', {
+                          type: 'number',
+                          step: '0.01',
+                          className: 'border rounded px-2 py-1 w-24 text-right',
+                          value: item.unit_price || 0,
+                          onChange: e => {
+                            const updated = [...editLineItems];
+                            updated[idx].unit_price = Number(e.target.value);
+                            setEditLineItems(updated);
+                          }
+                        })
+                      ),
+                      React.createElement('td', { className: 'p-2 border' },
+                        React.createElement('select', {
+                          className: 'border rounded px-2 py-1 w-20',
+                          value: item.currency || 'INR',
+                          onChange: e => {
+                            const updated = [...editLineItems];
+                            updated[idx].currency = e.target.value;
+                            setEditLineItems(updated);
+                          }
+                        },
+                          ['INR', 'USD', 'EUR', 'AED'].map(c => React.createElement('option', { key: c, value: c }, c))
+                        )
+                      ),
+                      React.createElement('td', { className: 'p-2 border' },
+                        React.createElement('input', {
+                          type: 'date',
+                          className: 'border rounded px-2 py-1 w-full',
+                          value: item.due_date || '',
+                          onChange: e => {
+                            const updated = [...editLineItems];
+                            updated[idx].due_date = e.target.value;
+                            setEditLineItems(updated);
+                          }
+                        })
+                      )
                     )
                   )
                 )
@@ -1737,7 +1906,7 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
   const [editingInvoice, setEditingInvoice] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [showGenerateModal, setShowGenerateModal] = useState(false);
-  const [generateForm, setGenerateForm] = useState({ po_id: '', invoice_number: '', invoice_date: '', due_date: '', tax_rate: 0 });
+  const [generateForm, setGenerateForm] = useState({ po_id: '', invoice_number: '', invoice_date: '', due_date: '', tax_rate: 0, advance_percent: 0, balance_payment_terms: 'on_dispatch', mode_of_delivery: 'FOB', expected_delivery_date: '' });
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentForm, setPaymentForm] = useState({ invoice_number: '', po_id: '', payment_date: '', amount: 0, payment_method: 'Bank Transfer', reference_number: '', notes: '' });
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -1819,7 +1988,7 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
       });
       if (res.ok) {
         setShowGenerateModal(false);
-        setGenerateForm({ po_id: '', invoice_number: '', invoice_date: '', due_date: '', tax_rate: 0 });
+        setGenerateForm({ po_id: '', invoice_number: '', invoice_date: '', due_date: '', tax_rate: 0, advance_percent: 0, balance_payment_terms: 'on_dispatch', mode_of_delivery: 'FOB', expected_delivery_date: '' });
         await refreshInvoices();
         if (onRefresh) await onRefresh();
         alert('Invoice generated successfully');
@@ -2027,14 +2196,68 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
               })
             )
           ),
+          React.createElement('div', { className: 'grid grid-cols-2 gap-3' },
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Tax Rate (%)'),
+              React.createElement('input', {
+                type: 'number',
+                className: 'border rounded px-3 py-2 w-full',
+                placeholder: '0',
+                value: generateForm.tax_rate,
+                onChange: e => setGenerateForm({ ...generateForm, tax_rate: Number(e.target.value) })
+              })
+            ),
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Advance Payment (%)'),
+              React.createElement('input', {
+                type: 'number',
+                className: 'border rounded px-3 py-2 w-full',
+                placeholder: '0',
+                min: '0',
+                max: '100',
+                value: generateForm.advance_percent,
+                onChange: e => setGenerateForm({ ...generateForm, advance_percent: Number(e.target.value) })
+              })
+            )
+          ),
+          React.createElement('div', { className: 'grid grid-cols-2 gap-3' },
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Balance Payment Terms'),
+              React.createElement('select', {
+                className: 'border rounded px-3 py-2 w-full',
+                value: generateForm.balance_payment_terms,
+                onChange: e => setGenerateForm({ ...generateForm, balance_payment_terms: e.target.value })
+              },
+                React.createElement('option', { value: 'on_dispatch' }, 'On Dispatch'),
+                React.createElement('option', { value: 'at_door_delivery' }, 'At Door Delivery'),
+                React.createElement('option', { value: '30_days_net_bl' }, '30 Days Net B/L'),
+                React.createElement('option', { value: '45_days_net_bl' }, '45 Days Net B/L'),
+                React.createElement('option', { value: '60_days_net_bl' }, '60 Days Net B/L'),
+                React.createElement('option', { value: '75_days_net_bl' }, '75 Days Net B/L'),
+                React.createElement('option', { value: '90_days_net_bl' }, '90 Days Net B/L')
+              )
+            ),
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Mode of Delivery'),
+              React.createElement('select', {
+                className: 'border rounded px-3 py-2 w-full',
+                value: generateForm.mode_of_delivery,
+                onChange: e => setGenerateForm({ ...generateForm, mode_of_delivery: e.target.value })
+              },
+                React.createElement('option', { value: 'FOB' }, 'FOB'),
+                React.createElement('option', { value: 'CIF' }, 'CIF'),
+                React.createElement('option', { value: 'Door Delivery to Warehouse' }, 'Door Delivery to Warehouse'),
+                React.createElement('option', { value: 'DDP' }, 'DDP')
+              )
+            )
+          ),
           React.createElement('div', null,
-            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Tax Rate (%)'),
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Expected Delivery Date'),
             React.createElement('input', {
-              type: 'number',
+              type: 'date',
               className: 'border rounded px-3 py-2 w-full',
-              placeholder: '0',
-              value: generateForm.tax_rate,
-              onChange: e => setGenerateForm({ ...generateForm, tax_rate: Number(e.target.value) })
+              value: generateForm.expected_delivery_date,
+              onChange: e => setGenerateForm({ ...generateForm, expected_delivery_date: e.target.value })
             })
           )
         )
@@ -2543,7 +2766,7 @@ function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, on
 }
 
 // Modal component for editing entries
-function EditModal({ isOpen, onClose, title, children }) {
+function EditModal({ isOpen, onClose, title, children, onSave }) {
   if (!isOpen) return null;
   return React.createElement('div', { className: 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4', onClick: onClose },
     React.createElement('div', { className: 'bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto', onClick: e => e.stopPropagation() },
@@ -2551,7 +2774,11 @@ function EditModal({ isOpen, onClose, title, children }) {
         React.createElement('h2', { className: 'text-2xl font-bold text-gray-800' }, title),
         React.createElement('button', { onClick: onClose, className: 'text-gray-500 hover:text-gray-700 text-3xl font-bold leading-none' }, '×')
       ),
-      React.createElement('div', { className: 'p-6' }, children)
+      React.createElement('div', { className: 'p-6' }, children),
+      onSave && React.createElement('div', { className: 'sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end gap-3' },
+        React.createElement('button', { onClick: onClose, className: 'px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 font-semibold' }, 'Cancel'),
+        React.createElement('button', { onClick: onSave, className: 'px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold' }, 'Save')
+      )
     )
   );
 }
