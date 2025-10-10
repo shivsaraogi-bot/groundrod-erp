@@ -739,7 +739,7 @@ function initializeDatabase() {
     db.all("PRAGMA table_info(client_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN is_deleted INTEGER", ()=>{}); if(!n.includes('advance_percent')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN advance_percent REAL", ()=>{}); if(!n.includes('balance_payment_terms')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN balance_payment_terms TEXT", ()=>{}); if(!n.includes('mode_of_delivery')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN mode_of_delivery TEXT", ()=>{}); if(!n.includes('expected_delivery_date')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN expected_delivery_date TEXT", ()=>{}); if(!n.includes('pdf_path')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN pdf_path TEXT", ()=>{}); } });
     db.all("PRAGMA table_info(invoices)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('advance_percent')) db.run("ALTER TABLE invoices ADD COLUMN advance_percent REAL", ()=>{}); if(!n.includes('balance_payment_terms')) db.run("ALTER TABLE invoices ADD COLUMN balance_payment_terms TEXT", ()=>{}); if(!n.includes('mode_of_delivery')) db.run("ALTER TABLE invoices ADD COLUMN mode_of_delivery TEXT", ()=>{}); if(!n.includes('expected_delivery_date')) db.run("ALTER TABLE invoices ADD COLUMN expected_delivery_date TEXT", ()=>{}); } });
     db.all("PRAGMA table_info(vendor_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE vendor_purchase_orders ADD COLUMN is_deleted INTEGER", ()=>{}); } });
-    db.all("PRAGMA table_info(shipments)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE shipments ADD COLUMN is_deleted INTEGER", ()=>{}); } });
+    db.all("PRAGMA table_info(shipments)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE shipments ADD COLUMN is_deleted INTEGER", ()=>{}); if(!n.includes('carrier')) db.run("ALTER TABLE shipments ADD COLUMN carrier TEXT", ()=>{}); if(!n.includes('destination')) db.run("ALTER TABLE shipments ADD COLUMN destination TEXT", ()=>{}); if(!n.includes('tracking_number')) db.run("ALTER TABLE shipments ADD COLUMN tracking_number TEXT", ()=>{}); } });
     db.all("PRAGMA table_info(production_history)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE production_history ADD COLUMN is_deleted INTEGER", ()=>{}); } });
     insertSampleData();
   });
@@ -2107,13 +2107,13 @@ app.get('/api/shipments', (req, res) => {
 });
 
 app.post('/api/shipments', (req, res) => {
-  const { id, po_id, shipment_date, container_number, bl_number, bl_date, notes, items } = req.body;
+  const { id, po_id, shipment_date, container_number, bl_number, bl_date, notes, items, carrier, destination, tracking_number } = req.body;
   // Record shipment, update delivered counts, and decrement inventory.packed
   db.serialize(() => {
     db.run('BEGIN');
     db.run(
-      "INSERT INTO shipments (id, po_id, shipment_date, container_number, bl_number, bl_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [id, po_id, shipment_date, container_number, bl_number, bl_date, notes],
+      "INSERT INTO shipments (id, po_id, shipment_date, container_number, bl_number, bl_date, notes, carrier, destination, tracking_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [id, po_id, shipment_date, container_number, bl_number, bl_date, notes, carrier, destination, tracking_number],
       function(err) {
         if (err) {
           try { db.run('ROLLBACK'); } catch(_){}
@@ -2186,9 +2186,9 @@ app.delete('/api/shipments/:id', (req, res) => {
 // Update shipment header
 app.put('/api/shipments/:id', (req, res) => {
   const { id } = req.params;
-  const { shipment_date, container_number, bl_number, bl_date, notes } = req.body;
-  db.run(`UPDATE shipments SET shipment_date=?, container_number=?, bl_number=?, bl_date=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-    [shipment_date, container_number, bl_number, bl_date, notes, id],
+  const { po_id, shipment_date, container_number, bl_number, bl_date, notes, carrier, destination, tracking_number } = req.body;
+  db.run(`UPDATE shipments SET po_id=?, shipment_date=?, container_number=?, bl_number=?, bl_date=?, notes=?, carrier=?, destination=?, tracking_number=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+    [po_id, shipment_date, container_number, bl_number, bl_date, notes, carrier, destination, tracking_number, id],
     function(err){ if (err) return res.status(500).json({ error: err.message }); res.json({ message: 'Shipment updated' }); }
   );
 });
