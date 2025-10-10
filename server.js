@@ -874,7 +874,7 @@ app.post('/api/vendors', (req, res) => {
   const { id, name, office_address, contact_person, phone, email, vendor_type='Other', material_type, city=null, country=null } = req.body;
   
   db.run(
-    "INSERT INTO vendors (id, name, office_address, contact_person, phone, email, vendor_type, material_type, city, country) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO vendors (id, name, office_address, contact_person, phone, email, vendor_type, material_type, city, country) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     [id, name, office_address, contact_person, phone, email, vendor_type, material_type, city, country],
     function(err) {
       if (err) {
@@ -1745,6 +1745,10 @@ app.post('/api/jobwork/orders/:id/receive', (req,res)=>{
 
           db.run(`INSERT INTO job_work_receipts (order_id, product_id, qty, received_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)`, [id, pid, qty]);
         });
+
+        // Update job work order status to Completed
+        db.run('UPDATE job_work_orders SET status = ? WHERE id = ?', ['Completed', id]);
+
         db.run('COMMIT', (e)=>{ if(e) return res.status(500).json({ error:e.message }); res.json({ message:`${jobType} job work received`, received: items.length }); });
       }catch(ex){ try{ db.run('ROLLBACK'); }catch(_){}; res.status(500).json({ error:'Receipt failed: ' + ex.message }); }
     });
