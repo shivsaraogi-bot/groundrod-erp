@@ -768,7 +768,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
             React.createElement('table', { className: 'min-w-full border-collapse text-sm' },
               React.createElement('thead', null,
                 React.createElement('tr', { className: 'bg-gray-100' },
-                  ['Product', 'New?', 'Qty', 'Unit Price', 'Currency', 'Line Total', 'Actions'].map(h =>
+                  ['Product', 'New?', 'Qty', 'Unit Price', 'Currency', 'Due Date', 'Line Total', 'Actions'].map(h =>
                     React.createElement('th', { key: h, className: 'p-2 text-left border' }, h)
                   )
                 )
@@ -827,6 +827,15 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                           CURRENCIES.map(c => React.createElement('option', { key: c, value: c }, c))
                         )
                       ),
+                      // Due Date
+                      React.createElement('td', { className: 'p-2 border' },
+                        React.createElement('input', {
+                          type: 'date',
+                          className: 'border rounded px-2 py-1 w-32',
+                          value: item.due_date || '',
+                          onChange: e => updateNewItem(idx, 'due_date', e.target.value)
+                        })
+                      ),
                       // Line Total
                       React.createElement('td', { className: 'p-2 border text-right' },
                         formatCurrency(item.quantity * item.unit_price, item.currency)
@@ -841,7 +850,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                     ),
                     // New product details row (if checkbox is checked)
                     item.new_product && React.createElement('tr', { className: 'bg-blue-50' },
-                      React.createElement('td', { colSpan: 7, className: 'p-3 border' },
+                      React.createElement('td', { colSpan: 8, className: 'p-3 border' },
                         React.createElement('div', { className: 'space-y-2' },
                           React.createElement('h5', { className: 'font-semibold text-sm mb-2' }, 'New Product Specifications'),
                           React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-2' },
@@ -945,7 +954,8 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
           { key: 'due_date', label: 'Due Date' },
           { key: 'currency', label: 'Currency', render: (val) => val || 'INR' },
           { key: 'status', label: 'Status' },
-          { key: 'notes', label: 'Notes', render: (val) => val || '-' }
+          { key: 'notes', label: 'Notes', render: (val) => val || '-' },
+          { key: 'pdf_path', label: 'PDF', render: (val) => val ? React.createElement('a', { href: `${API_URL}${val}`, target: '_blank', className: 'text-blue-600 hover:underline' }, '📄 View') : '-' }
         ],
         primaryKey: 'id',
         onRowClick: handleRowClick,
@@ -954,7 +964,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
           { key: 'customer_name', label: 'Customer', values: [...new Set(localOrders.map(po => po.customer_name).filter(Boolean))] },
           { key: 'status', label: 'Status', values: ['Pending', 'Confirmed', 'In Production', 'Completed', 'Cancelled'] }
         ],
-        defaultVisibleColumns: { id: true, customer_name: true, po_date: true, due_date: true, currency: true, status: true, notes: true }
+        defaultVisibleColumns: { id: true, customer_name: true, po_date: true, due_date: true, currency: true, status: true, notes: true, pdf_path: true }
       }),
 
       // Edit Modal
@@ -1033,6 +1043,17 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                 value: editForm.notes || '',
                 onChange: e => setEditForm({ ...editForm, notes: e.target.value })
               })
+            ),
+            editingPO.pdf_path && React.createElement('div', { className: 'md:col-span-2' },
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Attached PDF'),
+              React.createElement('a', {
+                href: `${API_URL}${editingPO.pdf_path}`,
+                target: '_blank',
+                className: 'text-blue-600 hover:underline flex items-center gap-2'
+              },
+                React.createElement('span', null, '📄'),
+                React.createElement('span', null, 'View Client PO PDF')
+              )
             )
           ),
 
@@ -1043,7 +1064,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
               React.createElement('table', { className: 'min-w-full border-collapse text-sm' },
                 React.createElement('thead', null,
                   React.createElement('tr', { className: 'bg-gray-100' },
-                    ['Product', 'Description', 'Ordered', 'Delivered', 'Remaining', 'Unit Price', 'Currency'].map(h =>
+                    ['Product', 'Description', 'Ordered', 'Delivered', 'Remaining', 'Unit Price', 'Currency', 'Due Date'].map(h =>
                       React.createElement('th', { key: h, className: 'p-2 border' }, h)
                     )
                   )
@@ -1057,7 +1078,8 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                       React.createElement('td', { className: 'p-2 border text-right' }, item.delivered || 0),
                       React.createElement('td', { className: 'p-2 border text-right' }, (item.quantity - (item.delivered || 0))),
                       React.createElement('td', { className: 'p-2 border text-right' }, formatCurrency(item.unit_price, item.currency || 'INR')),
-                      React.createElement('td', { className: 'p-2 border text-center' }, item.currency || 'INR')
+                      React.createElement('td', { className: 'p-2 border text-center' }, item.currency || 'INR'),
+                      React.createElement('td', { className: 'p-2 border text-center' }, item.due_date || '-')
                     )
                   )
                 )

@@ -350,6 +350,8 @@ function initializeDatabase() {
     db.run("ALTER TABLE client_purchase_orders ADD COLUMN pdf_path TEXT", (err) => { /* ignore if already exists */ });
     // Add currency column to client_po_line_items if it does not exist
     db.run("ALTER TABLE client_po_line_items ADD COLUMN currency TEXT DEFAULT 'INR'", (err) => { /* ignore if already exists */ });
+    // Add due_date column to client_po_line_items if it does not exist
+    db.run("ALTER TABLE client_po_line_items ADD COLUMN due_date TEXT", (err) => { /* ignore if already exists */ });
 
     // Client PO Line Items
     db.run(`CREATE TABLE IF NOT EXISTS client_po_line_items (
