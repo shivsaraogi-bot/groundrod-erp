@@ -3326,7 +3326,8 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
 
 // Extended Products table with required columns
 function ProductMasterEx({ products, calculateWeights, onRefresh }){
-  const [form, setForm] = useState({ id:'', description:'', diameter:0, diameterUnit:'mm', length:0, lengthUnit:'mm', coating:0, weightUnit:'kg' });
+  const [form, setForm] = useState({ id:'', description:'', diameter:0, diameterUnit:'mm', length:0, lengthUnit:'mm', coating:0, weightUnit:'kg', product_type:'ground_rod', custom_bom:false });
+  const [bomItems, setBomItems] = useState([]);
   const [editingProduct, setEditingProduct] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [bulkImportStatus, setBulkImportStatus] = useState('');
@@ -3351,8 +3352,31 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
   async function add(){
     const diameterMM = convertToMM(form.diameter, form.diameterUnit);
     const lengthMM = convertToMM(form.length, form.lengthUnit);
-    await fetch(`${API_URL}/products`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...form, steel_diameter:diameterMM, length:lengthMM, copper_coating:Number(form.coating) }) });
-    setForm({ id:'', description:'', diameter:0, diameterUnit:'mm', length:0, lengthUnit:'mm', coating:0, weightUnit:'kg' });
+
+    const productData = {
+      ...form,
+      steel_diameter: diameterMM,
+      length: lengthMM,
+      copper_coating: Number(form.coating),
+      product_type: form.product_type,
+      custom_bom: form.custom_bom ? 1 : 0
+    };
+
+    await fetch(`${API_URL}/products`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(productData) });
+
+    // If custom BOM, add BOM items
+    if (form.custom_bom && bomItems.length > 0) {
+      for (const item of bomItems) {
+        await fetch(`${API_URL}/bom`, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ product_id: form.id, material: item.material, qty_per_unit: item.qty })
+        });
+      }
+    }
+
+    setForm({ id:'', description:'', diameter:0, diameterUnit:'mm', length:0, lengthUnit:'mm', coating:0, weightUnit:'kg', product_type:'ground_rod', custom_bom:false });
+    setBomItems([]);
     onRefresh?.();
   }
 
@@ -3487,6 +3511,23 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
   return (
     React.createElement('div', { className:'space-y-4' },
       React.createElement(Section, { title:'Add Product' },
+        React.createElement('div', { className:'mb-4 p-3 bg-gray-50 rounded border' },
+          React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-3 gap-3 items-center' },
+            React.createElement('div', null,
+              React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Product Type'),
+              React.createElement('select', { className:'border rounded px-3 py-2 w-full', value:form.product_type, onChange:e=>setForm({ ...form, product_type:e.target.value }) },
+                React.createElement('option', { value:'ground_rod' }, 'Ground Rod (Auto BOM)'),
+                React.createElement('option', { value:'clamp' }, 'Clamp'),
+                React.createElement('option', { value:'assembly' }, 'Assembly'),
+                React.createElement('option', { value:'custom' }, 'Custom Product')
+              )
+            ),
+            React.createElement('div', { className:'flex items-center gap-2 md:col-span-2' },
+              React.createElement('input', { type:'checkbox', id:'customBom', checked:form.custom_bom, onChange:e=>setForm({ ...form, custom_bom:e.target.checked }), className:'w-4 h-4' }),
+              React.createElement('label', { htmlFor:'customBom', className:'text-sm font-semibold text-gray-700 cursor-pointer' }, 'Use Custom BOM (Manual material entry - disables auto-calculation)')
+            )
+          )
+        ),
         React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-8 gap-3' },
           React.createElement('div', null,
             React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Product ID'),
@@ -3524,6 +3565,46 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
           React.createElement('div', { className:'md:col-span-2 flex items-end' },
             React.createElement('button', { onClick:add, className:'px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700 w-full' }, 'Add Product')
           )
+        ),
+        form.custom_bom && React.createElement('div', { className:'mt-4 p-3 bg-amber-50 border border-amber-200 rounded' },
+          React.createElement('h4', { className:'font-semibold text-sm mb-2' }, 'Custom BOM Materials'),
+          React.createElement('div', { className:'space-y-2' },
+            bomItems.map((item, idx) =>
+              React.createElement('div', { key:idx, className:'flex gap-2 items-center' },
+                React.createElement('span', { className:'text-sm flex-1' }, `${item.material}: ${item.qty} kg`),
+                React.createElement('button', {
+                  onClick: () => setBomItems(bomItems.filter((_,i) => i !== idx)),
+                  className:'text-red-600 text-xs px-2 py-1 hover:bg-red-50 rounded'
+                }, 'Remove')
+              )
+            )
+          ),
+          React.createElement('div', { className:'grid grid-cols-3 gap-2 mt-3' },
+            React.createElement('input', {
+              placeholder:'Material name',
+              id:'bomMaterial',
+              className:'border rounded px-2 py-1 text-sm col-span-2'
+            }),
+            React.createElement('input', {
+              placeholder:'Qty (kg)',
+              id:'bomQty',
+              type:'number',
+              step:'0.001',
+              className:'border rounded px-2 py-1 text-sm'
+            })
+          ),
+          React.createElement('button', {
+            onClick: () => {
+              const material = document.getElementById('bomMaterial').value;
+              const qty = parseFloat(document.getElementById('bomQty').value);
+              if (material && qty > 0) {
+                setBomItems([...bomItems, { material, qty }]);
+                document.getElementById('bomMaterial').value = '';
+                document.getElementById('bomQty').value = '';
+              }
+            },
+            className:'mt-2 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700'
+          }, 'Add Material to BOM')
         )
       ),
       React.createElement(Section, { title: 'Bulk Import Products with Auto-BOM (CSV)' },
