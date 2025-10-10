@@ -2297,11 +2297,25 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
     React.createElement('div', { className:'space-y-6' },
       React.createElement(Section, { title:'Raw Materials' },
         React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-5 gap-3 mb-3' },
-          React.createElement('input', { className:'border rounded px-2 py-1', placeholder:'Material', value:rmForm.material, onChange:e=>setRmForm({...rmForm,material:e.target.value}) }),
-          React.createElement('input', { className:'border rounded px-2 py-1', type:'number', placeholder:'Current Stock', value:rmForm.current_stock, onChange:e=>setRmForm({...rmForm,current_stock:Number(e.target.value||0)}) }),
-          React.createElement('input', { className:'border rounded px-2 py-1', type:'number', placeholder:'Reorder Level', value:rmForm.reorder_level, onChange:e=>setRmForm({...rmForm,reorder_level:Number(e.target.value||0)}) }),
-          React.createElement('input', { className:'border rounded px-2 py-1', type:'date', placeholder:'Last Purchase', value:rmForm.last_purchase_date, onChange:e=>setRmForm({...rmForm,last_purchase_date:e.target.value}) }),
-          React.createElement('button', { className:'px-3 py-2 bg-green-600 text-white rounded', onClick:add }, 'Add')
+          React.createElement('div', null,
+            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Material'),
+            React.createElement('input', { className:'border rounded px-2 py-1 w-full', placeholder:'e.g. Steel, Copper Anode', value:rmForm.material, onChange:e=>setRmForm({...rmForm,material:e.target.value}) })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Current Stock (kg)'),
+            React.createElement('input', { className:'border rounded px-2 py-1 w-full', type:'number', placeholder:'0', value:rmForm.current_stock, onChange:e=>setRmForm({...rmForm,current_stock:Number(e.target.value||0)}) })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Reorder Level (kg)'),
+            React.createElement('input', { className:'border rounded px-2 py-1 w-full', type:'number', placeholder:'0', value:rmForm.reorder_level, onChange:e=>setRmForm({...rmForm,reorder_level:Number(e.target.value||0)}) })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Last Purchase Date'),
+            React.createElement('input', { className:'border rounded px-2 py-1 w-full', type:'date', value:rmForm.last_purchase_date, onChange:e=>setRmForm({...rmForm,last_purchase_date:e.target.value}) })
+          ),
+          React.createElement('div', { className:'flex items-end' },
+            React.createElement('button', { className:'px-3 py-2 bg-green-600 text-white rounded w-full font-semibold hover:bg-green-700', onClick:add }, 'Add')
+          )
         ),
         React.createElement(EnhancedTable, {
           title: '',
@@ -3452,26 +3466,43 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
   return (
     React.createElement('div', { className:'space-y-4' },
       React.createElement(Section, { title:'Add Product' },
-        React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-8 gap-2' },
-          React.createElement('input', { className:'border rounded px-3 py-2', placeholder:'Product ID', value:form.id, onChange:e=>setForm({ ...form, id:e.target.value }) }),
-          React.createElement('input', { className:'border rounded px-3 py-2 md:col-span-2', placeholder:'Description', value:form.description, onChange:e=>setForm({ ...form, description:e.target.value }) }),
-          React.createElement('div', { className:'flex gap-1' },
-            React.createElement('input', { className:'border rounded px-3 py-2 w-20', type:'number', step:'0.01', placeholder:'Dia', value:form.diameter, onChange:e=>setForm({ ...form, diameter:e.target.value }) }),
-            React.createElement('select', { className:'border rounded px-2 py-2 w-16 text-xs', value:form.diameterUnit, onChange:e=>setForm({ ...form, diameterUnit:e.target.value }) },
-              React.createElement('option', { value:'mm' }, 'mm'),
-              React.createElement('option', { value:'inches' }, 'in')
+        React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-8 gap-3' },
+          React.createElement('div', null,
+            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Product ID'),
+            React.createElement('input', { className:'border rounded px-3 py-2 w-full', placeholder:'e.g. CE1034', value:form.id, onChange:e=>setForm({ ...form, id:e.target.value }) })
+          ),
+          React.createElement('div', { className:'md:col-span-2' },
+            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Description'),
+            React.createElement('input', { className:'border rounded px-3 py-2 w-full', placeholder:'e.g. 14.2mm x 3000mm Ground Rod', value:form.description, onChange:e=>setForm({ ...form, description:e.target.value }) })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Steel Diameter'),
+            React.createElement('div', { className:'flex gap-1' },
+              React.createElement('input', { className:'border rounded px-3 py-2 w-20', type:'number', step:'0.01', placeholder:'14.2', value:form.diameter, onChange:e=>setForm({ ...form, diameter:e.target.value }) }),
+              React.createElement('select', { className:'border rounded px-2 py-2 w-16 text-xs', value:form.diameterUnit, onChange:e=>setForm({ ...form, diameterUnit:e.target.value }) },
+                React.createElement('option', { value:'mm' }, 'mm'),
+                React.createElement('option', { value:'inches' }, 'in')
+              )
             )
           ),
-          React.createElement('div', { className:'flex gap-1' },
-            React.createElement('input', { className:'border rounded px-3 py-2 w-20', type:'number', step:'0.01', placeholder:'Length', value:form.length, onChange:e=>setForm({ ...form, length:e.target.value }) }),
-            React.createElement('select', { className:'border rounded px-2 py-2 w-16 text-xs', value:form.lengthUnit, onChange:e=>setForm({ ...form, lengthUnit:e.target.value }) },
-              React.createElement('option', { value:'mm' }, 'mm'),
-              React.createElement('option', { value:'m' }, 'm'),
-              React.createElement('option', { value:'ft' }, 'ft')
+          React.createElement('div', null,
+            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Length'),
+            React.createElement('div', { className:'flex gap-1' },
+              React.createElement('input', { className:'border rounded px-3 py-2 w-20', type:'number', step:'0.01', placeholder:'3000', value:form.length, onChange:e=>setForm({ ...form, length:e.target.value }) }),
+              React.createElement('select', { className:'border rounded px-2 py-2 w-16 text-xs', value:form.lengthUnit, onChange:e=>setForm({ ...form, lengthUnit:e.target.value }) },
+                React.createElement('option', { value:'mm' }, 'mm'),
+                React.createElement('option', { value:'m' }, 'm'),
+                React.createElement('option', { value:'ft' }, 'ft')
+              )
             )
           ),
-          React.createElement('input', { className:'border rounded px-3 py-2', type:'number', placeholder:'Copper (µm)', value:form.coating, onChange:e=>setForm({ ...form, coating:e.target.value }) }),
-          React.createElement('button', { onClick:add, className:'px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700 md:col-span-2' }, 'Add Product')
+          React.createElement('div', null,
+            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Copper Coating (µm)'),
+            React.createElement('input', { className:'border rounded px-3 py-2 w-full', type:'number', placeholder:'250', value:form.coating, onChange:e=>setForm({ ...form, coating:e.target.value }) })
+          ),
+          React.createElement('div', { className:'md:col-span-2 flex items-end' },
+            React.createElement('button', { onClick:add, className:'px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700 w-full' }, 'Add Product')
+          )
         )
       ),
       React.createElement(Section, { title: 'Bulk Import Products with Auto-BOM (CSV)' },
