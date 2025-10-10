@@ -348,6 +348,8 @@ function initializeDatabase() {
     db.run("ALTER TABLE client_purchase_orders ADD COLUMN marking TEXT", (err) => { /* ignore if already exists */ });
     // Add pdf_path column to client_purchase_orders if it does not exist
     db.run("ALTER TABLE client_purchase_orders ADD COLUMN pdf_path TEXT", (err) => { /* ignore if already exists */ });
+    // Add currency column to client_po_line_items if it does not exist
+    db.run("ALTER TABLE client_po_line_items ADD COLUMN currency TEXT DEFAULT 'INR'", (err) => { /* ignore if already exists */ });
 
     // Client PO Line Items
     db.run(`CREATE TABLE IF NOT EXISTS client_po_line_items (
@@ -436,12 +438,15 @@ function initializeDatabase() {
       FOREIGN KEY (product_id) REFERENCES products(id)
     )`);
 
-    // Lightweight migration: ensure inventory.cores exists
+    // Lightweight migration: ensure inventory.cores and steel_rods exist
     db.all("PRAGMA table_info(inventory)", (err, cols) => {
       if (!err && Array.isArray(cols)){
         const n = cols.map(c=>c.name);
         if (!n.includes('cores')){
           try { db.run("ALTER TABLE inventory ADD COLUMN cores INTEGER DEFAULT 0"); } catch(_){ }
+        }
+        if (!n.includes('steel_rods')){
+          try { db.run("ALTER TABLE inventory ADD COLUMN steel_rods INTEGER DEFAULT 0"); } catch(_){ }
         }
       }
     });
@@ -452,11 +457,14 @@ function initializeDatabase() {
       vendor_id TEXT,
       jw_date DATE NOT NULL,
       due_date DATE,
+      job_type TEXT DEFAULT 'Rod Making',
       status TEXT DEFAULT 'Open',
       notes TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
+    // Add job_type column if it doesn't exist
+    db.run("ALTER TABLE job_work_orders ADD COLUMN job_type TEXT DEFAULT 'Rod Making'", (err) => { /* ignore if already exists */ });
     db.run(`CREATE TABLE IF NOT EXISTS job_work_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       order_id TEXT NOT NULL,
@@ -1145,9 +1153,9 @@ app.post('/api/client-purchase-orders', (req, res) => {
       if (err) {
         res.status(500).json({ error: err.message });
       } else {
-        const stmt = db.prepare("INSERT INTO client_po_line_items (po_id, product_id, quantity, unit_price, line_total) VALUES (?, ?, ?, ?, ?)");
+        const stmt = db.prepare("INSERT INTO client_po_line_items (po_id, product_id, quantity, unit_price, line_total, currency) VALUES (?, ?, ?, ?, ?, ?)");
         line_items.forEach(item => {
-          stmt.run([id, item.product_id, item.quantity, item.unit_price, item.quantity * item.unit_price]);
+          stmt.run([id, item.product_id, item.quantity, item.unit_price, item.quantity * item.unit_price, item.currency || 'INR']);
         });
         stmt.finalize((err) => {
           if (err) {
@@ -1171,10 +1179,10 @@ app.get('/api/client-purchase-orders/:id/items', (req, res) => {
 });
 
 app.post('/api/client-purchase-orders/:id/items', (req, res) => {
-  const { id } = req.params; const { product_id, quantity=0, unit_price=0 } = req.body;
+  const { id } = req.params; const { product_id, quantity=0, unit_price=0, currency='INR' } = req.body;
   if (!product_id) return res.status(400).json({ error: 'product_id required' });
   const qty = Number(quantity||0); const up = Number(unit_price||0);
-  db.run(`INSERT INTO client_po_line_items (po_id, product_id, quantity, unit_price, line_total, delivered) VALUES (?, ?, ?, ?, ?, 0)`, [id, product_id, qty, up, qty*up], function(err){
+  db.run(`INSERT INTO client_po_line_items (po_id, product_id, quantity, unit_price, line_total, delivered, currency) VALUES (?, ?, ?, ?, ?, 0, ?)`, [id, product_id, qty, up, qty*up, currency], function(err){
     if (err) return res.status(500).json({ error: err.message });
     res.json({ message: 'Item added', id: this.lastID });
   });
@@ -1247,13 +1255,14 @@ app.post('/api/purchase-orders', (req, res) => {
           return res.status(500).json({ error: err.message });
         }
 
-        const stmt = db.prepare("INSERT INTO client_po_line_items (po_id, product_id, quantity, unit_price, line_total, delivered) VALUES (?, ?, ?, ?, ?, 0)");
+        const stmt = db.prepare("INSERT INTO client_po_line_items (po_id, product_id, quantity, unit_price, line_total, delivered, currency) VALUES (?, ?, ?, ?, ?, 0, ?)");
         let failed = false;
 
         (line_items||[]).forEach(item => {
           const qty = Number(item.quantity||0);
           const up = Number(item.unit_price||0);
-          stmt.run([id, item.product_id, qty, up, qty * up], (itemErr) => {
+          const curr = item.currency || 'INR';
+          stmt.run([id, item.product_id, qty, up, qty * up, curr], (itemErr) => {
             if (itemErr) failed = true;
           });
 
@@ -1561,19 +1570,19 @@ app.get('/api/jobwork/orders', (req, res) => {
   });
 });
 app.post('/api/jobwork/orders', (req, res) => {
-  const { id, vendor_id, jw_date, due_date, status='Open', notes='' } = req.body||{};
+  const { id, vendor_id, jw_date, due_date, job_type='Rod Making', status='Open', notes='' } = req.body||{};
   if (!id || !jw_date) return res.status(400).json({ error:'id and jw_date required' });
-  db.run(`INSERT INTO job_work_orders (id, vendor_id, jw_date, due_date, status, notes, created_at, updated_at)
-          VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`, [id, vendor_id||'', jw_date, due_date||'', status, notes], function(err){
+  db.run(`INSERT INTO job_work_orders (id, vendor_id, jw_date, due_date, job_type, status, notes, created_at, updated_at)
+          VALUES (?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`, [id, vendor_id||'', jw_date, due_date||'', job_type, status, notes], function(err){
     if (err) return res.status(500).json({ error: err.message });
     res.json({ message:'JWO created' });
   });
 });
 app.put('/api/jobwork/orders/:id', (req, res) => {
   const { id } = req.params;
-  const { vendor_id, jw_date, due_date, status, notes } = req.body||{};
-  db.run(`UPDATE job_work_orders SET vendor_id=?, jw_date=?, due_date=?, status=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-    [vendor_id||'', jw_date||'', due_date||'', status||'Open', notes||'', id], function(err){
+  const { vendor_id, jw_date, due_date, job_type, status, notes } = req.body||{};
+  db.run(`UPDATE job_work_orders SET vendor_id=?, jw_date=?, due_date=?, job_type=?, status=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+    [vendor_id||'', jw_date||'', due_date||'', job_type||'Rod Making', status||'Open', notes||'', id], function(err){
       if (err) return res.status(500).json({ error: err.message });
       res.json({ message:'JWO updated' });
     });
@@ -1609,22 +1618,58 @@ app.delete('/api/jobwork/orders/:id/items/:itemId', (req,res)=>{
     if (err) return res.status(500).json({ error: err.message }); res.json({ message:'Item deleted' });
   });
 });
-// Receipts (increment cores)
+// Receipts - handle Rod Making and Plating job work
 app.post('/api/jobwork/orders/:id/receive', (req,res)=>{
   const { id } = req.params; const items = Array.isArray(req.body?.items) ? req.body.items : [];
   if (!items.length) return res.status(400).json({ error:'No items' });
-  db.serialize(()=>{
-    db.run('BEGIN');
-    try{
-      items.forEach(it=>{
-        const pid = it.product_id; const qty = Number(it.qty||0);
-        if (!pid || !(qty>0)) return;
-        db.run(`INSERT INTO inventory (product_id, cores, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT(product_id) DO UPDATE SET cores = cores + excluded.cores, updated_at=CURRENT_TIMESTAMP`, [pid, qty]);
-        db.run(`INSERT INTO job_work_receipts (order_id, product_id, qty, received_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)`, [id, pid, qty]);
-      });
-      db.run('COMMIT', (e)=>{ if(e) return res.status(500).json({ error:e.message }); res.json({ message:'Cores received', received: items.length }); });
-    }catch(ex){ try{ db.run('ROLLBACK'); }catch(_){}; res.status(500).json({ error:'Receipt failed' }); }
+
+  // Get the job work order to determine job_type
+  db.get('SELECT job_type FROM job_work_orders WHERE id=?', [id], (err, order)=>{
+    if (err) return res.status(500).json({ error: err.message });
+    if (!order) return res.status(404).json({ error: 'Job work order not found' });
+
+    const jobType = order.job_type || 'Rod Making';
+
+    db.serialize(()=>{
+      db.run('BEGIN');
+      try{
+        items.forEach(it=>{
+          const pid = it.product_id; const qty = Number(it.qty||0);
+          if (!pid || !(qty>0)) return;
+
+          if (jobType === 'Rod Making') {
+            // Rod Making: Raw Steel → Steel Rods
+            // Consume raw steel from BOM, add to steel_rods inventory
+            db.run(`INSERT INTO inventory (product_id, steel_rods, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(product_id) DO UPDATE SET steel_rods = steel_rods + excluded.steel_rods, updated_at=CURRENT_TIMESTAMP`, [pid, qty]);
+
+            // Consume raw steel based on BOM
+            db.get('SELECT qty_per_unit FROM bom WHERE product_id=? AND material=?', [pid, 'Steel'], (e, bom)=>{
+              if (!e && bom) {
+                const steelConsumed = qty * Number(bom.qty_per_unit || 0);
+                db.run(`UPDATE raw_materials_inventory SET current_stock = current_stock - ? WHERE material = ?`, [steelConsumed, 'Steel']);
+              }
+            });
+          } else if (jobType === 'Plating') {
+            // Plating: Steel Rods + Copper Anode → Plated
+            // Consume steel_rods, consume copper anode from BOM, add to plated inventory
+            db.run(`INSERT INTO inventory (product_id, plated, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(product_id) DO UPDATE SET plated = plated + excluded.plated, steel_rods = steel_rods - ?, updated_at=CURRENT_TIMESTAMP`, [pid, qty, qty]);
+
+            // Consume copper anode based on BOM
+            db.get('SELECT qty_per_unit FROM bom WHERE product_id=? AND material=?', [pid, 'Copper Anode'], (e, bom)=>{
+              if (!e && bom) {
+                const copperConsumed = qty * Number(bom.qty_per_unit || 0);
+                db.run(`UPDATE raw_materials_inventory SET current_stock = current_stock - ? WHERE material = ?`, [copperConsumed, 'Copper Anode']);
+              }
+            });
+          }
+
+          db.run(`INSERT INTO job_work_receipts (order_id, product_id, qty, received_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)`, [id, pid, qty]);
+        });
+        db.run('COMMIT', (e)=>{ if(e) return res.status(500).json({ error:e.message }); res.json({ message:`${jobType} job work received`, received: items.length }); });
+      }catch(ex){ try{ db.run('ROLLBACK'); }catch(_){}; res.status(500).json({ error:'Receipt failed: ' + ex.message }); }
+    });
   });
 });
 
@@ -2404,7 +2449,7 @@ if (upload && pdfParse) {
             if (err) return res.status(500).json({ error: err.message });
             if (Array.isArray(items) && items.length){
               const runItems = [...items];
-              const stmt = db.prepare("INSERT INTO client_po_line_items (po_id, product_id, quantity, unit_price, line_total, delivered) VALUES (?, ?, ?, ?, ?, 0)");
+              const stmt = db.prepare("INSERT INTO client_po_line_items (po_id, product_id, quantity, unit_price, line_total, delivered, currency) VALUES (?, ?, ?, ?, ?, 0, ?)");
               (function next(){
                 const it = runItems.shift();
                 if (!it){
@@ -2416,9 +2461,9 @@ if (upload && pdfParse) {
                 }
                 ensureProduct(it, (productId)=>{
                   const pid = productId || it.product_id;
-                  const qty = Number(it.quantity||0); const up = Number(it.unit_price||0);
+                  const qty = Number(it.quantity||0); const up = Number(it.unit_price||0); const curr = it.currency || 'INR';
                   if (!pid){ return next(); }
-                  stmt.run([id, pid, qty, up, qty*up], ()=> next());
+                  stmt.run([id, pid, qty, up, qty*up, curr], ()=> next());
                 });
               })();
             } else {
