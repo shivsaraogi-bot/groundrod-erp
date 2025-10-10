@@ -3312,15 +3312,33 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
 
 // Extended Products table with required columns
 function ProductMasterEx({ products, calculateWeights, onRefresh }){
-  const [form, setForm] = useState({ id:'', description:'', diameter:0, length:0, coating:0 });
+  const [form, setForm] = useState({ id:'', description:'', diameter:0, diameterUnit:'mm', length:0, lengthUnit:'mm', coating:0, weightUnit:'kg' });
   const [editingProduct, setEditingProduct] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [bulkImportStatus, setBulkImportStatus] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
+  // Unit conversion functions - convert everything to mm and kg for storage
+  function convertToMM(value, unit) {
+    const conversions = { 'mm': 1, 'inches': 25.4, 'm': 1000, 'ft': 304.8 };
+    return Number(value) * (conversions[unit] || 1);
+  }
+
+  function convertFromMM(value, unit) {
+    const conversions = { 'mm': 1, 'inches': 25.4, 'm': 1000, 'ft': 304.8 };
+    return Number(value) / (conversions[unit] || 1);
+  }
+
+  function convertWeight(kg, toUnit) {
+    if (toUnit === 'lbs') return kg * 2.20462;
+    return kg;
+  }
+
   async function add(){
-    await fetch(`${API_URL}/products`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...form, steel_diameter:Number(form.diameter), length:Number(form.length), copper_coating:Number(form.coating) }) });
-    setForm({ id:'', description:'', diameter:0, length:0, coating:0 });
+    const diameterMM = convertToMM(form.diameter, form.diameterUnit);
+    const lengthMM = convertToMM(form.length, form.lengthUnit);
+    await fetch(`${API_URL}/products`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...form, steel_diameter:diameterMM, length:lengthMM, copper_coating:Number(form.coating) }) });
+    setForm({ id:'', description:'', diameter:0, diameterUnit:'mm', length:0, lengthUnit:'mm', coating:0, weightUnit:'kg' });
     onRefresh?.();
   }
 
@@ -3353,7 +3371,9 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
   }
 
   async function saveEdit(){
-    await fetch(`${API_URL}/products/${editForm.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...editForm, steel_diameter:Number(editForm.steel_diameter), length:Number(editForm.length), copper_coating:Number(editForm.copper_coating) }) });
+    const diameterMM = editForm.diameterUnit ? convertToMM(editForm.steel_diameter, editForm.diameterUnit) : Number(editForm.steel_diameter);
+    const lengthMM = editForm.lengthUnit ? convertToMM(editForm.length, editForm.lengthUnit) : Number(editForm.length);
+    await fetch(`${API_URL}/products/${editForm.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...editForm, steel_diameter:diameterMM, length:lengthMM, copper_coating:Number(editForm.copper_coating) }) });
     setEditingProduct(null);
     onRefresh?.();
   }
@@ -3368,7 +3388,9 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
     { key: 'id', label: 'Product ID' },
     { key: 'description', label: 'Description' },
     { key: 'steel_diameter', label: 'Steel Dia (mm)', render: (val) => val || '-' },
+    { key: 'steel_diameter_in', label: 'Steel Dia (in)', render: (val, row) => row.steel_diameter ? (row.steel_diameter/25.4).toFixed(3) : '-' },
     { key: 'length', label: 'Length (mm)', render: (val) => val || '-' },
+    { key: 'length_m', label: 'Length (m)', render: (val, row) => row.length ? (row.length/1000).toFixed(2) : '-' },
     { key: 'length_ft', label: 'Length (ft)', render: (val, row) => row.length ? (row.length/304.8).toFixed(2) : '-' },
     { key: 'copper_coating', label: 'Copper (µm)', render: (val) => val || '-' },
     { key: 'cbg_diameter', label: 'CBG Dia (mm)', render: (val, row) => {
@@ -3376,10 +3398,20 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
       const cbg = row.steel_diameter + (2 * row.copper_coating / 1000);
       return cbg.toFixed(2);
     }},
-    { key: 'cbg_weight', label: 'CBG Weight (kg)', render: (val, row) => {
+    { key: 'cbg_diameter_in', label: 'CBG Dia (in)', render: (val, row) => {
+      if (!row.steel_diameter || !row.copper_coating) return '-';
+      const cbg = row.steel_diameter + (2 * row.copper_coating / 1000);
+      return (cbg/25.4).toFixed(3);
+    }},
+    { key: 'cbg_weight', label: 'Weight (kg)', render: (val, row) => {
       if (!row.steel_diameter || !row.copper_coating || !row.length) return '-';
       const w = calculateWeights(row.steel_diameter, row.copper_coating, row.length);
       return w.cbg;
+    }},
+    { key: 'cbg_weight_lbs', label: 'Weight (lbs)', render: (val, row) => {
+      if (!row.steel_diameter || !row.copper_coating || !row.length) return '-';
+      const w = calculateWeights(row.steel_diameter, row.copper_coating, row.length);
+      return (Number(w.cbg) * 2.20462).toFixed(3);
     }}
   ];
 
@@ -3394,8 +3426,11 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
       id: product.id,
       description: product.description,
       steel_diameter: product.steel_diameter || product.diameter,
+      diameterUnit: 'mm',
       length: product.length,
-      copper_coating: product.copper_coating || product.coating
+      lengthUnit: 'mm',
+      copper_coating: product.copper_coating || product.coating,
+      weightUnit: 'kg'
     });
     setEditingProduct(product);
   }
@@ -3417,13 +3452,26 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
   return (
     React.createElement('div', { className:'space-y-4' },
       React.createElement(Section, { title:'Add Product' },
-        React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-6 gap-3' },
+        React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-8 gap-2' },
           React.createElement('input', { className:'border rounded px-3 py-2', placeholder:'Product ID', value:form.id, onChange:e=>setForm({ ...form, id:e.target.value }) }),
           React.createElement('input', { className:'border rounded px-3 py-2 md:col-span-2', placeholder:'Description', value:form.description, onChange:e=>setForm({ ...form, description:e.target.value }) }),
-          React.createElement('input', { className:'border rounded px-3 py-2', type:'number', placeholder:'Steel Dia (mm)', value:form.diameter, onChange:e=>setForm({ ...form, diameter:e.target.value }) }),
-          React.createElement('input', { className:'border rounded px-3 py-2', type:'number', placeholder:'Length (mm)', value:form.length, onChange:e=>setForm({ ...form, length:e.target.value }) }),
+          React.createElement('div', { className:'flex gap-1' },
+            React.createElement('input', { className:'border rounded px-3 py-2 w-20', type:'number', step:'0.01', placeholder:'Dia', value:form.diameter, onChange:e=>setForm({ ...form, diameter:e.target.value }) }),
+            React.createElement('select', { className:'border rounded px-2 py-2 w-16 text-xs', value:form.diameterUnit, onChange:e=>setForm({ ...form, diameterUnit:e.target.value }) },
+              React.createElement('option', { value:'mm' }, 'mm'),
+              React.createElement('option', { value:'inches' }, 'in')
+            )
+          ),
+          React.createElement('div', { className:'flex gap-1' },
+            React.createElement('input', { className:'border rounded px-3 py-2 w-20', type:'number', step:'0.01', placeholder:'Length', value:form.length, onChange:e=>setForm({ ...form, length:e.target.value }) }),
+            React.createElement('select', { className:'border rounded px-2 py-2 w-16 text-xs', value:form.lengthUnit, onChange:e=>setForm({ ...form, lengthUnit:e.target.value }) },
+              React.createElement('option', { value:'mm' }, 'mm'),
+              React.createElement('option', { value:'m' }, 'm'),
+              React.createElement('option', { value:'ft' }, 'ft')
+            )
+          ),
           React.createElement('input', { className:'border rounded px-3 py-2', type:'number', placeholder:'Copper (µm)', value:form.coating, onChange:e=>setForm({ ...form, coating:e.target.value }) }),
-          React.createElement('button', { onClick:add, className:'px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700' }, 'Add Product')
+          React.createElement('button', { onClick:add, className:'px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700 md:col-span-2' }, 'Add Product')
         )
       ),
       React.createElement(Section, { title: 'Bulk Import Products with Auto-BOM (CSV)' },
@@ -3469,12 +3517,25 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
               React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.description || '', onChange:e=>setEditForm({...editForm, description:e.target.value}) })
             ),
             React.createElement('div', null,
-              React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Steel Diameter (mm)'),
-              React.createElement('input', { className:'border rounded px-3 py-2 w-full', type:'number', value:editForm.steel_diameter || '', onChange:e=>setEditForm({...editForm, steel_diameter:e.target.value}) })
+              React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Steel Diameter'),
+              React.createElement('div', { className:'flex gap-2' },
+                React.createElement('input', { className:'border rounded px-3 py-2 flex-1', type:'number', step:'0.01', value:editForm.steel_diameter || '', onChange:e=>setEditForm({...editForm, steel_diameter:e.target.value}) }),
+                React.createElement('select', { className:'border rounded px-3 py-2 w-20', value:editForm.diameterUnit || 'mm', onChange:e=>setEditForm({...editForm, diameterUnit:e.target.value}) },
+                  React.createElement('option', { value:'mm' }, 'mm'),
+                  React.createElement('option', { value:'inches' }, 'in')
+                )
+              )
             ),
             React.createElement('div', null,
-              React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Length (mm)'),
-              React.createElement('input', { className:'border rounded px-3 py-2 w-full', type:'number', value:editForm.length || '', onChange:e=>setEditForm({...editForm, length:e.target.value}) })
+              React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Length'),
+              React.createElement('div', { className:'flex gap-2' },
+                React.createElement('input', { className:'border rounded px-3 py-2 flex-1', type:'number', step:'0.01', value:editForm.length || '', onChange:e=>setEditForm({...editForm, length:e.target.value}) }),
+                React.createElement('select', { className:'border rounded px-3 py-2 w-20', value:editForm.lengthUnit || 'mm', onChange:e=>setEditForm({...editForm, lengthUnit:e.target.value}) },
+                  React.createElement('option', { value:'mm' }, 'mm'),
+                  React.createElement('option', { value:'m' }, 'm'),
+                  React.createElement('option', { value:'ft' }, 'ft')
+                )
+              )
             ),
             React.createElement('div', null,
               React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Copper Coating (µm)'),
@@ -3482,9 +3543,23 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
             ),
             editForm.steel_diameter && editForm.copper_coating && editForm.length && React.createElement('div', { className:'md:col-span-2 bg-blue-50 border border-blue-200 rounded p-4' },
               React.createElement('h4', { className:'font-semibold text-blue-900 mb-2' }, 'Calculated Values'),
-              React.createElement('div', { className:'grid grid-cols-2 gap-2 text-sm' },
-                React.createElement('div', null, `CBG Diameter: ${(Number(editForm.steel_diameter) + (2 * Number(editForm.copper_coating) / 1000)).toFixed(2)} mm`),
-                React.createElement('div', null, `CBG Weight: ${calculateWeights(Number(editForm.steel_diameter), Number(editForm.copper_coating), Number(editForm.length)).cbg} kg`)
+              React.createElement('div', { className:'grid grid-cols-3 gap-3 text-sm' },
+                (()=>{
+                  const diamMM = editForm.diameterUnit ? convertToMM(editForm.steel_diameter, editForm.diameterUnit) : Number(editForm.steel_diameter);
+                  const lenMM = editForm.lengthUnit ? convertToMM(editForm.length, editForm.lengthUnit) : Number(editForm.length);
+                  const cbgDiamMM = diamMM + (2 * Number(editForm.copper_coating) / 1000);
+                  const weights = calculateWeights(diamMM, Number(editForm.copper_coating), lenMM);
+                  const selectedWeightUnit = editForm.weightUnit || 'kg';
+                  const displayWeight = selectedWeightUnit === 'lbs' ? convertWeight(Number(weights.cbg), 'lbs').toFixed(3) : weights.cbg;
+                  return [
+                    React.createElement('div', { key:'diam' }, `CBG Dia: ${cbgDiamMM.toFixed(2)} mm (${(cbgDiamMM/25.4).toFixed(3)} in)`),
+                    React.createElement('div', { key:'weight' }, `Weight: ${displayWeight} ${selectedWeightUnit}`),
+                    React.createElement('select', { key:'unit', className:'border rounded px-2 py-1 text-xs', value:selectedWeightUnit, onChange:e=>setEditForm({...editForm, weightUnit:e.target.value}) },
+                      React.createElement('option', { value:'kg' }, 'kg'),
+                      React.createElement('option', { value:'lbs' }, 'lbs')
+                    )
+                  ];
+                })()
               )
             )
           ),
