@@ -1,0 +1,6 @@
+id,name,office_address,contact_person,phone,email,vendor_type,material_type,city,country
+V001,ABC Steel Industries,Plot 45 Industrial Area Phase 1,Raj Kumar,+91-79-2345-6789,raj@abcsteel.com,Steel,Steel,Ahmedabad,India
+V002,Copper Anode Suppliers Ltd,234 Factory Road Sector 18,Priya Sharma,+91-11-9876-5432,priya@copperanode.in,Copper,Copper Anode,Delhi,India
+V003,Metal Trading Corp,56 Business Park,Amit Patel,+91-22-1234-5678,amit@metaltrading.com,Other,Steel,Mumbai,India
+V004,Premium Electrodes Pvt Ltd,89 Manufacturing Zone,Sunita Reddy,+91-40-8765-4321,sunita@electrodes.co.in,Copper,Copper Anode,Hyderabad,India
+V005,National Steel Suppliers,123 Commerce Street,Vikram Singh,+91-141-2468-1357,vikram@nationalsteel.in,Steel,Steel,Jaipur,India

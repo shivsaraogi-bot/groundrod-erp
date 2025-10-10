@@ -1,0 +1,6 @@
+id,description,steel_diameter,copper_coating,length,weight,cost_price,hs_code,export_description
+CE1034,14.2mm x 3000mm Copper Bonded Ground Rod,14.2,250,3000,4.75,450,8538.90,Copper Bonded Earthing Electrode 14.2mm Dia x 3m Length
+CE1535,17.2mm x 3000mm Copper Bonded Ground Rod,17.2,300,3000,6.85,650,8538.90,Copper Bonded Earthing Electrode 17.2mm Dia x 3m Length
+CE2036,20mm x 3000mm Copper Bonded Ground Rod,20,350,3000,9.42,850,8538.90,Copper Bonded Earthing Electrode 20mm Dia x 3m Length
+CE1024,14.2mm x 2400mm Copper Bonded Ground Rod,14.2,250,2400,3.80,360,8538.90,Copper Bonded Earthing Electrode 14.2mm Dia x 2.4m Length
+CE1718,17.2mm x 1800mm Copper Bonded Ground Rod,17.2,300,1800,4.11,390,8538.90,Copper Bonded Earthing Electrode 17.2mm Dia x 1.8m Length
