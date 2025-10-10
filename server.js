@@ -1512,23 +1512,31 @@ app.get('/api/vendor-purchase-orders/:id', (req, res) => {
 });
 
 app.post('/api/vendor-purchase-orders', (req, res) => {
-  const { id, vendor_id, po_date, expected_delivery, currency, delivery_terms, payment_terms, notes, line_items } = req.body;
-  
+  const { id, vendor_id, po_date, due_date, expected_delivery, currency, delivery_terms, payment_terms, status, notes, line_items } = req.body;
+
   db.run(
-    `INSERT INTO vendor_purchase_orders (id, vendor_id, po_date, expected_delivery, currency, delivery_terms, payment_terms, notes) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, vendor_id, po_date, expected_delivery, currency || 'INR', delivery_terms, payment_terms, notes],
+    `INSERT INTO vendor_purchase_orders (id, vendor_id, po_date, due_date, currency, delivery_terms, payment_terms, status, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, vendor_id, po_date, due_date || expected_delivery, currency || 'INR', delivery_terms, payment_terms, status || 'Pending', notes],
     function(err) {
       if (err) {
         res.status(500).json({ error: err.message });
       } else {
         const stmt = db.prepare("INSERT INTO vendor_po_line_items (po_id, material_type, quantity, unit_price, line_total) VALUES (?, ?, ?, ?, ?)");
-        line_items.forEach(item => {
+        const isCompleted = status === 'Completed';
+
+        (line_items || []).forEach(item => {
           stmt.run([id, item.material_type, item.quantity, item.unit_price, item.quantity * item.unit_price]);
-          
-          // Update committed stock
-          db.run("UPDATE raw_materials_inventory SET committed_stock = committed_stock + ? WHERE material = ?", 
-            [item.quantity, item.material_type]);
+
+          if (isCompleted) {
+            // If created with "Completed" status, add directly to current_stock
+            db.run("UPDATE raw_materials_inventory SET current_stock = current_stock + ? WHERE material = ?",
+              [item.quantity, item.material_type]);
+          } else {
+            // Otherwise, update committed stock
+            db.run("UPDATE raw_materials_inventory SET committed_stock = committed_stock + ? WHERE material = ?",
+              [item.quantity, item.material_type]);
+          }
         });
         stmt.finalize((err) => {
           if (err) {
@@ -1545,12 +1553,43 @@ app.post('/api/vendor-purchase-orders', (req, res) => {
 // Update vendor PO (header only)
 app.put('/api/vendor-purchase-orders/:id', (req, res) => {
   const { id } = req.params;
-  const { vendor_id, po_date, expected_delivery, currency='INR', delivery_terms, payment_terms, notes } = req.body;
-  db.run(
-    `UPDATE vendor_purchase_orders SET vendor_id=?, po_date=?, expected_delivery=?, currency=?, delivery_terms=?, payment_terms=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-    [vendor_id, po_date, expected_delivery, currency, delivery_terms, payment_terms, notes, id],
-    function(err){ if (err) return res.status(500).json({ error: err.message }); res.json({ message: 'Vendor PO updated' }); }
-  );
+  const { vendor_id, po_date, due_date, expected_delivery, currency='INR', delivery_terms, payment_terms, status, notes } = req.body;
+
+  // Get the old status first
+  db.get('SELECT status FROM vendor_purchase_orders WHERE id = ?', [id], (err, oldRow) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    const oldStatus = oldRow?.status;
+    const newStatus = status;
+
+    db.run(
+      `UPDATE vendor_purchase_orders SET vendor_id=?, po_date=?, due_date=?, currency=?, delivery_terms=?, payment_terms=?, status=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+      [vendor_id, po_date, due_date || expected_delivery, currency, delivery_terms, payment_terms, newStatus, notes, id],
+      function(err){
+        if (err) return res.status(500).json({ error: err.message });
+
+        // If status changed to "Completed", update raw materials inventory
+        if (oldStatus !== 'Completed' && newStatus === 'Completed') {
+          db.all('SELECT material_type, quantity FROM vendor_po_line_items WHERE po_id = ?', [id], (err, items) => {
+            if (err) return res.status(500).json({ error: err.message });
+
+            items.forEach(item => {
+              // Add to current_stock and reduce from committed_stock
+              db.run(`UPDATE raw_materials_inventory
+                      SET current_stock = current_stock + ?,
+                          committed_stock = MAX(committed_stock - ?, 0)
+                      WHERE material = ?`,
+                [item.quantity, item.quantity, item.material_type]);
+            });
+
+            res.json({ message: 'Vendor PO updated and inventory received' });
+          });
+        } else {
+          res.json({ message: 'Vendor PO updated' });
+        }
+      }
+    );
+  });
 });
 
 // Delete vendor PO and rollback committed stock
