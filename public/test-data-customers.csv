@@ -1,0 +1,6 @@
+id,name,address,contact_person,phone,email,city,country
+C001,Global Infrastructure Ltd,123 Business District Tower A Bangalore,Mohammed Ali,+91-80-1111-2222,ali@globalinfra.com,Bangalore,India
+C002,National Power Grid Corp,456 Nehru Place New Delhi,Sunita Verma,+91-11-3333-4444,sunita@nationalpowergrid.in,Delhi,India
+C003,Mumbai Metro Construction,789 BKC Complex Mumbai,Vikram Singh,+91-22-6666-7777,vikram@mumbaimetro.com,Mumbai,India
+C004,Eastern Railway Projects,321 Park Street Kolkata,Arijit Banerjee,+91-33-8888-9999,arijit@easternrailway.gov.in,Kolkata,India
+C005,Southern Power Utilities,654 Mount Road Chennai,Deepa Krishnan,+91-44-5555-6666,deepa@southernpower.co.in,Chennai,India

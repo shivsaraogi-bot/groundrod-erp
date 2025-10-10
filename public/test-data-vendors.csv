@@ -1,0 +1,6 @@
+id,name,office_address,contact_person,phone,email,vendor_type,material_type,city,country
+V001,ABC Steel Industries,Plot 45 Industrial Area Phase 1 Ahmedabad,Rajesh Kumar,+91-79-2345-6789,rajesh@abcsteel.com,Steel,Steel,Ahmedabad,India
+V002,Copper Anode Suppliers Ltd,234 Factory Road Sector 18 Delhi,Priya Sharma,+91-11-9876-5432,priya@copperanode.in,Copper,Copper Anode,Delhi,India
+V003,Mumbai Metal Works,67 MIDC Area Andheri East Mumbai,Amit Patel,+91-22-5555-1234,amit@mumbaimetals.com,Steel,Steel,Mumbai,India
+V004,Bengal Coating Services,123 Industrial Estate Salt Lake Kolkata,Subhash Ghosh,+91-33-4444-7890,subhash@bengalcoating.co.in,Job Work,Electroplating,Kolkata,India
+V005,Chennai Copper Traders,89 Anna Nagar Industrial Zone Chennai,Lakshmi Iyer,+91-44-3333-4567,lakshmi@chennaicopper.com,Copper,Copper Anode,Chennai,India
