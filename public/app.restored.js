@@ -1730,11 +1730,37 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
   const [rmForm, setRmForm] = useState({ material:'', current_stock:0, reorder_level:0, last_purchase_date:'' });
   const [editingRM, setEditingRM] = useState(null);
   const [editRMForm, setEditRMForm] = useState({});
+  const [localRawMaterials, setLocalRawMaterials] = useState(rawMaterials || []);
+
+  React.useEffect(() => {
+    setLocalRawMaterials(rawMaterials || []);
+  }, [rawMaterials]);
 
   async function add(){
-    await fetch(`${API_URL}/raw-materials`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(rmForm) });
-    setRmForm({ material:'', current_stock:0, reorder_level:0, last_purchase_date:'' });
-    onRefresh?.();
+    if (!rmForm.material) {
+      alert('Please enter material name');
+      return;
+    }
+    const res = await fetch(`${API_URL}/raw-materials`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(rmForm) });
+    if (res.ok) {
+      setRmForm({ material:'', current_stock:0, reorder_level:0, last_purchase_date:'' });
+      await refreshRawMaterials();
+      if (onRefresh) await onRefresh();
+    } else {
+      alert('Failed to add raw material');
+    }
+  }
+
+  async function refreshRawMaterials(){
+    try {
+      const resp = await fetch(`${API_URL}/raw-materials`);
+      if (resp.ok) {
+        const data = await resp.json();
+        setLocalRawMaterials(data || []);
+      }
+    } catch (err) {
+      console.error('Failed to refresh raw materials', err);
+    }
   }
 
   function handleRMClick(m){
@@ -1748,15 +1774,25 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
   }
 
   async function saveRM(){
-    await fetch(`${API_URL}/raw-materials/${encodeURIComponent(editRMForm.material)}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(editRMForm) });
-    setEditingRM(null);
-    onRefresh?.();
+    const res = await fetch(`${API_URL}/raw-materials/${encodeURIComponent(editRMForm.material)}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(editRMForm) });
+    if (res.ok) {
+      setEditingRM(null);
+      await refreshRawMaterials();
+      if (onRefresh) await onRefresh();
+    } else {
+      alert('Failed to update raw material');
+    }
   }
 
   async function delRM(name){
     if(!confirm('Delete raw material?')) return;
-    await fetch(`${API_URL}/raw-materials/${encodeURIComponent(name)}`, { method:'DELETE' });
-    onRefresh?.();
+    const res = await fetch(`${API_URL}/raw-materials/${encodeURIComponent(name)}`, { method:'DELETE' });
+    if (res.ok) {
+      await refreshRawMaterials();
+      if (onRefresh) await onRefresh();
+    } else {
+      alert('Failed to delete raw material');
+    }
   }
   return (
     React.createElement('div', { className:'space-y-6' },
@@ -1770,7 +1806,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
         ),
         React.createElement(EnhancedTable, {
           title: '',
-          data: rawMaterials,
+          data: localRawMaterials,
           columns: [
             { key: 'material', label: 'Material' },
             { key: 'current_stock', label: 'Current Stock', render: (val) => val || 0 },
