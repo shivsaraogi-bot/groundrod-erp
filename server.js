@@ -718,7 +718,7 @@ function initializeDatabase() {
     // Lightweight migrations for evolving schema - all wrapped in error handlers to prevent crashes
     db.all("PRAGMA table_info(customers)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('city')) db.run("ALTER TABLE customers ADD COLUMN city TEXT", ()=>{}); if(!n.includes('country')) db.run("ALTER TABLE customers ADD COLUMN country TEXT", ()=>{}); } });
     db.all("PRAGMA table_info(vendors)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('city')) db.run("ALTER TABLE vendors ADD COLUMN city TEXT", ()=>{}); if(!n.includes('country')) db.run("ALTER TABLE vendors ADD COLUMN country TEXT", ()=>{}); if(!n.includes('vendor_type')) db.run("ALTER TABLE vendors ADD COLUMN vendor_type TEXT DEFAULT 'Other'", ()=>{}); } });
-    db.all("PRAGMA table_info(products)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('category')) db.run("ALTER TABLE products ADD COLUMN category TEXT", ()=>{}); if(!n.includes('product_type')) db.run("ALTER TABLE products ADD COLUMN product_type TEXT DEFAULT 'ground_rod'", ()=>{}); if(!n.includes('custom_bom')) db.run("ALTER TABLE products ADD COLUMN custom_bom INTEGER DEFAULT 0", ()=>{}); } });
+    db.all("PRAGMA table_info(products)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('category')) db.run("ALTER TABLE products ADD COLUMN category TEXT", ()=>{}); if(!n.includes('product_type')) db.run("ALTER TABLE products ADD COLUMN product_type TEXT DEFAULT 'ground_rod'", ()=>{}); if(!n.includes('custom_bom')) db.run("ALTER TABLE products ADD COLUMN custom_bom INTEGER DEFAULT 0", ()=>{}); if(!n.includes('width')) db.run("ALTER TABLE products ADD COLUMN width REAL", ()=>{}); if(!n.includes('height')) db.run("ALTER TABLE products ADD COLUMN height REAL", ()=>{}); if(!n.includes('thickness')) db.run("ALTER TABLE products ADD COLUMN thickness REAL", ()=>{}); } });
     db.all("PRAGMA table_info(vendor_po_line_items)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('description')) db.run("ALTER TABLE vendor_po_line_items ADD COLUMN description TEXT", ()=>{}); if(!n.includes('unit')) db.run("ALTER TABLE vendor_po_line_items ADD COLUMN unit TEXT", ()=>{}); } });
     db.all("PRAGMA table_info(inventory)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('committed')) db.run("ALTER TABLE inventory ADD COLUMN committed INTEGER DEFAULT 0", ()=>{}); } });
     db.all("PRAGMA table_info(client_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN is_deleted INTEGER DEFAULT 0", ()=>{}); } });
@@ -952,13 +952,16 @@ app.post('/api/products', (req, res) => {
   const steel_diameter = Number(req.body.steel_diameter ?? req.body.diameter);
   const copper_coating = Number(req.body.copper_coating ?? req.body.coating);
   const length = Number(req.body.length ?? req.body.length_mm);
+  const width = Number(req.body.width || 0);
+  const height = Number(req.body.height || 0);
+  const thickness = Number(req.body.thickness || 0);
   const category = (req.body.category||'').toString() || null;
   const product_type = (req.body.product_type||'ground_rod').toString();
   const custom_bom = req.body.custom_bom ? 1 : 0;
 
   const runInsert = (schema)=>{
-    const cols = ['id','description','steel_diameter','copper_coating','length','product_type','custom_bom'];
-    const vals = [id, description, steel_diameter, copper_coating, length, product_type, custom_bom];
+    const cols = ['id','description','steel_diameter','copper_coating','length','width','height','thickness','product_type','custom_bom'];
+    const vals = [id, description, steel_diameter, copper_coating, length, width, height, thickness, product_type, custom_bom];
     if (category !== null){ cols.push('category'); vals.push(category); }
     if (schema.hasDiameter) { cols.push('diameter'); vals.push(steel_diameter); }
     if (schema.hasCoating) { cols.push('coating'); vals.push(copper_coating); }
@@ -966,18 +969,35 @@ app.post('/api/products', (req, res) => {
     db.run(sql, vals, function(err){
       if (err) return res.status(500).json({ error: err.message });
 
-      // Auto-generate BOM only if NOT using custom BOM and product is a ground_rod
-      if (!custom_bom && product_type === 'ground_rod' && steel_diameter > 0 && length > 0) {
-        const steelRadiusMM = steel_diameter / 2;
-        const steelVolumeMM3 = Math.PI * steelRadiusMM * steelRadiusMM * length;
-        const steelWeightKg = (steelVolumeMM3 * 7.85) / 1000000;
+      // Auto-generate BOM only if NOT using custom BOM
+      if (!custom_bom) {
+        if (product_type === 'ground_rod' && steel_diameter > 0 && length > 0) {
+          // Cylindrical ground rod calculation
+          const steelRadiusMM = steel_diameter / 2;
+          const steelVolumeMM3 = Math.PI * steelRadiusMM * steelRadiusMM * length;
+          const steelWeightKg = (steelVolumeMM3 * 7.85) / 1000000;
 
-        const outerRadiusMM = steel_diameter / 2 + copper_coating / 1000;
-        const copperVolumeMM3 = Math.PI * (outerRadiusMM * outerRadiusMM - steelRadiusMM * steelRadiusMM) * length;
-        const copperWeightKg = (copperVolumeMM3 * 8.96) / 1000000;
+          const outerRadiusMM = steel_diameter / 2 + copper_coating / 1000;
+          const copperVolumeMM3 = Math.PI * (outerRadiusMM * outerRadiusMM - steelRadiusMM * steelRadiusMM) * length;
+          const copperWeightKg = (copperVolumeMM3 * 8.96) / 1000000;
 
-        db.run(`INSERT OR REPLACE INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)`, [id, 'Steel', steelWeightKg], ()=>{});
-        db.run(`INSERT OR REPLACE INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)`, [id, 'Copper Anode', copperWeightKg], ()=>{});
+          db.run(`INSERT OR REPLACE INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)`, [id, 'Steel', steelWeightKg], ()=>{});
+          db.run(`INSERT OR REPLACE INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)`, [id, 'Copper Anode', copperWeightKg], ()=>{});
+        } else if (product_type === 'clamp' && width > 0 && height > 0 && thickness > 0 && length > 0) {
+          // Rectangular clamp calculation - steel bar volume
+          const steelVolumeMM3 = width * height * thickness * length;
+          const steelWeightKg = (steelVolumeMM3 * 7.85) / 1000000; // Steel density 7.85 g/cm³
+
+          // Copper coating for rectangular surfaces
+          // Total surface area = 2*(width*height + width*thickness + height*thickness) * length
+          const surfaceAreaMM2 = 2 * (width * height + width * thickness + height * thickness) * length;
+          const copperThicknessMM = copper_coating / 1000; // Convert µm to mm
+          const copperVolumeMM3 = surfaceAreaMM2 * copperThicknessMM;
+          const copperWeightKg = (copperVolumeMM3 * 8.96) / 1000000; // Copper density 8.96 g/cm³
+
+          db.run(`INSERT OR REPLACE INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)`, [id, 'Steel Bar', steelWeightKg], ()=>{});
+          db.run(`INSERT OR REPLACE INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)`, [id, 'Copper Anode', copperWeightKg], ()=>{});
+        }
       }
 
       res.json({ message: 'Product added successfully' });
