@@ -3462,7 +3462,7 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
     { key: 'cbg_diameter', label: 'CBG Dia (mm)', render: (val, row) => {
       if (!row.steel_diameter || !row.copper_coating) return '-';
       const cbg = row.steel_diameter + (2 * row.copper_coating / 1000);
-      return cbg.toFixed(2);
+      return cbg.toFixed(1);
     }},
     { key: 'cbg_diameter_in', label: 'CBG Dia (in)', render: (val, row) => {
       if (!row.steel_diameter || !row.copper_coating) return '-';
@@ -3472,12 +3472,12 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
     { key: 'cbg_weight', label: 'Weight (kg)', render: (val, row) => {
       if (!row.steel_diameter || !row.copper_coating || !row.length) return '-';
       const w = calculateWeights(row.steel_diameter, row.copper_coating, row.length);
-      return w.cbg;
+      return Number(w.cbg).toFixed(2);
     }},
     { key: 'cbg_weight_lbs', label: 'Weight (lbs)', render: (val, row) => {
       if (!row.steel_diameter || !row.copper_coating || !row.length) return '-';
       const w = calculateWeights(row.steel_diameter, row.copper_coating, row.length);
-      return (Number(w.cbg) * 2.20462).toFixed(3);
+      return (Number(w.cbg) * 2.20462).toFixed(2);
     }}
   ];
 
