@@ -2831,7 +2831,9 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
 
   // Stock Adjustments History Table
   const adjustmentsHistoryTable = showAdjustmentsHistory && React.createElement(Section, { title: 'Stock Adjustments History' },
-    React.createElement(EnhancedTable, {
+    stockAdjustments.length === 0 ? React.createElement('div', { className: 'p-4 bg-gray-50 border border-gray-200 rounded text-center text-gray-600' },
+      'No stock adjustments found. Create one using the "+ Stock Adjustment" button above.'
+    ) : React.createElement(EnhancedTable, {
       title: 'Stock Adjustments',
       data: stockAdjustments,
       columns: [
