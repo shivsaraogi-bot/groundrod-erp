@@ -370,8 +370,10 @@ function initializeDatabase() {
     db.run("ALTER TABLE products ADD COLUMN export_description TEXT", (err) => { /* ignore if already exists */ });
     db.run("ALTER TABLE products ADD COLUMN cost_price REAL DEFAULT 0", (err) => { /* ignore if already exists */ });
 
-    // NEW: Add missing columns to vendors table
+    // NEW: Add missing columns to vendors table (migrations for old databases)
     db.run("ALTER TABLE vendors ADD COLUMN office_address TEXT", (err) => { /* ignore if already exists */ });
+    db.run("ALTER TABLE vendors ADD COLUMN vendor_type TEXT DEFAULT 'Other'", (err) => { /* ignore if already exists */ });
+    db.run("ALTER TABLE vendors ADD COLUMN material_type TEXT", (err) => { /* ignore if already exists */ });
     db.run("ALTER TABLE vendors ADD COLUMN city TEXT", (err) => { /* ignore if already exists */ });
     db.run("ALTER TABLE vendors ADD COLUMN country TEXT", (err) => { /* ignore if already exists */ });
 
