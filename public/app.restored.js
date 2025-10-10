@@ -3072,7 +3072,11 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
     }
   }
   async function updateItem(vpoId, item){
-    await fetch(`${API_URL}/vendor-purchase-orders/${vpoId}/items/${item.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(item) });
+    const res = await fetch(`${API_URL}/vendor-purchase-orders/${vpoId}/items/${item.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(item) });
+    if (res.ok) {
+      const idata = await (await fetch(`${API_URL}/vendor-purchase-orders/${vpoId}/items`)).json();
+      setItemsCache({ ...itemsCache, [vpoId]: idata });
+    }
   }
   async function deleteItem(vpoId, itemId){
     await fetch(`${API_URL}/vendor-purchase-orders/${vpoId}/items/${itemId}`, { method:'DELETE' });
@@ -3186,19 +3190,19 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
             React.createElement('div', { className:'overflow-x-auto' },
               React.createElement('table', { className:'min-w-full border-collapse' },
                 React.createElement('thead', null,
-                  React.createElement('tr', { className:'bg-gray-100' }, ['Type','Item','Stage','Quantity','Unit Price','Unit','Line Total','Actions'].map(h=> React.createElement('th', { key:h, className:'p-2 text-sm' }, h)))
+                  React.createElement('tr', { className:'bg-gray-100' }, ['Type','Item','Stage','Quantity','Unit Price','Unit','Line Total','Actions'].map(h=> React.createElement('th', { key:h, className:'p-2 text-sm text-center border' }, h)))
                 ),
                 React.createElement('tbody', null,
                   (itemsCache[id]||[]).map(it => (
                     React.createElement('tr', { key:it.id, className:'border-b' },
-                      React.createElement('td', { className:'p-2 text-xs' }, it.item_type || 'Raw Material'),
-                      React.createElement('td', { className:'p-2' }, it.product_id || it.material_type || it.item),
-                      React.createElement('td', { className:'p-2 text-xs' }, it.product_stage ? it.product_stage.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-'),
-                      React.createElement('td', { className:'p-2' }, React.createElement('input', { type:'number', className:'border rounded px-2 py-1 w-24 text-right', defaultValue:it.quantity || it.qty, onChange:e=>it.quantity=Number(e.target.value||0) })),
-                      React.createElement('td', { className:'p-2' }, React.createElement('input', { type:'number', className:'border rounded px-2 py-1 w-24 text-right', defaultValue:it.unit_price || 0, onChange:e=>it.unit_price=Number(e.target.value||0) })),
-                      React.createElement('td', { className:'p-2 text-sm' }, it.unit || 'kg'),
-                      React.createElement('td', { className:'p-2 text-right font-semibold' }, ((it.quantity || it.qty || 0) * (it.unit_price || 0)).toFixed(2)),
-                      React.createElement('td', { className:'p-2 text-right space-x-2' },
+                      React.createElement('td', { className:'p-2 text-sm text-center border' }, it.item_type || 'Raw Material'),
+                      React.createElement('td', { className:'p-2 text-sm text-center border' }, it.product_id || it.material_type || it.item),
+                      React.createElement('td', { className:'p-2 text-sm text-center border' }, it.product_stage ? it.product_stage.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-'),
+                      React.createElement('td', { className:'p-2 text-center border' }, React.createElement('input', { type:'number', className:'border rounded px-2 py-1 w-24 text-center', defaultValue:it.quantity || it.qty, onChange:e=>it.quantity=Number(e.target.value||0) })),
+                      React.createElement('td', { className:'p-2 text-center border' }, React.createElement('input', { type:'number', className:'border rounded px-2 py-1 w-24 text-center', defaultValue:it.unit_price || 0, onChange:e=>it.unit_price=Number(e.target.value||0) })),
+                      React.createElement('td', { className:'p-2 text-sm text-center border' }, it.unit || 'kg'),
+                      React.createElement('td', { className:'p-2 text-sm text-center font-semibold border' }, ((it.quantity || it.qty || 0) * (it.unit_price || 0)).toFixed(2)),
+                      React.createElement('td', { className:'p-2 text-center border space-x-2' },
                         React.createElement('button', { className:'px-2 py-1 bg-blue-600 text-white rounded text-sm', onClick:()=>updateItem(id, it) }, 'Save'),
                         React.createElement('button', { className:'px-2 py-1 bg-red-600 text-white rounded text-sm', onClick:()=>deleteItem(id, it.id) }, 'Delete')
                       )
