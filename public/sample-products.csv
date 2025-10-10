@@ -1,6 +1,19 @@
-id,description,steel_diameter,copper_coating,length,weight,cost_price,hs_code,export_description
-CE1034,14.2mm x 3000mm Copper Bonded Ground Rod,14.2,250,3000,4.75,450,8538.90,Copper Bonded Earthing Electrode 14.2mm Dia x 3m Length
-CE1535,17.2mm x 3000mm Copper Bonded Ground Rod,17.2,300,3000,6.85,650,8538.90,Copper Bonded Earthing Electrode 17.2mm Dia x 3m Length
-CE2036,20mm x 3000mm Copper Bonded Ground Rod,20,350,3000,9.42,850,8538.90,Copper Bonded Earthing Electrode 20mm Dia x 3m Length
-CE1024,14.2mm x 2400mm Copper Bonded Ground Rod,14.2,250,2400,3.80,360,8538.90,Copper Bonded Earthing Electrode 14.2mm Dia x 2.4m Length
-CE1718,17.2mm x 1800mm Copper Bonded Ground Rod,17.2,300,1800,4.11,390,8538.90,Copper Bonded Earthing Electrode 17.2mm Dia x 1.8m Length
+ID,Description,Steel Dia (mm),Length (mm),Cu Coating
+CE1012,1/2" x 10' Flat,12.2,3000,254
+CE1012S,1/2" x 10' Threaded,12.2,3000,254
+CE1034,3/4" x 10' Flat,16.7,3000,254
+CE1034S,3/4" x 10' Threaded,16.7,3000,254
+CE1058,5/8" x 10' Flat,13.7,3000,254
+CE1058S,5/8" x 10' Threaded,13.7,3000,254
+CE1088,1" x 10' Plain,22.7,3000,254
+CE1088S,1" x 10' Threaded,22.7,3000,254
+CE512,1/2" x 5' Plain,12.2,1500,254
+CE558,5/8" x 5' - 2,13.7,1500,254
+CE812,1/2" x 8' Plain,12.2,2400,254
+CE812S,1/2" x 8' Threaded,12.2,2400,254
+CE834,3/4" x 8' Plain,16.7,2400,254
+CE834S,3/4" x 8' Threaded,16.7,2400,254
+CE858,5/8" x 8' Plain,13.7,2400,254
+CE858S,5/8" x 8' Threaded,13.7,2400,254
+CE888,1" x 8' Plain,22.7,2400,254
+CE888S,1" x 8' Threaded,22.7,2400,254

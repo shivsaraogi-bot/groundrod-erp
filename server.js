@@ -2883,9 +2883,38 @@ if (upload && csvParse) {
 
       for (const row of records) {
         try {
-          const steelDiameter = parseFloat(row.steel_diameter || row.diameter || 0);
-          const copperCoating = parseFloat(row.copper_coating || row.coating || 0);
-          const length = parseFloat(row.length || 3000);
+          // Normalize column names - support various formats
+          const normalizedRow = {};
+          for (const [key, value] of Object.entries(row)) {
+            const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+            normalizedRow[normalized] = value;
+          }
+
+          // Extract values with flexible column name matching
+          const productId = row.id || row.ID || row.product_id || normalizedRow.id || normalizedRow.productid;
+          const description = row.description || row.Description || normalizedRow.description;
+          const steelDiameter = parseFloat(
+            row.steel_diameter || row.steel_dia || row['Steel Dia (mm)'] ||
+            normalizedRow.steeldiametermm || normalizedRow.steeldiameter ||
+            normalizedRow.diameter || 0
+          );
+          const copperCoating = parseFloat(
+            row.copper_coating || row.coating || row['Cu Coating'] || row.cu_coating ||
+            normalizedRow.cucoating || normalizedRow.coppercoating || 0
+          );
+          const length = parseFloat(
+            row.length || row['Length (mm)'] || normalizedRow.lengthmm ||
+            normalizedRow.length || 3000
+          );
+
+          // Validate required fields
+          if (!productId || !steelDiameter || !length) {
+            errors.push({
+              row: productId || description || 'Unknown',
+              error: 'Missing required fields: ID, Steel Diameter, and Length are required'
+            });
+            continue;
+          }
 
           // Insert product
           await new Promise((resolve, reject) => {
@@ -2893,15 +2922,15 @@ if (upload && csvParse) {
               `INSERT INTO products (id, description, steel_diameter, copper_coating, length, weight, cost_price, hs_code, export_description)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [
-                row.id || row.product_id,
-                row.description,
+                productId,
+                description || '',
                 steelDiameter,
                 copperCoating,
                 length,
-                parseFloat(row.weight || 0),
-                parseFloat(row.cost_price || 0),
-                row.hs_code || '',
-                row.export_description || row.description || ''
+                parseFloat(row.weight || normalizedRow.weight || 0),
+                parseFloat(row.cost_price || normalizedRow.costprice || 0),
+                row.hs_code || normalizedRow.hscode || '',
+                row.export_description || description || ''
               ],
               (err) => err ? reject(err) : resolve()
             );
@@ -2922,7 +2951,7 @@ if (upload && csvParse) {
           await new Promise((resolve, reject) => {
             db.run(
               `INSERT OR REPLACE INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)`,
-              [row.id || row.product_id, 'Steel', steelWeightKg],
+              [productId, 'Steel', steelWeightKg],
               (err) => err ? reject(err) : resolve()
             );
           });
@@ -2931,7 +2960,7 @@ if (upload && csvParse) {
           await new Promise((resolve, reject) => {
             db.run(
               `INSERT OR REPLACE INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)`,
-              [row.id || row.product_id, 'Copper Anode', copperWeightKg],
+              [productId, 'Copper Anode', copperWeightKg],
               (err) => err ? reject(err) : resolve()
             );
           });
