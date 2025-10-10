@@ -2439,6 +2439,7 @@ function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, on
   const [visibleColumns, setVisibleColumns] = useState(getInitialColumns());
   const [filters, setFilters] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchColumn, setSearchColumn] = useState('all');
 
   const updateVisibleColumns = (newColumns) => {
     setVisibleColumns(newColumns);
@@ -2468,12 +2469,17 @@ function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, on
       }
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase();
-        const match = columns.some(col => { const val = row[col.key]; return val && String(val).toLowerCase().includes(searchLower); });
-        if (!match) return false;
+        if (searchColumn === 'all') {
+          const match = columns.some(col => { const val = row[col.key]; return val && String(val).toLowerCase().includes(searchLower); });
+          if (!match) return false;
+        } else {
+          const val = row[searchColumn];
+          if (!val || !String(val).toLowerCase().includes(searchLower)) return false;
+        }
       }
       return true;
     });
-  }, [sortedData, filters, searchTerm, columns]);
+  }, [sortedData, filters, searchTerm, searchColumn, columns]);
 
   const requestSort = (key) => {
     let direction = 'asc';
@@ -2486,7 +2492,13 @@ function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, on
   return React.createElement('div', { className: 'space-y-4' },
     React.createElement('div', { className: 'bg-white rounded-lg shadow-md p-4 border border-gray-200' },
       React.createElement('div', { className: 'flex flex-wrap gap-3 items-center mb-3' },
-        React.createElement('input', { type: 'text', placeholder: 'Search...', value: searchTerm, onChange: e => setSearchTerm(e.target.value), className: 'border rounded px-3 py-2 w-64' }),
+        React.createElement('div', { className: 'flex gap-2' },
+          React.createElement('select', { value: searchColumn, onChange: e => setSearchColumn(e.target.value), className: 'border rounded px-3 py-2 bg-gray-50 text-sm font-semibold' },
+            React.createElement('option', { value: 'all' }, 'All Columns'),
+            columns.map(col => React.createElement('option', { key: col.key, value: col.key }, col.label))
+          ),
+          React.createElement('input', { type: 'text', placeholder: searchColumn === 'all' ? 'Search all columns...' : `Search in ${columns.find(c => c.key === searchColumn)?.label || ''}...`, value: searchTerm, onChange: e => setSearchTerm(e.target.value), className: 'border rounded px-3 py-2 w-64' })
+        ),
         filterOptions.map(filter => React.createElement('select', { key: filter.key, value: filters[filter.key] || '', onChange: e => setFilters({ ...filters, [filter.key]: e.target.value }), className: 'border rounded px-3 py-2' },
           React.createElement('option', { value: '' }, `All ${filter.label}`),
           (filter.values || []).map(val => React.createElement('option', { key: val, value: val }, val))
