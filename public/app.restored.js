@@ -680,7 +680,11 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
       due_date: po.due_date,
       currency: po.currency || 'INR',
       status: po.status,
-      notes: po.notes || ''
+      notes: po.notes || '',
+      advance_percent: po.advance_percent || 0,
+      balance_payment_terms: po.balance_payment_terms || 'on_dispatch',
+      mode_of_delivery: po.mode_of_delivery || 'FOB',
+      expected_delivery_date: po.expected_delivery_date || ''
     });
     setEditingPO(po);
 
@@ -1092,7 +1096,23 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
           { key: 'customer_name', label: 'Customer' },
           { key: 'po_date', label: 'PO Date' },
           { key: 'due_date', label: 'Due Date' },
+          { key: 'expected_delivery_date', label: 'Expected Delivery', render: (val) => val || '-' },
           { key: 'currency', label: 'Currency', render: (val) => val || 'INR' },
+          { key: 'advance_percent', label: 'Advance %', render: (val) => val ? `${val}%` : '-' },
+          { key: 'balance_payment_terms', label: 'Balance Payment', render: (val) => {
+            if (!val) return '-';
+            const terms = {
+              'on_dispatch': 'On Dispatch',
+              'at_door_delivery': 'At Door Delivery',
+              '30_days_net_bl': '30 Days Net B/L',
+              '45_days_net_bl': '45 Days Net B/L',
+              '60_days_net_bl': '60 Days Net B/L',
+              '75_days_net_bl': '75 Days Net B/L',
+              '90_days_net_bl': '90 Days Net B/L'
+            };
+            return terms[val] || val;
+          }},
+          { key: 'mode_of_delivery', label: 'Delivery Mode', render: (val) => val || '-' },
           { key: 'status', label: 'Status' },
           { key: 'notes', label: 'Notes', render: (val) => val || '-' },
           { key: 'pdf_path', label: 'PDF', render: (val) => val ? React.createElement('a', { href: `${API_URL}${val}`, target: '_blank', className: 'text-blue-600 hover:underline' }, '📄 View') : '-' }
@@ -1103,9 +1123,10 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
         onExport: (data, cols) => downloadCSV('client-purchase-orders.csv', cols.filter(c => c.key !== 'pdf_path').map(c=>({key:c.key,label:c.label})), data),
         filterOptions: [
           { key: 'customer_name', label: 'Customer', values: [...new Set(localOrders.map(po => po.customer_name).filter(Boolean))] },
-          { key: 'status', label: 'Status', values: ['Pending', 'Confirmed', 'In Production', 'Completed', 'Cancelled'] }
+          { key: 'status', label: 'Status', values: ['Pending', 'Confirmed', 'In Production', 'Completed', 'Cancelled'] },
+          { key: 'mode_of_delivery', label: 'Delivery Mode', values: [...new Set(localOrders.map(po => po.mode_of_delivery).filter(Boolean))] }
         ],
-        defaultVisibleColumns: { id: true, customer_name: true, po_date: true, due_date: true, currency: true, status: true, notes: true, pdf_path: true },
+        defaultVisibleColumns: { id: true, customer_name: true, po_date: true, due_date: true, expected_delivery_date: true, currency: true, advance_percent: true, balance_payment_terms: true, mode_of_delivery: true, status: true, notes: false, pdf_path: true },
         actions: (po) => [
           React.createElement('button', {
             key: 'view-items',
@@ -1229,16 +1250,72 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                 value: editForm.notes || '',
                 onChange: e => setEditForm({ ...editForm, notes: e.target.value })
               })
-            ),
-            editingPO.pdf_path && React.createElement('div', { className: 'md:col-span-2' },
-              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Attached PDF'),
-              React.createElement('a', {
-                href: `${API_URL}${editingPO.pdf_path}`,
-                target: '_blank',
-                className: 'text-blue-600 hover:underline flex items-center gap-2'
-              },
-                React.createElement('span', null, '📄'),
-                React.createElement('span', null, 'View Client PO PDF')
+            )
+          ),
+
+          // Payment & Delivery Terms Section
+          React.createElement('div', { className: 'border-t pt-4 mt-4' },
+            React.createElement('h4', { className: 'font-semibold text-md mb-3 text-gray-800' }, 'Payment & Delivery Terms'),
+            React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
+              React.createElement('div', null,
+                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Advance Payment (%)'),
+                React.createElement('input', {
+                  type: 'number',
+                  min: '0',
+                  max: '100',
+                  className: 'border rounded px-3 py-2 w-full',
+                  value: editForm.advance_percent || 0,
+                  onChange: e => setEditForm({ ...editForm, advance_percent: Number(e.target.value) })
+                })
+              ),
+              React.createElement('div', null,
+                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Balance Payment Terms'),
+                React.createElement('select', {
+                  className: 'border rounded px-3 py-2 w-full',
+                  value: editForm.balance_payment_terms || 'on_dispatch',
+                  onChange: e => setEditForm({ ...editForm, balance_payment_terms: e.target.value })
+                },
+                  React.createElement('option', { value: 'on_dispatch' }, 'On Dispatch'),
+                  React.createElement('option', { value: 'at_door_delivery' }, 'At Door Delivery'),
+                  React.createElement('option', { value: '30_days_net_bl' }, '30 Days Net B/L'),
+                  React.createElement('option', { value: '45_days_net_bl' }, '45 Days Net B/L'),
+                  React.createElement('option', { value: '60_days_net_bl' }, '60 Days Net B/L'),
+                  React.createElement('option', { value: '75_days_net_bl' }, '75 Days Net B/L'),
+                  React.createElement('option', { value: '90_days_net_bl' }, '90 Days Net B/L')
+                )
+              ),
+              React.createElement('div', null,
+                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Mode of Delivery'),
+                React.createElement('select', {
+                  className: 'border rounded px-3 py-2 w-full',
+                  value: editForm.mode_of_delivery || 'FOB',
+                  onChange: e => setEditForm({ ...editForm, mode_of_delivery: e.target.value })
+                },
+                  React.createElement('option', { value: 'FOB' }, 'FOB'),
+                  React.createElement('option', { value: 'CIF' }, 'CIF'),
+                  React.createElement('option', { value: 'Door Delivery to Warehouse' }, 'Door Delivery to Warehouse'),
+                  React.createElement('option', { value: 'DDP' }, 'DDP')
+                )
+              ),
+              React.createElement('div', null,
+                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Expected Delivery Date'),
+                React.createElement('input', {
+                  type: 'date',
+                  className: 'border rounded px-3 py-2 w-full',
+                  value: editForm.expected_delivery_date || '',
+                  onChange: e => setEditForm({ ...editForm, expected_delivery_date: e.target.value })
+                })
+              ),
+              editingPO.pdf_path && React.createElement('div', { className: 'md:col-span-2' },
+                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Attached PDF'),
+                React.createElement('a', {
+                  href: `${API_URL}${editingPO.pdf_path}`,
+                  target: '_blank',
+                  className: 'text-blue-600 hover:underline flex items-center gap-2'
+                },
+                  React.createElement('span', null, '📄'),
+                  React.createElement('span', null, 'View Client PO PDF')
+                )
               )
             )
           ),
