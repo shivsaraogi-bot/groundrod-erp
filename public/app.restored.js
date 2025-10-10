@@ -11,6 +11,8 @@ function GroundRodERP() {
   const [vendorPurchaseOrders, setVendorPurchaseOrders] = useState([]);
   const [shipments, setShipments] = useState([]);
   const [rawMaterials, setRawMaterials] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [dashboardStats, setDashboardStats] = useState({});
   const [riskAnalysis, setRiskAnalysis] = useState({});
   const [loading, setLoading] = useState(true);
@@ -37,7 +39,7 @@ function GroundRodERP() {
   async function fetchAllData() {
     setLoading(true);
     try {
-      const [productsRes, customersRes, vendorsRes, inventoryRes, clientPOsRes, vendorPOsRes, shipmentsRes, rawRes, statsRes, riskRes] = await Promise.all([
+      const [productsRes, customersRes, vendorsRes, inventoryRes, clientPOsRes, vendorPOsRes, shipmentsRes, rawRes, invoicesRes, paymentsRes, statsRes, riskRes] = await Promise.all([
         fetch(`${API_URL}/products`),
         fetch(`${API_URL}/customers`),
         fetch(`${API_URL}/vendors`),
@@ -46,6 +48,8 @@ function GroundRodERP() {
         fetch(`${API_URL}/vendor-purchase-orders`),
         fetch(`${API_URL}/shipments`),
         fetch(`${API_URL}/raw-materials`),
+        fetch(`${API_URL}/invoices`),
+        fetch(`${API_URL}/payments`),
         fetch(`${API_URL}/dashboard/stats`),
         fetch(`${API_URL}/dashboard/risk-analysis`)
       ]);
@@ -57,6 +61,8 @@ function GroundRodERP() {
       setVendorPurchaseOrders(await vendorPOsRes.json());
       setShipments(await shipmentsRes.json());
       setRawMaterials(await rawRes.json());
+      setInvoices(await invoicesRes.json());
+      setPayments(await paymentsRes.json());
       setDashboardStats(await statsRes.json());
       setRiskAnalysis(await riskRes.json());
     } catch (err) {
@@ -108,6 +114,7 @@ function GroundRodERP() {
         activeTab === 'dashboard' && React.createElement(Dashboard, { stats: dashboardStats, riskAnalysis, clientPurchaseOrders, inventory }),
         activeTab === 'production' && React.createElement(DailyProduction, { products, onSubmit: fetchAllData }),
         activeTab === 'client-orders' && React.createElement(ClientPurchaseOrders, { purchaseOrders: clientPurchaseOrders, products, customers, onRefresh: fetchAllData }),
+        activeTab === 'invoices' && React.createElement(InvoiceManagement, { invoices, payments, clientPurchaseOrders, onRefresh: fetchAllData }),
         activeTab === 'vendor-orders' && React.createElement(VendorPurchaseOrdersEx, { purchaseOrders: vendorPurchaseOrders, vendors, onRefresh: fetchAllData }),
         activeTab === 'job-work' && React.createElement(JobWorkOrders, { vendors, products, onRefresh: fetchAllData }),
         activeTab === 'shipments' && React.createElement(Shipments, { shipments, purchaseOrders: clientPurchaseOrders, products, onRefresh: fetchAllData }),
@@ -141,6 +148,7 @@ function NavTabs({ activeTab, setActiveTab }){
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'production', label: 'Production' },
     { id: 'client-orders', label: 'Client Orders' },
+    { id: 'invoices', label: 'Invoices' },
     { id: 'vendor-orders', label: 'Vendor Orders' },
     { id: 'job-work', label: 'Job Work' },
     { id: 'shipments', label: 'Shipments' },
@@ -425,6 +433,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
   const [editLineItems, setEditLineItems] = useState([]);
   const [lineItems, setLineItems] = useState({});
   const [fulfilEdit, setFulfilEdit] = useState({});
+  const [expandedRows, setExpandedRows] = useState({});
 
   // Form state for PO header
   const [form, setForm] = useState({
@@ -693,6 +702,29 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
     await fetch(`${API_URL}/purchase-orders/${id}`, { method: 'DELETE' });
     await refreshLocalOrders();
     if (onRefresh) await onRefresh();
+  }
+
+  async function toggleRowExpansion(poId) {
+    if (expandedRows[poId]) {
+      // Collapse the row
+      const newExpanded = { ...expandedRows };
+      delete newExpanded[poId];
+      setExpandedRows(newExpanded);
+    } else {
+      // Expand the row and fetch line items
+      if (!lineItems[poId]) {
+        try {
+          const res = await fetch(`${API_URL}/client-purchase-orders/${poId}/items`);
+          if (res.ok) {
+            const items = await res.json();
+            setLineItems(prev => ({ ...prev, [poId]: items }));
+          }
+        } catch (err) {
+          console.error('Failed to fetch line items', err);
+        }
+      }
+      setExpandedRows(prev => ({ ...prev, [poId]: true }));
+    }
   }
 
   // Format currency
@@ -965,7 +997,52 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
           { key: 'customer_name', label: 'Customer', values: [...new Set(localOrders.map(po => po.customer_name).filter(Boolean))] },
           { key: 'status', label: 'Status', values: ['Pending', 'Confirmed', 'In Production', 'Completed', 'Cancelled'] }
         ],
-        defaultVisibleColumns: { id: true, customer_name: true, po_date: true, due_date: true, currency: true, status: true, notes: true, pdf_path: true }
+        defaultVisibleColumns: { id: true, customer_name: true, po_date: true, due_date: true, currency: true, status: true, notes: true, pdf_path: true },
+        actions: (po) => [
+          React.createElement('button', {
+            key: 'view-items',
+            onClick: (e) => { e.stopPropagation(); toggleRowExpansion(po.id); },
+            className: 'px-2 py-1 bg-blue-600 text-white rounded text-sm mr-2'
+          }, expandedRows[po.id] ? 'Hide Items' : 'View Items')
+        ]
+      }),
+
+      // Expandable line items rows
+      Object.keys(expandedRows).filter(poId => expandedRows[poId]).map(poId => {
+        const items = lineItems[poId] || [];
+        return React.createElement('div', { key: `expanded-${poId}`, className: 'ml-8 mr-8 mb-4 border-l-4 border-blue-400 bg-blue-50 rounded p-4' },
+          React.createElement('h4', { className: 'font-semibold text-lg mb-3 text-blue-800' }, `Line Items for PO: ${poId}`),
+          items.length === 0 ? React.createElement('div', { className: 'text-gray-500 text-sm' }, 'No line items found') :
+          React.createElement('div', { className: 'overflow-x-auto' },
+            React.createElement('table', { className: 'min-w-full border-collapse text-sm bg-white' },
+              React.createElement('thead', null,
+                React.createElement('tr', { className: 'bg-blue-100 border-b-2 border-blue-300' },
+                  ['Product', 'Description', 'Quantity', 'Unit Price', 'Due Date', 'Line Total'].map(h =>
+                    React.createElement('th', { key: h, className: 'p-3 text-left font-semibold text-gray-700' }, h)
+                  )
+                )
+              ),
+              React.createElement('tbody', null,
+                items.map((item, idx) =>
+                  React.createElement('tr', { key: idx, className: 'border-b hover:bg-blue-50' },
+                    React.createElement('td', { className: 'p-3 font-mono text-blue-600' }, item.product_id),
+                    React.createElement('td', { className: 'p-3' }, item.description || '-'),
+                    React.createElement('td', { className: 'p-3 text-right font-semibold' }, item.quantity),
+                    React.createElement('td', { className: 'p-3 text-right' }, `${item.unit_price?.toFixed(2) || '0.00'}`),
+                    React.createElement('td', { className: 'p-3' }, item.due_date || '-'),
+                    React.createElement('td', { className: 'p-3 text-right font-bold text-green-700' }, `${(item.quantity * item.unit_price)?.toFixed(2) || '0.00'}`)
+                  )
+                )
+              )
+            ),
+            React.createElement('div', { className: 'mt-3 text-right text-sm' },
+              React.createElement('span', { className: 'font-semibold' }, 'Total: '),
+              React.createElement('span', { className: 'text-lg font-bold text-green-700' },
+                formatCurrency(items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0), localOrders.find(po => po.id === poId)?.currency || 'INR')
+              )
+            )
+          )
+        );
       }),
 
       // Edit Modal
@@ -1654,6 +1731,428 @@ function Shipments({ shipments }){
   );
 }
 
+function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh }){
+  const [localInvoices, setLocalInvoices] = useState(invoices || []);
+  const [localPayments, setLocalPayments] = useState(payments || []);
+  const [editingInvoice, setEditingInvoice] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [generateForm, setGenerateForm] = useState({ po_id: '', invoice_number: '', invoice_date: '', due_date: '', tax_rate: 0 });
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({ invoice_number: '', po_id: '', payment_date: '', amount: 0, payment_method: 'Bank Transfer', reference_number: '', notes: '' });
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+
+  React.useEffect(() => {
+    setLocalInvoices(invoices || []);
+  }, [invoices]);
+
+  React.useEffect(() => {
+    setLocalPayments(payments || []);
+  }, [payments]);
+
+  async function refreshInvoices(){
+    try {
+      const [invRes, payRes] = await Promise.all([
+        fetch(`${API_URL}/invoices`),
+        fetch(`${API_URL}/payments`)
+      ]);
+      if (invRes.ok) setLocalInvoices(await invRes.json());
+      if (payRes.ok) setLocalPayments(await payRes.json());
+    } catch (err) {
+      console.error('Failed to refresh invoices', err);
+    }
+  }
+
+  function handleRowClick(invoice){
+    setEditForm({ ...invoice });
+    setEditingInvoice(invoice);
+  }
+
+  async function saveEdit(){
+    try {
+      const res = await fetch(`${API_URL}/invoices/${editForm.invoice_number}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm)
+      });
+      if (res.ok) {
+        await refreshInvoices();
+        if (onRefresh) await onRefresh();
+        setEditingInvoice(null);
+        alert('Invoice updated successfully');
+      } else {
+        alert('Failed to update invoice');
+      }
+    } catch (err) {
+      alert('Error updating invoice');
+      console.error(err);
+    }
+  }
+
+  async function deleteInvoice(invoice_number){
+    if (!confirm('Delete invoice? This will also delete associated payments.')) return;
+    try {
+      const res = await fetch(`${API_URL}/invoices/${invoice_number}`, { method: 'DELETE' });
+      if (res.ok) {
+        await refreshInvoices();
+        if (onRefresh) await onRefresh();
+        alert('Invoice deleted successfully');
+      } else {
+        alert('Failed to delete invoice');
+      }
+    } catch (err) {
+      alert('Error deleting invoice');
+      console.error(err);
+    }
+  }
+
+  async function generateInvoice(){
+    if (!generateForm.po_id || !generateForm.invoice_number || !generateForm.invoice_date) {
+      alert('Please fill PO ID, Invoice Number, and Invoice Date');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/invoices/generate-from-po/${generateForm.po_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(generateForm)
+      });
+      if (res.ok) {
+        setShowGenerateModal(false);
+        setGenerateForm({ po_id: '', invoice_number: '', invoice_date: '', due_date: '', tax_rate: 0 });
+        await refreshInvoices();
+        if (onRefresh) await onRefresh();
+        alert('Invoice generated successfully');
+      } else {
+        const err = await res.json();
+        alert(`Failed to generate invoice: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      alert('Error generating invoice');
+      console.error(err);
+    }
+  }
+
+  async function recordPayment(){
+    if (!paymentForm.invoice_number || !paymentForm.payment_date || !paymentForm.amount) {
+      alert('Please fill Invoice Number, Payment Date, and Amount');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paymentForm)
+      });
+      if (res.ok) {
+        setShowPaymentModal(false);
+        setPaymentForm({ invoice_number: '', po_id: '', payment_date: '', amount: 0, payment_method: 'Bank Transfer', reference_number: '', notes: '' });
+        await refreshInvoices();
+        if (onRefresh) await onRefresh();
+        alert('Payment recorded successfully');
+      } else {
+        const err = await res.json();
+        alert(`Failed to record payment: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      alert('Error recording payment');
+      console.error(err);
+    }
+  }
+
+  function openPaymentModal(invoice){
+    setPaymentForm({
+      invoice_number: invoice.invoice_number,
+      po_id: invoice.po_id,
+      payment_date: new Date().toISOString().split('T')[0],
+      amount: invoice.outstanding_amount || 0,
+      payment_method: 'Bank Transfer',
+      reference_number: '',
+      notes: ''
+    });
+    setShowPaymentModal(true);
+  }
+
+  function viewPayments(invoice){
+    setSelectedInvoice(invoice);
+  }
+
+  return (
+    React.createElement('div', null,
+      React.createElement('div', { className: 'mb-4 flex gap-3' },
+        React.createElement('button', {
+          onClick: () => setShowGenerateModal(true),
+          className: 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700'
+        }, 'Generate Invoice from PO'),
+        React.createElement('button', {
+          onClick: () => setShowPaymentModal(true),
+          className: 'px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700'
+        }, 'Record Payment')
+      ),
+
+      React.createElement(EnhancedTable, {
+        title: 'Invoices',
+        data: localInvoices,
+        columns: [
+          { key: 'invoice_number', label: 'Invoice #' },
+          { key: 'po_id', label: 'PO #' },
+          { key: 'customer_name', label: 'Customer' },
+          { key: 'invoice_date', label: 'Invoice Date' },
+          { key: 'due_date', label: 'Due Date' },
+          { key: 'total_amount', label: 'Total', render: (val, row) => `${row.currency || 'INR'} ${val?.toFixed(2) || '0.00'}` },
+          { key: 'amount_paid', label: 'Paid', render: (val, row) => `${row.currency || 'INR'} ${val?.toFixed(2) || '0.00'}` },
+          { key: 'outstanding_amount', label: 'Outstanding', render: (val, row) => `${row.currency || 'INR'} ${val?.toFixed(2) || '0.00'}` },
+          { key: 'payment_status', label: 'Status', render: (val) => {
+            const color = val === 'Paid' ? 'green' : val === 'Partial' ? 'yellow' : 'red';
+            return React.createElement('span', { className: `px-2 py-1 rounded text-xs font-semibold bg-${color}-100 text-${color}-800` }, val || 'Pending');
+          }}
+        ],
+        primaryKey: 'invoice_number',
+        onRowClick: handleRowClick,
+        onDelete: deleteInvoice,
+        onExport: (data, cols) => downloadCSV('invoices.csv', cols.map(c=>({key:c.key,label:c.label})), data),
+        filterOptions: [
+          { key: 'payment_status', label: 'Payment Status', values: ['Pending', 'Partial', 'Paid'] },
+          { key: 'po_id', label: 'PO', values: [...new Set(localInvoices.map(i => i.po_id).filter(Boolean))] }
+        ],
+        defaultVisibleColumns: { invoice_number: true, po_id: true, customer_name: true, invoice_date: true, due_date: true, total_amount: true, amount_paid: true, outstanding_amount: true, payment_status: true },
+        actions: (invoice) => [
+          React.createElement('button', {
+            key: 'payment',
+            onClick: (e) => { e.stopPropagation(); openPaymentModal(invoice); },
+            className: 'px-2 py-1 bg-green-600 text-white rounded text-sm mr-2'
+          }, 'Add Payment'),
+          React.createElement('button', {
+            key: 'view-payments',
+            onClick: (e) => { e.stopPropagation(); viewPayments(invoice); },
+            className: 'px-2 py-1 bg-gray-600 text-white rounded text-sm'
+          }, 'View Payments')
+        ]
+      }),
+
+      editingInvoice && React.createElement(EditModal, {
+        title: `Edit Invoice ${editForm.invoice_number}`,
+        isOpen: !!editingInvoice,
+        onClose: () => setEditingInvoice(null),
+        onSave: saveEdit,
+        children: React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Invoice Number'),
+            React.createElement('input', {
+              className: 'border rounded px-3 py-2 w-full bg-gray-100',
+              value: editForm.invoice_number || '',
+              disabled: true
+            })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'PO #'),
+            React.createElement('input', {
+              className: 'border rounded px-3 py-2 w-full bg-gray-100',
+              value: editForm.po_id || '',
+              disabled: true
+            })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Due Date'),
+            React.createElement('input', {
+              type: 'date',
+              className: 'border rounded px-3 py-2 w-full',
+              value: editForm.due_date || '',
+              onChange: e => setEditForm({ ...editForm, due_date: e.target.value })
+            })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Payment Status'),
+            React.createElement('select', {
+              className: 'border rounded px-3 py-2 w-full',
+              value: editForm.payment_status || 'Pending',
+              onChange: e => setEditForm({ ...editForm, payment_status: e.target.value })
+            }, ['Pending', 'Partial', 'Paid'].map(s => React.createElement('option', { key: s, value: s }, s)))
+          ),
+          React.createElement('div', { className: 'md:col-span-2' },
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Notes'),
+            React.createElement('textarea', {
+              className: 'border rounded px-3 py-2 w-full',
+              rows: 3,
+              value: editForm.notes || '',
+              onChange: e => setEditForm({ ...editForm, notes: e.target.value })
+            })
+          )
+        )
+      }),
+
+      showGenerateModal && React.createElement(EditModal, {
+        title: 'Generate Invoice from Purchase Order',
+        isOpen: showGenerateModal,
+        onClose: () => setShowGenerateModal(false),
+        onSave: generateInvoice,
+        children: React.createElement('div', { className: 'grid grid-cols-1 gap-4' },
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Purchase Order'),
+            React.createElement('select', {
+              className: 'border rounded px-3 py-2 w-full',
+              value: generateForm.po_id,
+              onChange: e => setGenerateForm({ ...generateForm, po_id: e.target.value })
+            },
+              React.createElement('option', { value: '' }, '-- Select PO --'),
+              clientPurchaseOrders.map(po => React.createElement('option', { key: po.id, value: po.id }, `${po.id} - ${po.customer_id}`))
+            )
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Invoice Number'),
+            React.createElement('input', {
+              className: 'border rounded px-3 py-2 w-full',
+              placeholder: 'INV-2025-001',
+              value: generateForm.invoice_number,
+              onChange: e => setGenerateForm({ ...generateForm, invoice_number: e.target.value })
+            })
+          ),
+          React.createElement('div', { className: 'grid grid-cols-2 gap-3' },
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Invoice Date'),
+              React.createElement('input', {
+                type: 'date',
+                className: 'border rounded px-3 py-2 w-full',
+                value: generateForm.invoice_date,
+                onChange: e => setGenerateForm({ ...generateForm, invoice_date: e.target.value })
+              })
+            ),
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Due Date'),
+              React.createElement('input', {
+                type: 'date',
+                className: 'border rounded px-3 py-2 w-full',
+                value: generateForm.due_date,
+                onChange: e => setGenerateForm({ ...generateForm, due_date: e.target.value })
+              })
+            )
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Tax Rate (%)'),
+            React.createElement('input', {
+              type: 'number',
+              className: 'border rounded px-3 py-2 w-full',
+              placeholder: '0',
+              value: generateForm.tax_rate,
+              onChange: e => setGenerateForm({ ...generateForm, tax_rate: Number(e.target.value) })
+            })
+          )
+        )
+      }),
+
+      showPaymentModal && React.createElement(EditModal, {
+        title: 'Record Payment',
+        isOpen: showPaymentModal,
+        onClose: () => setShowPaymentModal(false),
+        onSave: recordPayment,
+        children: React.createElement('div', { className: 'grid grid-cols-1 gap-4' },
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Invoice Number'),
+            React.createElement('input', {
+              className: 'border rounded px-3 py-2 w-full',
+              placeholder: 'INV-2025-001',
+              value: paymentForm.invoice_number,
+              onChange: e => setPaymentForm({ ...paymentForm, invoice_number: e.target.value })
+            })
+          ),
+          React.createElement('div', { className: 'grid grid-cols-2 gap-3' },
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Payment Date'),
+              React.createElement('input', {
+                type: 'date',
+                className: 'border rounded px-3 py-2 w-full',
+                value: paymentForm.payment_date,
+                onChange: e => setPaymentForm({ ...paymentForm, payment_date: e.target.value })
+              })
+            ),
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Amount'),
+              React.createElement('input', {
+                type: 'number',
+                step: '0.01',
+                className: 'border rounded px-3 py-2 w-full',
+                value: paymentForm.amount,
+                onChange: e => setPaymentForm({ ...paymentForm, amount: Number(e.target.value) })
+              })
+            )
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Payment Method'),
+            React.createElement('select', {
+              className: 'border rounded px-3 py-2 w-full',
+              value: paymentForm.payment_method,
+              onChange: e => setPaymentForm({ ...paymentForm, payment_method: e.target.value })
+            }, ['Bank Transfer', 'Wire Transfer', 'Check', 'Cash', 'LC', 'Credit Card'].map(m => React.createElement('option', { key: m, value: m }, m)))
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Reference Number'),
+            React.createElement('input', {
+              className: 'border rounded px-3 py-2 w-full',
+              placeholder: 'Transaction/Check #',
+              value: paymentForm.reference_number,
+              onChange: e => setPaymentForm({ ...paymentForm, reference_number: e.target.value })
+            })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Notes'),
+            React.createElement('textarea', {
+              className: 'border rounded px-3 py-2 w-full',
+              rows: 2,
+              value: paymentForm.notes,
+              onChange: e => setPaymentForm({ ...paymentForm, notes: e.target.value })
+            })
+          )
+        )
+      }),
+
+      selectedInvoice && React.createElement(EditModal, {
+        title: `Payment History - ${selectedInvoice.invoice_number}`,
+        isOpen: !!selectedInvoice,
+        onClose: () => setSelectedInvoice(null),
+        onSave: () => setSelectedInvoice(null),
+        children: React.createElement('div', null,
+          React.createElement('div', { className: 'mb-4 p-3 bg-gray-50 rounded' },
+            React.createElement('div', { className: 'grid grid-cols-3 gap-3 text-sm' },
+              React.createElement('div', null,
+                React.createElement('span', { className: 'text-gray-600' }, 'Total: '),
+                React.createElement('span', { className: 'font-semibold' }, `${selectedInvoice.currency || 'INR'} ${selectedInvoice.total_amount?.toFixed(2) || '0.00'}`)
+              ),
+              React.createElement('div', null,
+                React.createElement('span', { className: 'text-gray-600' }, 'Paid: '),
+                React.createElement('span', { className: 'font-semibold text-green-600' }, `${selectedInvoice.currency || 'INR'} ${selectedInvoice.amount_paid?.toFixed(2) || '0.00'}`)
+              ),
+              React.createElement('div', null,
+                React.createElement('span', { className: 'text-gray-600' }, 'Outstanding: '),
+                React.createElement('span', { className: 'font-semibold text-red-600' }, `${selectedInvoice.currency || 'INR'} ${selectedInvoice.outstanding_amount?.toFixed(2) || '0.00'}`)
+              )
+            )
+          ),
+          React.createElement('table', { className: 'min-w-full border-collapse' },
+            React.createElement('thead', null,
+              React.createElement('tr', { className: 'bg-gray-100' },
+                ['Date', 'Amount', 'Method', 'Reference', 'Notes'].map(h => React.createElement('th', { key: h, className: 'p-2 text-left text-sm font-semibold' }, h))
+              )
+            ),
+            React.createElement('tbody', null,
+              localPayments.filter(p => p.invoice_number === selectedInvoice.invoice_number).map(payment =>
+                React.createElement('tr', { key: payment.id, className: 'border-b' },
+                  React.createElement('td', { className: 'p-2 text-sm' }, payment.payment_date),
+                  React.createElement('td', { className: 'p-2 text-sm font-semibold' }, payment.amount?.toFixed(2)),
+                  React.createElement('td', { className: 'p-2 text-sm' }, payment.payment_method || '-'),
+                  React.createElement('td', { className: 'p-2 text-sm' }, payment.reference_number || '-'),
+                  React.createElement('td', { className: 'p-2 text-sm' }, payment.notes || '-')
+                )
+              )
+            )
+          ),
+          localPayments.filter(p => p.invoice_number === selectedInvoice.invoice_number).length === 0 &&
+            React.createElement('div', { className: 'text-center text-gray-500 py-4' }, 'No payments recorded yet')
+        )
+      })
+    )
+  );
+}
+
 function InventoryView({ inventory }){
   return (
     React.createElement('div', { className: 'bg-white rounded-xl shadow-md p-6 border border-gray-200' },
@@ -1911,7 +2410,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
 }
 
 // Enhanced Table Component with sorting, filtering, column customization, and clickable rows
-function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, onDelete, onExport, filterOptions = [], defaultVisibleColumns }) {
+function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, onDelete, onExport, filterOptions = [], defaultVisibleColumns, actions }) {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [visibleColumns, setVisibleColumns] = useState(defaultVisibleColumns || columns.reduce((acc, col) => ({ ...acc, [col.key]: true }), {}));
   const [filters, setFilters] = useState({});
@@ -1988,6 +2487,7 @@ function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, on
                 col.render ? col.render(row[col.key], row) : (row[col.key] || '-')
               )),
               React.createElement('td', { className: 'p-3 text-right border' },
+                actions && actions(row),
                 onDelete && React.createElement('button', { onClick: () => onDelete(row[primaryKey]), className: 'px-2 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700' }, 'Delete')
               )
             )) : React.createElement('tr', null, React.createElement('td', { colSpan: orderedColumns.length + 1, className: 'p-8 text-center text-gray-500' }, 'No data found'))
@@ -2177,7 +2677,7 @@ function CustomerManagementEx({ customers, onRefresh }){
 }
 
 function VendorManagement({ vendors, onRefresh }){
-  const [form, setForm] = useState({ id:'', name:'', contact_person:'', phone:'', email:'' });
+  const [form, setForm] = useState({ id:'', name:'', contact_person:'', phone:'', email:'', office_address:'', vendor_type:'Other', material_type:'', city:'', country:'' });
   const [editingVendor, setEditingVendor] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [localVendors, setLocalVendors] = useState(vendors || []);
@@ -2193,11 +2693,12 @@ function VendorManagement({ vendors, onRefresh }){
     }
     const res = await fetch(`${API_URL}/vendors`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
     if (res.ok) {
-      setForm({ id:'', name:'', contact_person:'', phone:'', email:'' });
+      setForm({ id:'', name:'', contact_person:'', phone:'', email:'', office_address:'', vendor_type:'Other', material_type:'', city:'', country:'' });
       await refreshVendors();
       if (onRefresh) await onRefresh();
     } else {
-      alert('Failed to add vendor');
+      const error = await res.json();
+      alert('Failed to add vendor: ' + (error.error || 'Unknown error'));
     }
   }
 
@@ -2252,13 +2753,23 @@ function VendorManagement({ vendors, onRefresh }){
 
   return React.createElement('div', { className:'space-y-4' },
     React.createElement(Section, { title: 'Add Vendor' },
-      React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-5 gap-3' },
-        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Vendor ID', value: form.id, onChange: e=>setForm({...form,id:e.target.value}) }),
-        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Name', value: form.name, onChange: e=>setForm({...form,name:e.target.value}) }),
+      React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-3' },
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Vendor ID*', value: form.id, onChange: e=>setForm({...form,id:e.target.value}) }),
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Name*', value: form.name, onChange: e=>setForm({...form,name:e.target.value}) }),
         React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Contact Person', value: form.contact_person, onChange: e=>setForm({...form,contact_person:e.target.value}) }),
         React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Phone', value: form.phone, onChange: e=>setForm({...form,phone:e.target.value}) }),
         React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Email', value: form.email, onChange: e=>setForm({...form,email:e.target.value}) }),
-        React.createElement('button', { onClick: add, className: 'px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700' }, 'Add Vendor')
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Office Address', value: form.office_address, onChange: e=>setForm({...form,office_address:e.target.value}) }),
+        React.createElement('select', { className: 'border rounded px-3 py-2', value: form.vendor_type, onChange: e=>setForm({...form,vendor_type:e.target.value}) },
+          React.createElement('option', { value: 'Other' }, 'Type: Other'),
+          React.createElement('option', { value: 'Steel' }, 'Type: Steel'),
+          React.createElement('option', { value: 'Copper' }, 'Type: Copper'),
+          React.createElement('option', { value: 'Job Work' }, 'Type: Job Work')
+        ),
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Material Type', value: form.material_type, onChange: e=>setForm({...form,material_type:e.target.value}) }),
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'City', value: form.city, onChange: e=>setForm({...form,city:e.target.value}) }),
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Country', value: form.country, onChange: e=>setForm({...form,country:e.target.value}) }),
+        React.createElement('button', { onClick: add, className: 'px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700 md:col-span-3' }, 'Add Vendor')
       )
     ),
     React.createElement(EnhancedTable, {
@@ -2279,7 +2790,17 @@ function VendorManagement({ vendors, onRefresh }){
           React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Name'), React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.name || '', onChange:e=>setEditForm({...editForm, name:e.target.value}) })),
           React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Contact Person'), React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.contact_person || '', onChange:e=>setEditForm({...editForm, contact_person:e.target.value}) })),
           React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Phone'), React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.phone || '', onChange:e=>setEditForm({...editForm, phone:e.target.value}) })),
-          React.createElement('div', { className:'md:col-span-2' }, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Email'), React.createElement('input', { type:'email', className:'border rounded px-3 py-2 w-full', value:editForm.email || '', onChange:e=>setEditForm({...editForm, email:e.target.value}) }))
+          React.createElement('div', { className:'md:col-span-2' }, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Email'), React.createElement('input', { type:'email', className:'border rounded px-3 py-2 w-full', value:editForm.email || '', onChange:e=>setEditForm({...editForm, email:e.target.value}) })),
+          React.createElement('div', { className:'md:col-span-2' }, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Office Address'), React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.office_address || '', onChange:e=>setEditForm({...editForm, office_address:e.target.value}) })),
+          React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Vendor Type'), React.createElement('select', { className:'border rounded px-3 py-2 w-full', value:editForm.vendor_type || 'Other', onChange:e=>setEditForm({...editForm, vendor_type:e.target.value}) },
+            React.createElement('option', { value: 'Other' }, 'Other'),
+            React.createElement('option', { value: 'Steel' }, 'Steel'),
+            React.createElement('option', { value: 'Copper' }, 'Copper'),
+            React.createElement('option', { value: 'Job Work' }, 'Job Work')
+          )),
+          React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Material Type'), React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.material_type || '', onChange:e=>setEditForm({...editForm, material_type:e.target.value}) })),
+          React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'City'), React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.city || '', onChange:e=>setEditForm({...editForm, city:e.target.value}) })),
+          React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Country'), React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.country || '', onChange:e=>setEditForm({...editForm, country:e.target.value}) }))
         ),
         React.createElement('div', { className:'flex justify-end gap-3 mt-6' },
           React.createElement('button', { onClick:()=>setEditingVendor(null), className:'px-4 py-2 border rounded text-gray-700 hover:bg-gray-100' }, 'Cancel'),

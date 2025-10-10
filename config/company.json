@@ -1,0 +1,47 @@
+{
+  "company": {
+    "name": "Nikkon Ferro Private Limited",
+    "legalName": "Nikkon Ferro Private Limited",
+    "registeredOffice": {
+      "address": "1 AJC Bose Road, 4th Floor",
+      "city": "Kolkata",
+      "state": "West Bengal",
+      "pincode": "700020",
+      "country": "India"
+    },
+    "factory": {
+      "address": "S-241, Sankrail Industrial Park, J. Dhulagori",
+      "city": "Howrah",
+      "state": "West Bengal",
+      "pincode": "711302",
+      "country": "India"
+    },
+    "contacts": {
+      "managingDirectorCEO": {
+        "name": "Pravin N Saraogi",
+        "title": "Managing Director and CEO",
+        "email": "pravinns@nikkonferro.com",
+        "phone": "+91 98308 14400"
+      },
+      "director": {
+        "name": "Shivam Saraogi",
+        "title": "Director",
+        "email": "shiv@nikkonferro.com",
+        "phone": "+91 98300 09236",
+        "altPhone": "+1 703 225 8625"
+      }
+    },
+    "website": "www.nikkonferro.com",
+    "gstin": "19AABCN4398J1ZX",
+    "logo": "/assets/nikkon-logo.png",
+    "bankDetails": {
+      "bankName": "",
+      "accountNumber": "",
+      "ifscCode": "",
+      "swiftCode": "",
+      "branch": ""
+    },
+    "iecCode": "",
+    "panNumber": "AABCN4398J"
+  }
+}

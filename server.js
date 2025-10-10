@@ -353,6 +353,27 @@ function initializeDatabase() {
     // Add due_date column to client_po_line_items if it does not exist
     db.run("ALTER TABLE client_po_line_items ADD COLUMN due_date TEXT", (err) => { /* ignore if already exists */ });
 
+    // NEW: Payment tracking fields
+    db.run("ALTER TABLE client_purchase_orders ADD COLUMN payment_status TEXT DEFAULT 'Pending'", (err) => { /* ignore if already exists */ });
+    db.run("ALTER TABLE client_purchase_orders ADD COLUMN total_amount REAL DEFAULT 0", (err) => { /* ignore if already exists */ });
+    db.run("ALTER TABLE client_purchase_orders ADD COLUMN amount_paid REAL DEFAULT 0", (err) => { /* ignore if already exists */ });
+    db.run("ALTER TABLE client_purchase_orders ADD COLUMN outstanding_amount REAL DEFAULT 0", (err) => { /* ignore if already exists */ });
+    db.run("ALTER TABLE client_purchase_orders ADD COLUMN invoice_number TEXT", (err) => { /* ignore if already exists */ });
+    db.run("ALTER TABLE client_purchase_orders ADD COLUMN invoice_date TEXT", (err) => { /* ignore if already exists */ });
+
+    // NEW: Costing fields for line items
+    db.run("ALTER TABLE client_po_line_items ADD COLUMN cost_price REAL DEFAULT 0", (err) => { /* ignore if already exists */ });
+    db.run("ALTER TABLE client_po_line_items ADD COLUMN profit_margin REAL DEFAULT 0", (err) => { /* ignore if already exists */ });
+
+    // NEW: HS Code for products (export compliance)
+    db.run("ALTER TABLE products ADD COLUMN hs_code TEXT", (err) => { /* ignore if already exists */ });
+    db.run("ALTER TABLE products ADD COLUMN export_description TEXT", (err) => { /* ignore if already exists */ });
+    db.run("ALTER TABLE products ADD COLUMN cost_price REAL DEFAULT 0", (err) => { /* ignore if already exists */ });
+
+    // NEW: Add city and country columns to vendors table
+    db.run("ALTER TABLE vendors ADD COLUMN city TEXT", (err) => { /* ignore if already exists */ });
+    db.run("ALTER TABLE vendors ADD COLUMN country TEXT", (err) => { /* ignore if already exists */ });
+
     // Client PO Line Items
     db.run(`CREATE TABLE IF NOT EXISTS client_po_line_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -401,6 +422,60 @@ function initializeDatabase() {
       received REAL DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (po_id) REFERENCES vendor_purchase_orders(id)
+    )`);
+
+    // Invoices table
+    db.run(`CREATE TABLE IF NOT EXISTS invoices (
+      invoice_number TEXT PRIMARY KEY,
+      po_id TEXT NOT NULL,
+      invoice_date DATE NOT NULL,
+      due_date DATE,
+      customer_name TEXT,
+      customer_address TEXT,
+      customer_gstin TEXT,
+      subtotal REAL NOT NULL DEFAULT 0,
+      tax_amount REAL DEFAULT 0,
+      total_amount REAL NOT NULL DEFAULT 0,
+      amount_paid REAL DEFAULT 0,
+      outstanding_amount REAL DEFAULT 0,
+      payment_status TEXT DEFAULT 'Pending',
+      currency TEXT DEFAULT 'INR',
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (po_id) REFERENCES client_purchase_orders(id)
+    )`);
+
+    // Invoice Line Items
+    db.run(`CREATE TABLE IF NOT EXISTS invoice_line_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoice_number TEXT NOT NULL,
+      product_id TEXT NOT NULL,
+      description TEXT,
+      hsn_code TEXT,
+      quantity REAL NOT NULL,
+      unit_price REAL NOT NULL,
+      tax_rate REAL DEFAULT 0,
+      tax_amount REAL DEFAULT 0,
+      line_total REAL NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (invoice_number) REFERENCES invoices(invoice_number),
+      FOREIGN KEY (product_id) REFERENCES products(id)
+    )`);
+
+    // Payment History table
+    db.run(`CREATE TABLE IF NOT EXISTS payment_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoice_number TEXT NOT NULL,
+      po_id TEXT,
+      payment_date DATE NOT NULL,
+      amount REAL NOT NULL,
+      payment_method TEXT,
+      reference_number TEXT,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (invoice_number) REFERENCES invoices(invoice_number),
+      FOREIGN KEY (po_id) REFERENCES client_purchase_orders(id)
     )`);
 
     // Shipments table
@@ -544,6 +619,7 @@ function initializeDatabase() {
       registered_address TEXT,
       factory_address TEXT,
       logo_url TEXT DEFAULT 'assets/logo-nikkon.png',
+      contacts_json TEXT,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
     // Add missing columns for evolving schema
@@ -2691,6 +2767,344 @@ app.get('/api/vendor-pos/:id/pdf', (req, res) => {
     if (err || !row || !row.pdf_path) return res.status(404).send('Not found');
     const full = path.isAbsolute(row.pdf_path) ? row.pdf_path : path.join(__dirname, row.pdf_path);
     res.sendFile(full, (e) => { if (e) res.status(404).send('Not found'); });
+  });
+});
+
+// ============= INVOICE & PAYMENT APIs =============
+
+// Get all invoices
+app.get('/api/invoices', (req, res) => {
+  db.all('SELECT * FROM invoices ORDER BY invoice_date DESC', (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// Get single invoice with line items
+app.get('/api/invoices/:invoice_number', (req, res) => {
+  const { invoice_number } = req.params;
+  db.get('SELECT * FROM invoices WHERE invoice_number = ?', [invoice_number], (err, invoice) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+
+    db.all('SELECT * FROM invoice_line_items WHERE invoice_number = ?', [invoice_number], (err2, items) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+      invoice.line_items = items || [];
+      res.json(invoice);
+    });
+  });
+});
+
+// Create invoice from Client PO
+app.post('/api/invoices/generate-from-po/:po_id', (req, res) => {
+  const { po_id } = req.params;
+  const { invoice_number, invoice_date, due_date, tax_rate = 0 } = req.body;
+
+  if (!invoice_number || !invoice_date) {
+    return res.status(400).json({ error: 'Invoice number and date are required' });
+  }
+
+  // Get PO details
+  db.get('SELECT * FROM client_purchase_orders WHERE id = ?', [po_id], (err, po) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!po) return res.status(404).json({ error: 'Purchase order not found' });
+
+    // Get customer details
+    db.get('SELECT * FROM customers WHERE id = ?', [po.customer_id], (err2, customer) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+
+      // Get PO line items
+      db.all('SELECT * FROM client_po_line_items WHERE po_id = ?', [po_id], (err3, lineItems) => {
+        if (err3) return res.status(500).json({ error: err3.message });
+
+        // Calculate totals
+        let subtotal = 0;
+        lineItems.forEach(item => {
+          subtotal += item.quantity * item.unit_price;
+        });
+
+        const tax_amount = subtotal * (tax_rate / 100);
+        const total_amount = subtotal + tax_amount;
+
+        // Create invoice
+        db.run(
+          `INSERT INTO invoices (
+            invoice_number, po_id, invoice_date, due_date,
+            customer_name, customer_address, customer_gstin,
+            subtotal, tax_amount, total_amount,
+            outstanding_amount, payment_status, currency, notes
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            invoice_number, po_id, invoice_date, due_date || invoice_date,
+            customer?.name || po.customer_id,
+            customer?.office_address || '',
+            customer?.gstin || '',
+            subtotal, tax_amount, total_amount,
+            total_amount, 'Pending', po.currency || 'INR', po.notes || ''
+          ],
+          function(err4) {
+            if (err4) {
+              if (err4.message.includes('UNIQUE')) {
+                return res.status(400).json({ error: 'Invoice number already exists' });
+              }
+              return res.status(500).json({ error: err4.message });
+            }
+
+            // Create invoice line items
+            const insertLineItem = (item, callback) => {
+              db.run(
+                `INSERT INTO invoice_line_items (
+                  invoice_number, product_id, description, hsn_code,
+                  quantity, unit_price, tax_rate, tax_amount, line_total
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  invoice_number, item.product_id, item.description || '',
+                  item.hs_code || '', item.quantity, item.unit_price,
+                  tax_rate, (item.quantity * item.unit_price * tax_rate / 100),
+                  item.quantity * item.unit_price
+                ],
+                callback
+              );
+            };
+
+            let completed = 0;
+            if (lineItems.length === 0) {
+              // Update PO with invoice details
+              db.run(
+                `UPDATE client_purchase_orders SET
+                  invoice_number = ?, invoice_date = ?,
+                  total_amount = ?, outstanding_amount = ?,
+                  payment_status = 'Pending'
+                WHERE id = ?`,
+                [invoice_number, invoice_date, total_amount, total_amount, po_id],
+                () => {
+                  res.json({
+                    message: 'Invoice created successfully',
+                    invoice_number, total_amount
+                  });
+                }
+              );
+            } else {
+              lineItems.forEach(item => {
+                insertLineItem(item, (err5) => {
+                  if (err5) console.error('Line item insert error:', err5);
+                  completed++;
+                  if (completed === lineItems.length) {
+                    // Update PO with invoice details
+                    db.run(
+                      `UPDATE client_purchase_orders SET
+                        invoice_number = ?, invoice_date = ?,
+                        total_amount = ?, outstanding_amount = ?,
+                        payment_status = 'Pending'
+                      WHERE id = ?`,
+                      [invoice_number, invoice_date, total_amount, total_amount, po_id],
+                      () => {
+                        res.json({
+                          message: 'Invoice created successfully',
+                          invoice_number, total_amount
+                        });
+                      }
+                    );
+                  }
+                });
+              });
+            }
+          }
+        );
+      });
+    });
+  });
+});
+
+// Update invoice
+app.put('/api/invoices/:invoice_number', (req, res) => {
+  const { invoice_number } = req.params;
+  const { due_date, notes, payment_status } = req.body;
+
+  db.run(
+    `UPDATE invoices SET
+      due_date = COALESCE(?, due_date),
+      notes = COALESCE(?, notes),
+      payment_status = COALESCE(?, payment_status),
+      updated_at = CURRENT_TIMESTAMP
+    WHERE invoice_number = ?`,
+    [due_date, notes, payment_status, invoice_number],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Invoice not found' });
+      }
+      res.json({ message: 'Invoice updated successfully' });
+    }
+  );
+});
+
+// Delete invoice
+app.delete('/api/invoices/:invoice_number', (req, res) => {
+  const { invoice_number } = req.params;
+
+  // Delete line items first
+  db.run('DELETE FROM invoice_line_items WHERE invoice_number = ?', [invoice_number], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    // Delete payments
+    db.run('DELETE FROM payment_history WHERE invoice_number = ?', [invoice_number], (err2) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+
+      // Delete invoice
+      db.run('DELETE FROM invoices WHERE invoice_number = ?', [invoice_number], function(err3) {
+        if (err3) return res.status(500).json({ error: err3.message });
+        if (this.changes === 0) {
+          return res.status(404).json({ error: 'Invoice not found' });
+        }
+        res.json({ message: 'Invoice deleted successfully' });
+      });
+    });
+  });
+});
+
+// Get payment history
+app.get('/api/payments', (req, res) => {
+  const { invoice_number, po_id } = req.query;
+  let query = 'SELECT * FROM payment_history';
+  let params = [];
+
+  if (invoice_number) {
+    query += ' WHERE invoice_number = ?';
+    params.push(invoice_number);
+  } else if (po_id) {
+    query += ' WHERE po_id = ?';
+    params.push(po_id);
+  }
+
+  query += ' ORDER BY payment_date DESC';
+
+  db.all(query, params, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// Record payment
+app.post('/api/payments', (req, res) => {
+  const { invoice_number, po_id, payment_date, amount, payment_method, reference_number, notes } = req.body;
+
+  if (!invoice_number || !payment_date || !amount) {
+    return res.status(400).json({ error: 'Invoice number, payment date, and amount are required' });
+  }
+
+  // Insert payment record
+  db.run(
+    `INSERT INTO payment_history (
+      invoice_number, po_id, payment_date, amount,
+      payment_method, reference_number, notes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [invoice_number, po_id, payment_date, amount, payment_method, reference_number, notes],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+
+      // Update invoice amounts
+      db.get('SELECT amount_paid, total_amount FROM invoices WHERE invoice_number = ?', [invoice_number], (err2, invoice) => {
+        if (err2) return res.status(500).json({ error: err2.message });
+        if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+
+        const new_amount_paid = (invoice.amount_paid || 0) + parseFloat(amount);
+        const new_outstanding = invoice.total_amount - new_amount_paid;
+        const new_status = new_outstanding <= 0 ? 'Paid' : new_outstanding < invoice.total_amount ? 'Partial' : 'Pending';
+
+        db.run(
+          `UPDATE invoices SET
+            amount_paid = ?,
+            outstanding_amount = ?,
+            payment_status = ?,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE invoice_number = ?`,
+          [new_amount_paid, new_outstanding, new_status, invoice_number],
+          (err3) => {
+            if (err3) return res.status(500).json({ error: err3.message });
+
+            // Update client PO
+            if (po_id) {
+              db.run(
+                `UPDATE client_purchase_orders SET
+                  amount_paid = ?,
+                  outstanding_amount = ?,
+                  payment_status = ?
+                WHERE id = ?`,
+                [new_amount_paid, new_outstanding, new_status, po_id],
+                () => {
+                  res.json({
+                    message: 'Payment recorded successfully',
+                    payment_id: this.lastID,
+                    new_amount_paid,
+                    new_outstanding,
+                    new_status
+                  });
+                }
+              );
+            } else {
+              res.json({
+                message: 'Payment recorded successfully',
+                payment_id: this.lastID,
+                new_amount_paid,
+                new_outstanding,
+                new_status
+              });
+            }
+          }
+        );
+      });
+    }
+  );
+});
+
+// Delete payment
+app.delete('/api/payments/:id', (req, res) => {
+  const { id } = req.params;
+
+  // Get payment details before deleting
+  db.get('SELECT * FROM payment_history WHERE id = ?', [id], (err, payment) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!payment) return res.status(404).json({ error: 'Payment not found' });
+
+    // Delete payment
+    db.run('DELETE FROM payment_history WHERE id = ?', [id], function(err2) {
+      if (err2) return res.status(500).json({ error: err2.message });
+
+      // Update invoice amounts
+      db.get('SELECT amount_paid, total_amount FROM invoices WHERE invoice_number = ?', [payment.invoice_number], (err3, invoice) => {
+        if (err3 || !invoice) return res.json({ message: 'Payment deleted' });
+
+        const new_amount_paid = Math.max(0, (invoice.amount_paid || 0) - parseFloat(payment.amount));
+        const new_outstanding = invoice.total_amount - new_amount_paid;
+        const new_status = new_outstanding <= 0 ? 'Paid' : new_outstanding < invoice.total_amount ? 'Partial' : 'Pending';
+
+        db.run(
+          `UPDATE invoices SET
+            amount_paid = ?,
+            outstanding_amount = ?,
+            payment_status = ?
+          WHERE invoice_number = ?`,
+          [new_amount_paid, new_outstanding, new_status, payment.invoice_number],
+          () => {
+            // Update client PO if exists
+            if (payment.po_id) {
+              db.run(
+                `UPDATE client_purchase_orders SET
+                  amount_paid = ?,
+                  outstanding_amount = ?,
+                  payment_status = ?
+                WHERE id = ?`,
+                [new_amount_paid, new_outstanding, new_status, payment.po_id],
+                () => res.json({ message: 'Payment deleted successfully' })
+              );
+            } else {
+              res.json({ message: 'Payment deleted successfully' });
+            }
+          }
+        );
+      });
+    });
   });
 });
 
