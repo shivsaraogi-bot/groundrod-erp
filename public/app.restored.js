@@ -3368,6 +3368,16 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
 
     try {
       const res = await fetch(`${API_URL}/bulk-import/products`, { method: 'POST', body: formData });
+
+      // Check if response is HTML (404 error page) instead of JSON
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('text/html')) {
+        setBulkImportStatus('✗ Error: Bulk import endpoint not available. Please ensure multer and csv-parse are installed on the server.');
+        setIsUploading(false);
+        e.target.value = '';
+        return;
+      }
+
       const result = await res.json();
 
       if (res.ok) {
@@ -3377,7 +3387,8 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
         setBulkImportStatus(`✗ Error: ${result.error || 'Import failed'}`);
       }
     } catch (err) {
-      setBulkImportStatus(`✗ Error: ${err.message}`);
+      setBulkImportStatus(`✗ Error: ${err.message || 'Upload failed - check console for details'}`);
+      console.error('Bulk import error:', err);
     } finally {
       setIsUploading(false);
       e.target.value = '';
