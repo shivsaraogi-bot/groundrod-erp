@@ -1888,7 +1888,7 @@ function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, on
         React.createElement('input', { type: 'text', placeholder: 'Search...', value: searchTerm, onChange: e => setSearchTerm(e.target.value), className: 'border rounded px-3 py-2 w-64' }),
         filterOptions.map(filter => React.createElement('select', { key: filter.key, value: filters[filter.key] || '', onChange: e => setFilters({ ...filters, [filter.key]: e.target.value }), className: 'border rounded px-3 py-2' },
           React.createElement('option', { value: '' }, `All ${filter.label}`),
-          filter.options.map(opt => React.createElement('option', { key: opt.value, value: opt.value }, opt.label))
+          (filter.values || []).map(val => React.createElement('option', { key: val, value: val }, val))
         )),
         onExport && React.createElement('button', { onClick: () => onExport(filteredData, orderedColumns), className: 'ml-auto px-3 py-2 bg-gray-700 text-white rounded' }, 'Export CSV')
       ),
@@ -2728,8 +2728,3 @@ function downloadCSV(filename, headers, rows){
   const a = document.createElement('a');
   a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
 }
-            React.createElement('label', { className:'text-xs font-semibold text-gray-600' }, 'Marking (Customer ID)'),
-            React.createElement('select', { className:'border rounded px-2 py-1 md:col-span-2', value:clientPreview.po?.marking||'', onChange:e=>updateClientPo('marking', e.target.value) },
-              React.createElement('option', { value:'' }, '-- Select --'),
-              customers.map(c=> React.createElement('option', { key:c.id, value:c.id }, `${c.id} - ${c.name}`))
-            )
