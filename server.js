@@ -377,6 +377,11 @@ function initializeDatabase() {
     db.run("ALTER TABLE vendors ADD COLUMN city TEXT", (err) => { /* ignore if already exists */ });
     db.run("ALTER TABLE vendors ADD COLUMN country TEXT", (err) => { /* ignore if already exists */ });
 
+    // Add columns to vendor_po_line_items for product purchasing
+    db.run("ALTER TABLE vendor_po_line_items ADD COLUMN item_type TEXT DEFAULT 'Raw Material'", (err) => { /* ignore if already exists */ });
+    db.run("ALTER TABLE vendor_po_line_items ADD COLUMN product_id TEXT", (err) => { /* ignore if already exists */ });
+    db.run("ALTER TABLE vendor_po_line_items ADD COLUMN product_stage TEXT", (err) => { /* ignore if already exists */ });
+
     // Client PO Line Items
     db.run(`CREATE TABLE IF NOT EXISTS client_po_line_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1568,18 +1573,38 @@ app.put('/api/vendor-purchase-orders/:id', (req, res) => {
       function(err){
         if (err) return res.status(500).json({ error: err.message });
 
-        // If status changed to "Completed", update raw materials inventory
+        // If status changed to "Completed", update inventory
         if (oldStatus !== 'Completed' && newStatus === 'Completed') {
-          db.all('SELECT material_type, quantity FROM vendor_po_line_items WHERE po_id = ?', [id], (err, items) => {
+          db.all('SELECT item_type, material_type, product_id, product_stage, quantity FROM vendor_po_line_items WHERE po_id = ?', [id], (err, items) => {
             if (err) return res.status(500).json({ error: err.message });
 
             items.forEach(item => {
-              // Add to current_stock and reduce from committed_stock
-              db.run(`UPDATE raw_materials_inventory
-                      SET current_stock = current_stock + ?,
-                          committed_stock = MAX(committed_stock - ?, 0)
-                      WHERE material = ?`,
-                [item.quantity, item.quantity, item.material_type]);
+              if (item.item_type === 'Raw Material') {
+                // Add to current_stock and reduce from committed_stock for raw materials
+                db.run(`UPDATE raw_materials_inventory
+                        SET current_stock = current_stock + ?,
+                            committed_stock = MAX(committed_stock - ?, 0)
+                        WHERE material = ?`,
+                  [item.quantity, item.quantity, item.material_type]);
+              } else if (item.item_type === 'Product' && item.product_id) {
+                // Update product inventory based on product_stage
+                const stage = item.product_stage || 'steel_rods';
+                const columnMap = {
+                  'steel_rods': 'steel_rods',
+                  'plated': 'plated',
+                  'quality_checked': 'quality_checked',
+                  'stamped': 'stamped',
+                  'packaged': 'packaged'
+                };
+                const column = columnMap[stage] || 'steel_rods';
+
+                db.run(`INSERT INTO inventory (product_id, ${column}, updated_at)
+                        VALUES (?, ?, CURRENT_TIMESTAMP)
+                        ON CONFLICT(product_id) DO UPDATE SET
+                          ${column} = ${column} + excluded.${column},
+                          updated_at = CURRENT_TIMESTAMP`,
+                  [item.product_id, item.quantity]);
+              }
             });
 
             res.json({ message: 'Vendor PO updated and inventory received' });
@@ -1835,17 +1860,60 @@ app.get('/api/vendor-purchase-orders/:id/items', (req, res) => {
 });
 
 app.post('/api/vendor-purchase-orders/:id/items', (req, res) => {
-  const { id } = req.params; const material_type = (req.body.material_type || req.body.item || '').toString(); const qtyRaw = (req.body.quantity!=null? req.body.quantity : req.body.qty); const unit_price = Number(req.body.unit_price||0);
-  const qty = Number(qtyRaw||0); const up = unit_price;
-  db.serialize(()=>{
+  const { id } = req.params;
+  const item_type = req.body.item_type || 'Raw Material';
+  const material_type = (req.body.material_type || req.body.item || '').toString();
+  const product_id = req.body.product_id || null;
+  const product_stage = req.body.product_stage || null;
+  const qtyRaw = (req.body.quantity != null ? req.body.quantity : req.body.qty);
+  const unit_price = Number(req.body.unit_price || 0);
+  const qty = Number(qtyRaw || 0);
+  const description = req.body.description || '';
+  const unit = req.body.unit || 'kg';
+
+  db.serialize(() => {
     db.run('BEGIN');
-    db.run(`INSERT INTO vendor_po_line_items (po_id, material_type, quantity, unit_price, line_total) VALUES (?, ?, ?, ?, ?)`, [id, material_type, qty, up, qty*up], function(err){
-      if (err) { try{ db.run('ROLLBACK'); }catch(_){}; return res.status(500).json({ error: err.message }); }
-      db.run(`UPDATE raw_materials_inventory SET committed_stock = committed_stock + ? WHERE material = ?`, [qty, material_type], (e2)=>{
-        if (e2) { try{ db.run('ROLLBACK'); }catch(_){}; return res.status(500).json({ error: e2.message }); }
-        db.run('COMMIT', (cerr)=>{ if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message: 'Item added', id: this.lastID }); });
-      });
-    });
+    db.run(
+      `INSERT INTO vendor_po_line_items (po_id, item_type, material_type, product_id, product_stage, quantity, unit_price, line_total, description, unit)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, item_type, material_type, product_id, product_stage, qty, unit_price, qty * unit_price, description, unit],
+      function(err) {
+        if (err) {
+          try { db.run('ROLLBACK'); } catch(_) {}
+          return res.status(500).json({ error: err.message });
+        }
+
+        // Update committed inventory based on item type
+        if (item_type === 'Raw Material') {
+          // Update raw materials committed stock
+          db.run(
+            `UPDATE raw_materials_inventory SET committed_stock = committed_stock + ? WHERE material = ?`,
+            [qty, material_type],
+            (e2) => {
+              if (e2) {
+                try { db.run('ROLLBACK'); } catch(_) {}
+                return res.status(500).json({ error: e2.message });
+              }
+              db.run('COMMIT', (cerr) => {
+                if (cerr) return res.status(500).json({ error: cerr.message });
+                res.json({ message: 'Raw material item added', id: this.lastID });
+              });
+            }
+          );
+        } else if (item_type === 'Product') {
+          // For products, we don't update inventory until PO is marked completed (handled in PUT endpoint)
+          db.run('COMMIT', (cerr) => {
+            if (cerr) return res.status(500).json({ error: cerr.message });
+            res.json({ message: 'Product item added', id: this.lastID });
+          });
+        } else {
+          db.run('COMMIT', (cerr) => {
+            if (cerr) return res.status(500).json({ error: cerr.message });
+            res.json({ message: 'Item added', id: this.lastID });
+          });
+        }
+      }
+    );
   });
 });
 

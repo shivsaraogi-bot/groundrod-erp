@@ -3037,14 +3037,19 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
   const [openItems, setOpenItems] = useState({});
   const [itemsCache, setItemsCache] = useState({});
   const [rawMaterials, setRawMaterials] = useState([]);
-  const [newItem, setNewItem] = useState({ item:'', description:'', qty:0, unit_price:0, unit:'kg' });
+  const [products, setProducts] = useState([]);
+  const [newItem, setNewItem] = useState({ item_type:'Raw Material', item:'', product_id:'', product_stage:'', description:'', qty:0, unit_price:0, unit:'kg' });
   const [cols, setCols] = useState({ id:true, vendor:true, po_date:true, due_date:true, status:true, notes:true });
 
-  // Fetch raw materials list
+  // Fetch raw materials and products list
   React.useEffect(() => {
     fetch(`${API_URL}/raw-materials`).then(r => r.json()).then(data => {
       setRawMaterials(data || []);
     }).catch(() => setRawMaterials([]));
+
+    fetch(`${API_URL}/products`).then(r => r.json()).then(data => {
+      setProducts(data || []);
+    }).catch(() => setProducts([]));
   }, []);
   async function add(){ await fetch(`${API_URL}/vendor-purchase-orders`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) }); setForm({ id:'', vendor_id:'', po_date:'', due_date:'', status:'Pending', notes:'' }); onRefresh?.(); }
   async function save(v){ await fetch(`${API_URL}/vendor-purchase-orders/${v.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(v) }); setEditing(null); onRefresh?.(); }
@@ -3063,7 +3068,7 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
     if (res.ok){
       const idata = await (await fetch(`${API_URL}/vendor-purchase-orders/${vpo.id}/items`)).json();
       setItemsCache({ ...itemsCache, [vpo.id]: idata });
-      setNewItem({ item:'', description:'', qty:0, unit_price:0, unit:'kg' });
+      setNewItem({ item_type:'Raw Material', item:'', product_id:'', product_stage:'', description:'', qty:0, unit_price:0, unit:'kg' });
     }
   }
   async function updateItem(vpoId, item){
@@ -3150,13 +3155,29 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
         ),
         Object.keys(openItems).filter(id => openItems[id]).map(id => (
           React.createElement('div', { key:id, className:'mt-3 ml-2 border-l-4 border-blue-300 pl-4' },
-            React.createElement('div', { className:'text-sm font-semibold text-gray-700 mb-2' }, `Materials for VPO ${id}`),
-            React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-6 gap-2 mb-2' },
-              React.createElement('select', { className:'border rounded px-2 py-1', value:newItem.item, onChange:e=>setNewItem({...newItem,item:e.target.value}) },
-                React.createElement('option', { value:'' }, 'Select Material'),
-                rawMaterials.map(rm => React.createElement('option', { key:rm.material, value:rm.material }, rm.material))
+            React.createElement('div', { className:'text-sm font-semibold text-gray-700 mb-2' }, `Items for VPO ${id}`),
+            React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-7 gap-2 mb-2' },
+              React.createElement('select', { className:'border rounded px-2 py-1', value:newItem.item_type, onChange:e=>setNewItem({...newItem,item_type:e.target.value, item:'', product_id:'', product_stage:''}) },
+                React.createElement('option', { value:'Raw Material' }, 'Raw Material'),
+                React.createElement('option', { value:'Product' }, 'Product')
               ),
-              React.createElement('input', { className:'border rounded px-2 py-1', placeholder:'Description (optional)', value:newItem.description, onChange:e=>setNewItem({...newItem,description:e.target.value}) }),
+              newItem.item_type === 'Raw Material'
+                ? React.createElement('select', { className:'border rounded px-2 py-1', value:newItem.item, onChange:e=>setNewItem({...newItem,item:e.target.value}) },
+                    React.createElement('option', { value:'' }, 'Select Material'),
+                    rawMaterials.map(rm => React.createElement('option', { key:rm.material, value:rm.material }, rm.material))
+                  )
+                : React.createElement('select', { className:'border rounded px-2 py-1', value:newItem.product_id, onChange:e=>setNewItem({...newItem,product_id:e.target.value}) },
+                    React.createElement('option', { value:'' }, 'Select Product'),
+                    products.map(p => React.createElement('option', { key:p.id, value:p.id }, `${p.id} - ${p.description}`))
+                  ),
+              newItem.item_type === 'Product' && React.createElement('select', { className:'border rounded px-2 py-1', value:newItem.product_stage, onChange:e=>setNewItem({...newItem,product_stage:e.target.value}) },
+                React.createElement('option', { value:'' }, 'Select Stage'),
+                React.createElement('option', { value:'steel_rods' }, 'Steel Rods'),
+                React.createElement('option', { value:'plated' }, 'Plated'),
+                React.createElement('option', { value:'quality_checked' }, 'Quality Checked'),
+                React.createElement('option', { value:'stamped' }, 'Stamped'),
+                React.createElement('option', { value:'packaged' }, 'Packaged')
+              ),
               React.createElement('input', { className:'border rounded px-2 py-1', type:'number', placeholder:'Quantity', value:newItem.qty, onChange:e=>setNewItem({...newItem,qty:Number(e.target.value||0)}) }),
               React.createElement('input', { className:'border rounded px-2 py-1', type:'number', placeholder:'Unit Price', value:newItem.unit_price, onChange:e=>setNewItem({...newItem,unit_price:Number(e.target.value||0)}) }),
               React.createElement('select', { className:'border rounded px-2 py-1', value:newItem.unit, onChange:e=>setNewItem({...newItem,unit:e.target.value}) }, ['kg','pcs','litre','MT'].map(u=> React.createElement('option', { key:u, value:u }, u))),
@@ -3165,13 +3186,14 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
             React.createElement('div', { className:'overflow-x-auto' },
               React.createElement('table', { className:'min-w-full border-collapse' },
                 React.createElement('thead', null,
-                  React.createElement('tr', { className:'bg-gray-100' }, ['Material','Description','Quantity','Unit Price','Unit','Line Total','Actions'].map(h=> React.createElement('th', { key:h, className:'p-2 text-sm' }, h)))
+                  React.createElement('tr', { className:'bg-gray-100' }, ['Type','Item','Stage','Quantity','Unit Price','Unit','Line Total','Actions'].map(h=> React.createElement('th', { key:h, className:'p-2 text-sm' }, h)))
                 ),
                 React.createElement('tbody', null,
                   (itemsCache[id]||[]).map(it => (
                     React.createElement('tr', { key:it.id, className:'border-b' },
-                      React.createElement('td', { className:'p-2' }, it.material_type || it.item),
-                      React.createElement('td', { className:'p-2' }, React.createElement('input', { className:'border rounded px-2 py-1 w-full', defaultValue:it.description, onChange:e=>it.description=e.target.value })),
+                      React.createElement('td', { className:'p-2 text-xs' }, it.item_type || 'Raw Material'),
+                      React.createElement('td', { className:'p-2' }, it.product_id || it.material_type || it.item),
+                      React.createElement('td', { className:'p-2 text-xs' }, it.product_stage ? it.product_stage.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-'),
                       React.createElement('td', { className:'p-2' }, React.createElement('input', { type:'number', className:'border rounded px-2 py-1 w-24 text-right', defaultValue:it.quantity || it.qty, onChange:e=>it.quantity=Number(e.target.value||0) })),
                       React.createElement('td', { className:'p-2' }, React.createElement('input', { type:'number', className:'border rounded px-2 py-1 w-24 text-right', defaultValue:it.unit_price || 0, onChange:e=>it.unit_price=Number(e.target.value||0) })),
                       React.createElement('td', { className:'p-2 text-sm' }, it.unit || 'kg'),
