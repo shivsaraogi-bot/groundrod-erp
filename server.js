@@ -2388,11 +2388,11 @@ app.get('/api/production', (req, res) => {
 });
 
 app.get('/api/raw-materials', (req, res) => {
-  db.all("SELECT * FROM raw_materials", (err, rows) => {
+  db.all("SELECT * FROM raw_materials_inventory", (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
     } else {
-      res.json(rows);
+      res.json(rows || []);
     }
   });
 });
