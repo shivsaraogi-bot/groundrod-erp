@@ -2425,10 +2425,27 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
 
 // Enhanced Table Component with sorting, filtering, column customization, and clickable rows
 function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, onDelete, onExport, filterOptions = [], defaultVisibleColumns, actions }) {
+  const storageKey = `tableColumns_${title?.replace(/\s+/g, '_')}`;
+
+  const getInitialColumns = () => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return defaultVisibleColumns || columns.reduce((acc, col) => ({ ...acc, [col.key]: true }), {});
+  };
+
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
-  const [visibleColumns, setVisibleColumns] = useState(defaultVisibleColumns || columns.reduce((acc, col) => ({ ...acc, [col.key]: true }), {}));
+  const [visibleColumns, setVisibleColumns] = useState(getInitialColumns());
   const [filters, setFilters] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
+
+  const updateVisibleColumns = (newColumns) => {
+    setVisibleColumns(newColumns);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(newColumns));
+    } catch (e) {}
+  };
 
   const sortedData = React.useMemo(() => {
     let sortableData = [...(data || [])];
@@ -2479,7 +2496,7 @@ function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, on
       React.createElement('div', { className: 'flex flex-wrap gap-2 items-center' },
         React.createElement('span', { className: 'text-sm font-semibold text-gray-700' }, 'Columns:'),
         columns.map(col => React.createElement('label', { key: col.key, className: 'text-sm flex items-center gap-1 cursor-pointer' },
-          React.createElement('input', { type: 'checkbox', checked: visibleColumns[col.key] || false, onChange: e => setVisibleColumns({ ...visibleColumns, [col.key]: e.target.checked }) }),
+          React.createElement('input', { type: 'checkbox', checked: visibleColumns[col.key] || false, onChange: e => updateVisibleColumns({ ...visibleColumns, [col.key]: e.target.checked }) }),
           col.label
         ))
       )
