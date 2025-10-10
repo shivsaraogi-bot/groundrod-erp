@@ -2877,7 +2877,14 @@ if (upload && csvParse) {
 
     try {
       const csvData = req.file.buffer.toString('utf-8');
-      const records = csvParse.parse(csvData, { columns: true, skip_empty_lines: true });
+      console.log('CSV Import - First 500 chars:', csvData.substring(0, 500));
+
+      const records = csvParse.parse(csvData, { columns: true, skip_empty_lines: true, trim: true });
+      console.log('CSV Import - Parsed records:', records.length);
+      if (records.length > 0) {
+        console.log('CSV Import - First record columns:', Object.keys(records[0]));
+        console.log('CSV Import - First record data:', records[0]);
+      }
 
       let imported = 0, errors = [];
 
@@ -2892,15 +2899,15 @@ if (upload && csvParse) {
 
           // Extract values with flexible column name matching
           const productId = row.id || row.ID || row.product_id || normalizedRow.id || normalizedRow.productid;
-          const description = row.description || row.Description || normalizedRow.description;
+          const description = row.description || row.Description || row.descriptio || normalizedRow.description;
           const steelDiameter = parseFloat(
-            row.steel_diameter || row.steel_dia || row['Steel Dia (mm)'] ||
+            row.steel_diameter || row.steel_dia || row.steel_diam || row['Steel Dia (mm)'] ||
             normalizedRow.steeldiametermm || normalizedRow.steeldiameter ||
-            normalizedRow.diameter || 0
+            normalizedRow.steeldiam || normalizedRow.diameter || 0
           );
           const copperCoating = parseFloat(
-            row.copper_coating || row.coating || row['Cu Coating'] || row.cu_coating ||
-            normalizedRow.cucoating || normalizedRow.coppercoating || 0
+            row.copper_coating || row.coating || row.copper_co || row['Cu Coating'] || row.cu_coating ||
+            normalizedRow.cucoating || normalizedRow.coppercoating || normalizedRow.copperco || 0
           );
           const length = parseFloat(
             row.length || row['Length (mm)'] || normalizedRow.lengthmm ||
@@ -2971,14 +2978,19 @@ if (upload && csvParse) {
         }
       }
 
+      console.log('CSV Import - Results:', { imported, total: records.length, errorCount: errors.length });
+
       res.json({
-        message: `Imported ${imported} products with auto-generated BOMs`,
+        message: imported > 0
+          ? `Imported ${imported} products with auto-generated BOMs`
+          : `No products imported. ${errors.length} errors occurred.`,
         imported,
         total: records.length,
         errors: errors.length > 0 ? errors : undefined
       });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      console.error('CSV Import - Fatal error:', error);
+      res.status(500).json({ error: error.message, details: 'Check server logs for more information' });
     }
   });
 }

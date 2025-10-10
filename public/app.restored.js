@@ -3381,10 +3381,20 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
       const result = await res.json();
 
       if (res.ok) {
-        setBulkImportStatus(`✓ Successfully imported ${result.imported || 0} products with auto-generated BOMs`);
-        if (onRefresh) await onRefresh();
+        if (result.imported > 0) {
+          setBulkImportStatus(`✓ Successfully imported ${result.imported} of ${result.total} products with auto-generated BOMs`);
+          if (result.errors && result.errors.length > 0) {
+            console.warn('CSV Import - Partial errors:', result.errors);
+            setBulkImportStatus(prev => prev + ` (${result.errors.length} errors - check console)`);
+          }
+          if (onRefresh) await onRefresh();
+        } else {
+          setBulkImportStatus(`✗ No products imported. ${result.errors?.length || 0} errors occurred. Check console for details.`);
+          console.error('CSV Import - All rows failed:', result.errors);
+        }
       } else {
         setBulkImportStatus(`✗ Error: ${result.error || 'Import failed'}`);
+        if (result.errors) console.error('CSV Import - Errors:', result.errors);
       }
     } catch (err) {
       setBulkImportStatus(`✗ Error: ${err.message || 'Upload failed - check console for details'}`);
