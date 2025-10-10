@@ -2131,23 +2131,59 @@ function VendorManagement({ vendors, onRefresh }){
   const [form, setForm] = useState({ id:'', name:'', contact_person:'', phone:'', email:'' });
   const [editingVendor, setEditingVendor] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [localVendors, setLocalVendors] = useState(vendors || []);
+
+  React.useEffect(() => {
+    setLocalVendors(vendors || []);
+  }, [vendors]);
 
   async function add(){
-    await fetch(`${API_URL}/vendors`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
-    setForm({ id:'', name:'', contact_person:'', phone:'', email:'' });
-    onRefresh?.();
+    if (!form.id || !form.name) {
+      alert('Please fill in Vendor ID and Name');
+      return;
+    }
+    const res = await fetch(`${API_URL}/vendors`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
+    if (res.ok) {
+      setForm({ id:'', name:'', contact_person:'', phone:'', email:'' });
+      await refreshVendors();
+      if (onRefresh) await onRefresh();
+    } else {
+      alert('Failed to add vendor');
+    }
+  }
+
+  async function refreshVendors(){
+    try {
+      const resp = await fetch(`${API_URL}/vendors`);
+      if (resp.ok) {
+        const data = await resp.json();
+        setLocalVendors(data || []);
+      }
+    } catch (err) {
+      console.error('Failed to refresh vendors', err);
+    }
   }
 
   async function saveEdit(){
-    await fetch(`${API_URL}/vendors/${editForm.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(editForm) });
-    setEditingVendor(null);
-    onRefresh?.();
+    const res = await fetch(`${API_URL}/vendors/${editForm.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(editForm) });
+    if (res.ok) {
+      setEditingVendor(null);
+      await refreshVendors();
+      if (onRefresh) await onRefresh();
+    } else {
+      alert('Failed to update vendor');
+    }
   }
 
   async function del(id){
     if(!confirm('Delete vendor?')) return;
-    await fetch(`${API_URL}/vendors/${id}`, { method:'DELETE' });
-    onRefresh?.();
+    const res = await fetch(`${API_URL}/vendors/${id}`, { method:'DELETE' });
+    if (res.ok) {
+      await refreshVendors();
+      if (onRefresh) await onRefresh();
+    } else {
+      alert('Failed to delete vendor');
+    }
   }
 
   const columns = [
@@ -2178,11 +2214,13 @@ function VendorManagement({ vendors, onRefresh }){
     ),
     React.createElement(EnhancedTable, {
       title: 'Vendors',
-      data: vendors,
+      data: localVendors,
       columns: columns,
       primaryKey: 'id',
       onRowClick: handleRowClick,
       onDelete: del,
+      filterOptions: [],
+      defaultVisibleColumns: { id: true, name: true, contact_person: true, phone: true, email: true, vendor_type: true, material_type: true },
       onExport: (data, cols) => downloadCSV('vendors.csv', cols.map(c=>({key:c.key,label:c.label})), data)
     }),
     React.createElement(EditModal, { isOpen: !!editingVendor, onClose: () => setEditingVendor(null), title: `Edit Vendor: ${editForm.id || ''}` },
