@@ -450,6 +450,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
     expected_delivery_date: ''
   });
   const [pdfFile, setPdfFile] = useState(null);
+  const [editPdfFile, setEditPdfFile] = useState(null);
 
   // Line items state
   const [newItems, setNewItems] = useState([]);
@@ -715,6 +716,22 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
         return;
       }
 
+      // Upload PDF if provided
+      if (editPdfFile) {
+        const formData = new FormData();
+        formData.append('pdf', editPdfFile);
+        formData.append('po_id', editForm.id);
+
+        const pdfRes = await fetch(`${API_URL}/upload-client-po-pdf`, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!pdfRes.ok) {
+          console.error('Failed to upload PDF');
+        }
+      }
+
       // Save each line item
       for (const item of editLineItems) {
         const lineRes = await fetch(`${API_URL}/client-purchase-orders/${editForm.id}/items/${item.id}`, {
@@ -735,6 +752,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
       }
 
       setEditingPO(null);
+      setEditPdfFile(null);
       await refreshLocalOrders();
       if (onRefresh) await onRefresh();
       alert('Client PO updated successfully');
@@ -1177,7 +1195,10 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
       // Edit Modal
       React.createElement(EditModal, {
         isOpen: editingPO !== null,
-        onClose: () => setEditingPO(null),
+        onClose: () => {
+          setEditingPO(null);
+          setEditPdfFile(null);
+        },
         title: `Edit Client PO: ${editForm.id || ''}`
       },
         editingPO && React.createElement('div', { className: 'space-y-6' },
@@ -1186,9 +1207,9 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
             React.createElement('div', null,
               React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'PO ID'),
               React.createElement('input', {
-                className: 'border rounded px-3 py-2 w-full bg-gray-100',
+                className: 'border rounded px-3 py-2 w-full',
                 value: editForm.id || '',
-                disabled: true
+                onChange: e => setEditForm({ ...editForm, id: e.target.value })
               })
             ),
             React.createElement('div', null,
@@ -1307,7 +1328,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                 })
               ),
               editingPO.pdf_path && React.createElement('div', { className: 'md:col-span-2' },
-                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Attached PDF'),
+                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Current PDF'),
                 React.createElement('a', {
                   href: `${API_URL}${editingPO.pdf_path}`,
                   target: '_blank',
@@ -1315,6 +1336,20 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                 },
                   React.createElement('span', null, '📄'),
                   React.createElement('span', null, 'View Client PO PDF')
+                )
+              ),
+              React.createElement('div', { className: 'md:col-span-2' },
+                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' },
+                  editingPO.pdf_path ? 'Upload New PDF (Optional - replaces current PDF)' : 'Upload PDF (Optional)'
+                ),
+                React.createElement('input', {
+                  type: 'file',
+                  accept: 'application/pdf',
+                  className: 'border rounded px-3 py-2 w-full',
+                  onChange: e => setEditPdfFile(e.target.files[0])
+                }),
+                editPdfFile && React.createElement('p', { className: 'text-sm text-green-600 mt-1' },
+                  `Selected: ${editPdfFile.name}`
                 )
               )
             )
@@ -1414,7 +1449,10 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
           // Save/Cancel buttons
           React.createElement('div', { className: 'flex justify-end gap-3 pt-4 border-t' },
             React.createElement('button', {
-              onClick: () => setEditingPO(null),
+              onClick: () => {
+                setEditingPO(null);
+                setEditPdfFile(null);
+              },
               className: 'px-4 py-2 border border-gray-300 rounded hover:bg-gray-50'
             }, 'Cancel'),
             React.createElement('button', {
