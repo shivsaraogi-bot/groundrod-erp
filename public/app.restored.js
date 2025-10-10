@@ -960,6 +960,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
         primaryKey: 'id',
         onRowClick: handleRowClick,
         onDelete: del,
+        onExport: (data, cols) => downloadCSV('client-purchase-orders.csv', cols.filter(c => c.key !== 'pdf_path').map(c=>({key:c.key,label:c.label})), data),
         filterOptions: [
           { key: 'customer_name', label: 'Customer', values: [...new Set(localOrders.map(po => po.customer_name).filter(Boolean))] },
           { key: 'status', label: 'Status', values: ['Pending', 'Confirmed', 'In Production', 'Completed', 'Cancelled'] }
@@ -1394,6 +1395,15 @@ function JobWorkOrders({ vendors, products, onRefresh }){
       ),
       React.createElement('div', { ref: listSectionRef },
         React.createElement(Section, { title: 'Job Work Orders' },
+          React.createElement('div', { className: 'mb-3 flex justify-end' },
+            React.createElement('button', {
+              onClick: () => downloadCSV('job-work-orders.csv',
+                [{key:'id',label:'JW ID'},{key:'vendor_id',label:'Vendor'},{key:'jw_date',label:'Date'},{key:'due_date',label:'Due Date'},{key:'job_type',label:'Job Type'},{key:'status',label:'Status'},{key:'notes',label:'Notes'}],
+                orders
+              ),
+              className: 'px-3 py-2 bg-gray-700 text-white rounded'
+            }, 'Export CSV')
+          ),
           React.createElement('div', { className: 'overflow-x-auto' },
             React.createElement('table', { className:'min-w-full border-collapse' },
               React.createElement('thead', null,
@@ -1555,6 +1565,7 @@ function Shipments({ shipments }){
         primaryKey: 'id',
         onRowClick: handleRowClick,
         onDelete: del,
+        onExport: (data, cols) => downloadCSV('shipments.csv', cols.map(c=>({key:c.key,label:c.label})), data),
         filterOptions: [
           { key: 'po_id', label: 'PO', values: [...new Set(shipments.map(s => s.po_id).filter(Boolean))] }
         ],
@@ -1769,6 +1780,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
           primaryKey: 'material',
           onRowClick: handleRMClick,
           onDelete: delRM,
+          onExport: (data, cols) => downloadCSV('raw-materials.csv', cols.map(c=>({key:c.key,label:c.label})), data),
           filterOptions: [],
           defaultVisibleColumns: { material: true, current_stock: true, reorder_level: true, last_purchase_date: true }
         }),
@@ -1851,6 +1863,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
           primaryKey: 'product_id',
           onRowClick: null,
           onDelete: null,
+          onExport: (data, cols) => downloadCSV('wip-inventory.csv', cols.map(c=>({key:c.key,label:c.label})), data),
           filterOptions: [
             { key: 'product_description', label: 'Product', values: [...new Set((invData||[]).map(r => r.product_description).filter(Boolean))] }
           ],
