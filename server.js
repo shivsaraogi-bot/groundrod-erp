@@ -2196,6 +2196,43 @@ app.get('/api/raw-materials', (req, res) => {
   });
 });
 
+app.post('/api/raw-materials', (req, res) => {
+  const { material, current_stock, reorder_level, last_purchase_date } = req.body;
+
+  if (!material) {
+    return res.status(400).json({ error: 'Material name is required' });
+  }
+
+  db.run(
+    `INSERT INTO raw_materials (material, current_stock, reorder_level, last_purchase_date)
+     VALUES (?, ?, ?, ?)`,
+    [material, Number(current_stock || 0), Number(reorder_level || 0), last_purchase_date || null],
+    function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE')) {
+          return res.status(400).json({ error: 'Material already exists' });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ message: 'Raw material added successfully', material });
+    }
+  );
+});
+
+app.delete('/api/raw-materials/:material', (req, res) => {
+  const { material } = req.params;
+
+  db.run('DELETE FROM raw_materials WHERE material = ?', [material], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Material not found' });
+    }
+    res.json({ message: 'Raw material deleted successfully', material });
+  });
+});
+
 // Recent production entries for display
 app.get('/api/production', (req, res) => {
   const { from, to, limit = 50 } = req.query;
@@ -2300,23 +2337,21 @@ app.get('/api/dashboard/risk-analysis', (req, res) => {
 // Update raw materials inventory (for setting starting amounts or manual adjustments)
 app.put('/api/raw-materials/:material', (req, res) => {
   const { material } = req.params;
-  const { current_stock, reorder_level } = req.body;
-
-  if (current_stock === undefined || current_stock < 0) {
-    return res.status(400).json({ error: 'current_stock must be >= 0' });
-  }
+  const { current_stock, reorder_level, last_purchase_date } = req.body;
 
   db.run(
-    `INSERT INTO raw_materials_inventory (material, current_stock, reorder_level, updated_at)
-     VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-     ON CONFLICT(material) DO UPDATE SET
-       current_stock = excluded.current_stock,
-       reorder_level = COALESCE(excluded.reorder_level, reorder_level),
-       updated_at = CURRENT_TIMESTAMP`,
-    [material, Number(current_stock), reorder_level !== undefined ? Number(reorder_level) : null],
+    `UPDATE raw_materials SET
+       current_stock = ?,
+       reorder_level = ?,
+       last_purchase_date = ?
+     WHERE material = ?`,
+    [Number(current_stock || 0), Number(reorder_level || 0), last_purchase_date || null, material],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
-      res.json({ message: 'Raw material inventory updated', material, current_stock });
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Material not found' });
+      }
+      res.json({ message: 'Raw material updated successfully', material });
     }
   );
 });
