@@ -2600,11 +2600,41 @@ function CustomerManagementEx({ customers, onRefresh }){
   const [form, setForm] = useState({ id:'', name:'', office_address:'', warehouse_address:'', contact_person:'', phone:'', email:'' });
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [bulkImportStatus, setBulkImportStatus] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
 
   async function add(){
     await fetch(`${API_URL}/customers`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
     setForm({ id:'', name:'', office_address:'', warehouse_address:'', contact_person:'', phone:'', email:'' });
     onRefresh?.();
+  }
+
+  async function handleBulkImport(e){
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setBulkImportStatus('Uploading...');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch(`${API_URL}/bulk-import/customers`, { method: 'POST', body: formData });
+      const result = await res.json();
+
+      if (res.ok) {
+        setBulkImportStatus(`✓ Successfully imported ${result.imported || 0} customers`);
+        if (onRefresh) await onRefresh();
+      } else {
+        setBulkImportStatus(`✗ Error: ${result.error || 'Import failed'}`);
+      }
+    } catch (err) {
+      setBulkImportStatus(`✗ Error: ${err.message}`);
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
   }
 
   async function saveEdit(){
@@ -2645,6 +2675,21 @@ function CustomerManagementEx({ customers, onRefresh }){
         React.createElement('input', { className: 'border rounded px-3 py-2 md:col-span-3', placeholder: 'Office Address', value: form.office_address, onChange: e=>setForm({...form,office_address:e.target.value}) }),
         React.createElement('input', { className: 'border rounded px-3 py-2 md:col-span-3', placeholder: 'Warehouse Address', value: form.warehouse_address, onChange: e=>setForm({...form,warehouse_address:e.target.value}) }),
         React.createElement('button', { onClick: add, className: 'px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700' }, 'Add Customer')
+      )
+    ),
+    React.createElement(Section, { title: 'Bulk Import Customers (CSV)' },
+      React.createElement('div', { className: 'space-y-3' },
+        React.createElement('div', { className: 'flex items-center gap-4' },
+          React.createElement('label', { className: 'px-4 py-2 bg-indigo-600 text-white rounded font-semibold hover:bg-indigo-700 cursor-pointer' },
+            isUploading ? 'Uploading...' : 'Choose CSV File',
+            React.createElement('input', { type: 'file', accept: '.csv', onChange: handleBulkImport, disabled: isUploading, className: 'hidden' })
+          ),
+          bulkImportStatus && React.createElement('span', { className: bulkImportStatus.startsWith('✓') ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }, bulkImportStatus)
+        ),
+        React.createElement('p', { className: 'text-sm text-gray-600' },
+          'CSV format: id, name, address, contact_person, phone, email, city, country. ',
+          React.createElement('a', { href: 'sample-customers.csv', download: true, className: 'text-blue-600 underline' }, 'Download sample CSV')
+        )
       )
     ),
     React.createElement(EnhancedTable, {
@@ -2751,6 +2796,38 @@ function VendorManagement({ vendors, onRefresh }){
     setEditingVendor(vendor);
   }
 
+  const [bulkImportStatus, setBulkImportStatus] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+
+  async function handleBulkImport(e){
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setBulkImportStatus('Uploading...');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch(`${API_URL}/bulk-import/vendors`, { method: 'POST', body: formData });
+      const result = await res.json();
+
+      if (res.ok) {
+        setBulkImportStatus(`✓ Successfully imported ${result.imported || 0} vendors`);
+        await refreshVendors();
+        if (onRefresh) await onRefresh();
+      } else {
+        setBulkImportStatus(`✗ Error: ${result.error || 'Import failed'}`);
+      }
+    } catch (err) {
+      setBulkImportStatus(`✗ Error: ${err.message}`);
+    } finally {
+      setIsUploading(false);
+      e.target.value = ''; // Reset file input
+    }
+  }
+
   return React.createElement('div', { className:'space-y-4' },
     React.createElement(Section, { title: 'Add Vendor' },
       React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-3' },
@@ -2770,6 +2847,21 @@ function VendorManagement({ vendors, onRefresh }){
         React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'City', value: form.city, onChange: e=>setForm({...form,city:e.target.value}) }),
         React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Country', value: form.country, onChange: e=>setForm({...form,country:e.target.value}) }),
         React.createElement('button', { onClick: add, className: 'px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700 md:col-span-3' }, 'Add Vendor')
+      )
+    ),
+    React.createElement(Section, { title: 'Bulk Import Vendors (CSV)' },
+      React.createElement('div', { className: 'space-y-3' },
+        React.createElement('div', { className: 'flex items-center gap-4' },
+          React.createElement('label', { className: 'px-4 py-2 bg-indigo-600 text-white rounded font-semibold hover:bg-indigo-700 cursor-pointer' },
+            isUploading ? 'Uploading...' : 'Choose CSV File',
+            React.createElement('input', { type: 'file', accept: '.csv', onChange: handleBulkImport, disabled: isUploading, className: 'hidden' })
+          ),
+          bulkImportStatus && React.createElement('span', { className: bulkImportStatus.startsWith('✓') ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }, bulkImportStatus)
+        ),
+        React.createElement('p', { className: 'text-sm text-gray-600' },
+          'CSV format: id, name, office_address, contact_person, phone, email, vendor_type, material_type, city, country. ',
+          React.createElement('a', { href: 'sample-vendors.csv', download: true, className: 'text-blue-600 underline' }, 'Download sample CSV')
+        )
       )
     ),
     React.createElement(EnhancedTable, {
@@ -3223,11 +3315,41 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
   const [form, setForm] = useState({ id:'', description:'', diameter:0, length:0, coating:0 });
   const [editingProduct, setEditingProduct] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [bulkImportStatus, setBulkImportStatus] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
 
   async function add(){
     await fetch(`${API_URL}/products`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...form, steel_diameter:Number(form.diameter), length:Number(form.length), copper_coating:Number(form.coating) }) });
     setForm({ id:'', description:'', diameter:0, length:0, coating:0 });
     onRefresh?.();
+  }
+
+  async function handleBulkImport(e){
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setBulkImportStatus('Uploading...');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch(`${API_URL}/bulk-import/products`, { method: 'POST', body: formData });
+      const result = await res.json();
+
+      if (res.ok) {
+        setBulkImportStatus(`✓ Successfully imported ${result.imported || 0} products with auto-generated BOMs`);
+        if (onRefresh) await onRefresh();
+      } else {
+        setBulkImportStatus(`✗ Error: ${result.error || 'Import failed'}`);
+      }
+    } catch (err) {
+      setBulkImportStatus(`✗ Error: ${err.message}`);
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
   }
 
   async function saveEdit(){
@@ -3302,6 +3424,24 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
           React.createElement('input', { className:'border rounded px-3 py-2', type:'number', placeholder:'Length (mm)', value:form.length, onChange:e=>setForm({ ...form, length:e.target.value }) }),
           React.createElement('input', { className:'border rounded px-3 py-2', type:'number', placeholder:'Copper (µm)', value:form.coating, onChange:e=>setForm({ ...form, coating:e.target.value }) }),
           React.createElement('button', { onClick:add, className:'px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700' }, 'Add Product')
+        )
+      ),
+      React.createElement(Section, { title: 'Bulk Import Products with Auto-BOM (CSV)' },
+        React.createElement('div', { className: 'space-y-3' },
+          React.createElement('div', { className: 'flex items-center gap-4' },
+            React.createElement('label', { className: 'px-4 py-2 bg-indigo-600 text-white rounded font-semibold hover:bg-indigo-700 cursor-pointer' },
+              isUploading ? 'Uploading...' : 'Choose CSV File',
+              React.createElement('input', { type: 'file', accept: '.csv', onChange: handleBulkImport, disabled: isUploading, className: 'hidden' })
+            ),
+            bulkImportStatus && React.createElement('span', { className: bulkImportStatus.startsWith('✓') ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }, bulkImportStatus)
+          ),
+          React.createElement('p', { className: 'text-sm text-gray-600' },
+            'CSV format: id, description, steel_diameter, copper_coating, length, weight, cost_price, hs_code, export_description. ',
+            React.createElement('a', { href: 'sample-products.csv', download: true, className: 'text-blue-600 underline' }, 'Download sample CSV')
+          ),
+          React.createElement('p', { className: 'text-sm text-amber-600 font-semibold' },
+            '✨ BOMs (Bill of Materials) are automatically generated based on steel diameter, copper coating, and length using industry-standard density calculations.'
+          )
         )
       ),
       React.createElement(EnhancedTable, {

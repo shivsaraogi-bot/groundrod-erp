@@ -1,0 +1,6 @@
+id,name,address,contact_person,phone,email,city,country
+C001,Global Infrastructure Ltd,Tower A Business District,Mohammed Ali,+91-80-1111-2222,ali@globalinfra.com,Bangalore,India
+C002,PowerGrid Solutions,Plot 23 Tech Park,Anjali Gupta,+91-44-3333-4444,anjali@powergrid.in,Chennai,India
+C003,National Utilities Corp,Building 5 Commercial Zone,Ravi Verma,+91-33-5555-6666,ravi@utilities.co.in,Kolkata,India
+C004,Smart Energy Systems,67 Innovation Hub,Deepa Nair,+91-484-7777-8888,deepa@smartenergy.in,Kochi,India
+C005,Urban Development Authority,Government Complex,Suresh Iyer,+91-20-9999-0000,suresh@urbandev.gov.in,Pune,India
