@@ -596,6 +596,21 @@ function initializeDatabase() {
       FOREIGN KEY (product_id) REFERENCES products(id)
     )`);
 
+    // Stock Adjustments table for opening balances and corrections
+    db.run(`CREATE TABLE IF NOT EXISTS stock_adjustments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      adjustment_date DATE NOT NULL,
+      product_id TEXT NOT NULL,
+      stage TEXT NOT NULL,
+      quantity INTEGER NOT NULL,
+      adjustment_type TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      notes TEXT,
+      created_by TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (product_id) REFERENCES products(id)
+    )`);
+
     // Raw Materials Inventory table (UPDATED)
     db.run(`CREATE TABLE IF NOT EXISTS raw_materials_inventory (
       material TEXT PRIMARY KEY,
@@ -2453,6 +2468,171 @@ app.get('/api/production', (req, res) => {
   db.all(sql, args, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
+  });
+});
+
+// ============= Stock Adjustments API =============
+// Get all stock adjustments
+app.get('/api/stock-adjustments', (req, res) => {
+  db.all(`
+    SELECT sa.*, p.description as product_description
+    FROM stock_adjustments sa
+    LEFT JOIN products p ON sa.product_id = p.id
+    ORDER BY sa.adjustment_date DESC, sa.id DESC
+  `, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// Create stock adjustment
+app.post('/api/stock-adjustments', (req, res) => {
+  const { adjustment_date, product_id, stage, quantity, adjustment_type, reason, notes, created_by } = req.body;
+
+  if (!adjustment_date || !product_id || !stage || !quantity || !adjustment_type || !reason) {
+    return res.status(400).json({ error: 'Missing required fields: adjustment_date, product_id, stage, quantity, adjustment_type, reason' });
+  }
+
+  const validStages = ['plated', 'machined', 'qc', 'stamped', 'packed', 'cores'];
+  if (!validStages.includes(stage.toLowerCase())) {
+    return res.status(400).json({ error: 'Invalid stage. Must be one of: plated, machined, qc, stamped, packed, cores' });
+  }
+
+  const validTypes = ['opening_balance', 'physical_count', 'damage_scrap', 'other'];
+  if (!validTypes.includes(adjustment_type)) {
+    return res.status(400).json({ error: 'Invalid adjustment_type. Must be one of: opening_balance, physical_count, damage_scrap, other' });
+  }
+
+  db.serialize(() => {
+    db.run('BEGIN');
+
+    // Insert adjustment record
+    db.run(`
+      INSERT INTO stock_adjustments (adjustment_date, product_id, stage, quantity, adjustment_type, reason, notes, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [adjustment_date, product_id, stage.toLowerCase(), Number(quantity), adjustment_type, reason, notes || '', created_by || 'system'],
+    function(err) {
+      if (err) {
+        db.run('ROLLBACK');
+        return res.status(500).json({ error: err.message });
+      }
+
+      const adjustmentId = this.lastID;
+
+      // Update inventory
+      const stageColumn = stage.toLowerCase();
+      db.run(`
+        INSERT INTO inventory (product_id, ${stageColumn})
+        VALUES (?, ?)
+        ON CONFLICT(product_id) DO UPDATE SET
+          ${stageColumn} = ${stageColumn} + excluded.${stageColumn},
+          updated_at = CURRENT_TIMESTAMP
+      `, [product_id, Number(quantity)], (invErr) => {
+        if (invErr) {
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: invErr.message });
+        }
+
+        db.run('COMMIT', (commitErr) => {
+          if (commitErr) return res.status(500).json({ error: commitErr.message });
+          res.json({ message: 'Stock adjustment created successfully', id: adjustmentId });
+        });
+      });
+    });
+  });
+});
+
+// Delete stock adjustment (reverses the inventory change)
+app.delete('/api/stock-adjustments/:id', (req, res) => {
+  const { id } = req.params;
+
+  // Get adjustment details first
+  db.get('SELECT * FROM stock_adjustments WHERE id = ?', [id], (err, adjustment) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!adjustment) return res.status(404).json({ error: 'Stock adjustment not found' });
+
+    db.serialize(() => {
+      db.run('BEGIN');
+
+      // Reverse the inventory change
+      const stageColumn = adjustment.stage.toLowerCase();
+      db.run(`
+        UPDATE inventory
+        SET ${stageColumn} = MAX(0, ${stageColumn} - ?),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE product_id = ?
+      `, [adjustment.quantity, adjustment.product_id], (invErr) => {
+        if (invErr) {
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: invErr.message });
+        }
+
+        // Delete the adjustment record
+        db.run('DELETE FROM stock_adjustments WHERE id = ?', [id], (delErr) => {
+          if (delErr) {
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: delErr.message });
+          }
+
+          db.run('COMMIT', (commitErr) => {
+            if (commitErr) return res.status(500).json({ error: commitErr.message });
+            res.json({ message: 'Stock adjustment deleted and inventory reversed' });
+          });
+        });
+      });
+    });
+  });
+});
+
+// Delete production entry (reverses inventory changes)
+app.delete('/api/production/:id', (req, res) => {
+  const { id } = req.params;
+
+  // Get production details first
+  db.get('SELECT * FROM production_history WHERE id = ?', [id], (err, production) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!production) return res.status(404).json({ error: 'Production entry not found' });
+
+    db.serialize(() => {
+      db.run('BEGIN');
+
+      // Reverse inventory changes
+      db.run(`
+        UPDATE inventory
+        SET plated = MAX(0, plated - ?),
+            machined = MAX(0, machined - ?),
+            qc = MAX(0, qc - ?),
+            stamped = MAX(0, stamped - ?),
+            packed = MAX(0, packed - ?),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE product_id = ?
+      `, [
+        production.plated || 0,
+        production.machined || 0,
+        production.qc || 0,
+        production.stamped || 0,
+        production.packed || 0,
+        production.product_id
+      ], (invErr) => {
+        if (invErr) {
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: invErr.message });
+        }
+
+        // Delete the production record
+        db.run('DELETE FROM production_history WHERE id = ?', [id], (delErr) => {
+          if (delErr) {
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: delErr.message });
+          }
+
+          db.run('COMMIT', (commitErr) => {
+            if (commitErr) return res.status(500).json({ error: commitErr.message });
+            res.json({ message: 'Production entry deleted and inventory reversed' });
+          });
+        });
+      });
+    });
   });
 });
 
