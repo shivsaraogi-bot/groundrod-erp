@@ -721,11 +721,11 @@ function initializeDatabase() {
     db.all("PRAGMA table_info(products)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('category')) db.run("ALTER TABLE products ADD COLUMN category TEXT"); } });
     db.all("PRAGMA table_info(vendor_po_line_items)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('description')) db.run("ALTER TABLE vendor_po_line_items ADD COLUMN description TEXT"); if(!n.includes('unit')) db.run("ALTER TABLE vendor_po_line_items ADD COLUMN unit TEXT"); } });
     db.all("PRAGMA table_info(inventory)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('committed')) db.run("ALTER TABLE inventory ADD COLUMN committed INTEGER DEFAULT 0"); } });
-    db.all("PRAGMA table_info(client_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN is_deleted INTEGER DEFAULT 0"); } });
-    db.all("PRAGMA table_info(vendor_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE vendor_purchase_orders ADD COLUMN is_deleted INTEGER DEFAULT 0"); } });
-    db.all("PRAGMA table_info(shipments)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE shipments ADD COLUMN is_deleted INTEGER DEFAULT 0"); } });
-    db.all("PRAGMA table_info(production_history)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE production_history ADD COLUMN is_deleted INTEGER DEFAULT 0"); } });
-    insertSampleData();
+    db.all("PRAGMA table_info(client_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN is_deleted INTEGER DEFAULT 0", (err)=>{}); } });
+    db.all("PRAGMA table_info(vendor_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE vendor_purchase_orders ADD COLUMN is_deleted INTEGER DEFAULT 0", (err)=>{}); } });
+    db.all("PRAGMA table_info(shipments)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE shipments ADD COLUMN is_deleted INTEGER DEFAULT 0", (err)=>{}); } });
+    db.all("PRAGMA table_info(production_history)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE production_history ADD COLUMN is_deleted INTEGER DEFAULT 0", (err)=>{}); } });
+    //insertSampleData(); // Commented out - using test database with comprehensive dummy data
   });
 }
 
@@ -3639,6 +3639,203 @@ app.post('/api/inventory/check-availability', (req, res) => {
       });
     }
   );
+});
+
+// ============= ONE-TIME SETUP: Load Comprehensive Test Data =============
+app.post('/api/setup-test-data', async (req, res) => {
+  try {
+    console.log('🧪 Starting test data setup...');
+
+    // Insert Vendors
+    const vendors = [
+      ['V001', 'ABC Steel Industries', 'Rajesh Kumar', '+91-79-2345-6789', 'rajesh@abcsteel.com', 'Plot 45, Industrial Area Phase 1, Ahmedabad', 'Steel', 'Steel', 'Ahmedabad', 'India'],
+      ['V002', 'Copper Anode Suppliers Ltd', 'Priya Sharma', '+91-11-9876-5432', 'priya@copperanode.in', '234 Factory Road, Sector 18, Delhi', 'Copper', 'Copper Anode', 'Delhi', 'India'],
+      ['V003', 'Mumbai Metal Works', 'Amit Patel', '+91-22-5555-1234', 'amit@mumbaimetals.com', '67 MIDC Area, Andheri East, Mumbai', 'Steel', 'Steel', 'Mumbai', 'India'],
+      ['V004', 'Bengal Coating Services', 'Subhash Ghosh', '+91-33-4444-7890', 'subhash@bengalcoating.co.in', '123 Industrial Estate, Salt Lake, Kolkata', 'Job Work', 'Electroplating', 'Kolkata', 'India'],
+      ['V005', 'Chennai Copper Traders', 'Lakshmi Iyer', '+91-44-3333-4567', 'lakshmi@chennaicopper.com', '89 Anna Nagar Industrial Zone, Chennai', 'Copper', 'Copper Anode', 'Chennai', 'India']
+    ];
+
+    for (const v of vendors) {
+      await new Promise((resolve, reject) => {
+        db.run('INSERT OR REPLACE INTO vendors VALUES (?,?,?,?,?,?,?,?,?,?)', v, (err) => err ? reject(err) : resolve());
+      });
+    }
+
+    // Insert Customers
+    const customers = [
+      ['C001', 'Global Infrastructure Ltd', '123 Business District Tower A, Bangalore', 'Mohammed Ali', '+91-80-1111-2222', 'ali@globalinfra.com', '123 Business District Tower A, Bangalore', 'Warehouse Complex B, Whitefield, Bangalore', 'Bangalore', 'India'],
+      ['C002', 'National Power Grid Corp', '456 Nehru Place, New Delhi', 'Sunita Verma', '+91-11-3333-4444', 'sunita@nationalpowergrid.in', '456 Nehru Place, New Delhi', 'Storage Facility, Okhla Phase 2, Delhi', 'Delhi', 'India'],
+      ['C003', 'Mumbai Metro Construction', '789 BKC Complex, Mumbai', 'Vikram Singh', '+91-22-6666-7777', 'vikram@mumbaimetro.com', '789 BKC Complex, Mumbai', 'Site Office, Goregaon, Mumbai', 'Mumbai', 'India'],
+      ['C004', 'Eastern Railway Projects', '321 Park Street, Kolkata', 'Arijit Banerjee', '+91-33-8888-9999', 'arijit@easternrailway.gov.in', '321 Park Street, Kolkata', 'Depot, Dankuni, Kolkata', 'Kolkata', 'India'],
+      ['C005', 'Southern Power Utilities', '654 Mount Road, Chennai', 'Deepa Krishnan', '+91-44-5555-6666', 'deepa@southernpower.co.in', '654 Mount Road, Chennai', 'Warehouse, Ambattur Industrial Estate, Chennai', 'Chennai', 'India']
+    ];
+
+    for (const c of customers) {
+      await new Promise((resolve, reject) => {
+        db.run('INSERT OR REPLACE INTO customers VALUES (?,?,?,?,?,?,?,?,?,?)', c, (err) => err ? reject(err) : resolve());
+      });
+    }
+
+    // Insert Products with BOMs
+    const products = [
+      ['CE1034', '14.2mm x 3000mm Copper Bonded Ground Rod', 14.2, 250, 3000, 4.75, 450, '8538.90', 'Copper Bonded Earthing Electrode 14.2mm Dia x 3m Length'],
+      ['CE1535', '17.2mm x 3000mm Copper Bonded Ground Rod', 17.2, 300, 3000, 6.85, 650, '8538.90', 'Copper Bonded Earthing Electrode 17.2mm Dia x 3m Length'],
+      ['CE2036', '20.0mm x 3000mm Copper Bonded Ground Rod', 20.0, 350, 3000, 9.42, 850, '8538.90', 'Copper Bonded Earthing Electrode 20mm Dia x 3m Length'],
+      ['CE1424', '14.2mm x 2400mm Copper Bonded Ground Rod', 14.2, 250, 2400, 3.80, 380, '8538.90', 'Copper Bonded Earthing Electrode 14.2mm Dia x 2.4m Length'],
+      ['CE1718', '17.2mm x 1800mm Copper Bonded Ground Rod', 17.2, 300, 1800, 4.11, 420, '8538.90', 'Copper Bonded Earthing Electrode 17.2mm Dia x 1.8m Length'],
+      ['CE2030', '20.0mm x 3000mm Heavy Duty Ground Rod', 20.0, 400, 3000, 9.58, 900, '8538.90', 'Heavy Duty Copper Bonded Earthing Electrode 20mm Dia x 3m']
+    ];
+
+    for (const p of products) {
+      await new Promise((resolve, reject) => {
+        db.run('INSERT OR REPLACE INTO products VALUES (?,?,?,?,?,?,?,?,?)', p, (err) => err ? reject(err) : resolve());
+      });
+
+      // Calculate and insert BOM
+      const [id, desc, steelDia, copperCoating, length] = p;
+      const steelRadiusMM = steelDia / 2;
+      const steelVolumeMM3 = Math.PI * steelRadiusMM * steelRadiusMM * length;
+      const steelWeightKg = (steelVolumeMM3 * 7.85) / 1000000;
+
+      const outerRadiusMM = steelDia / 2 + copperCoating / 1000;
+      const copperVolumeMM3 = Math.PI * (outerRadiusMM * outerRadiusMM - steelRadiusMM * steelRadiusMM) * length;
+      const copperWeightKg = (copperVolumeMM3 * 8.96) / 1000000;
+
+      await new Promise((resolve, reject) => {
+        db.run('INSERT OR REPLACE INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)', [id, 'Steel', steelWeightKg], (err) => err ? reject(err) : resolve());
+      });
+      await new Promise((resolve, reject) => {
+        db.run('INSERT OR REPLACE INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)', [id, 'Copper Anode', copperWeightKg], (err) => err ? reject(err) : resolve());
+      });
+    }
+
+    // Insert Raw Materials
+    await new Promise((resolve, reject) => {
+      db.run("INSERT OR REPLACE INTO raw_materials_inventory (material, current_stock, committed_stock, unit) VALUES ('Steel', 15000, 2500, 'kg')", (err) => err ? reject(err) : resolve());
+    });
+    await new Promise((resolve, reject) => {
+      db.run("INSERT OR REPLACE INTO raw_materials_inventory (material, current_stock, committed_stock, unit) VALUES ('Copper Anode', 5000, 800, 'kg')", (err) => err ? reject(err) : resolve());
+    });
+    await new Promise((resolve, reject) => {
+      db.run("INSERT OR REPLACE INTO raw_materials_inventory (material, current_stock, committed_stock, unit) VALUES ('Flux', 500, 50, 'kg')", (err) => err ? reject(err) : resolve());
+    });
+    await new Promise((resolve, reject) => {
+      db.run("INSERT OR REPLACE INTO raw_materials_inventory (material, current_stock, committed_stock, unit) VALUES ('Packaging Material', 2000, 200, 'units')", (err) => err ? reject(err) : resolve());
+    });
+
+    // Insert Inventory
+    const inventory = [
+      ['CE1034', 150, 120, 100, 95, 80],
+      ['CE1535', 200, 180, 150, 140, 120],
+      ['CE2036', 100, 85, 70, 65, 55],
+      ['CE1424', 180, 160, 140, 130, 110],
+      ['CE1718', 90, 75, 60, 55, 45],
+      ['CE2030', 120, 100, 85, 80, 70]
+    ];
+
+    for (const inv of inventory) {
+      await new Promise((resolve, reject) => {
+        db.run('INSERT OR REPLACE INTO inventory (product_id, steel_rods, plated, quality_checked, stamped, packaged, updated_at) VALUES (?,?,?,?,?,?,?)',
+          [...inv, new Date().toISOString()], (err) => err ? reject(err) : resolve());
+      });
+    }
+
+    // Insert Vendor POs
+    const vendorPOs = [
+      ['VPO-2025-001', 'V001', '2025-01-05', '2025-01-20', 'Completed', 'Bulk steel order for Q1 production', 'INR', 'Ex-Works', 'Net 30'],
+      ['VPO-2025-002', 'V002', '2025-01-10', '2025-01-25', 'Pending', 'Copper anode replenishment', 'INR', 'FOB', 'Net 45'],
+      ['VPO-2025-003', 'V003', '2025-01-15', '2025-02-01', 'In Transit', 'Additional steel rods', 'INR', 'CIF', 'Net 30']
+    ];
+
+    for (const vpo of vendorPOs) {
+      await new Promise((resolve, reject) => {
+        db.run('INSERT OR REPLACE INTO vendor_purchase_orders VALUES (?,?,?,?,?,?,?,?,?)', vpo, (err) => err ? reject(err) : resolve());
+      });
+    }
+
+    // Insert Vendor PO Line Items
+    await new Promise((resolve, reject) => {
+      db.run("INSERT OR REPLACE INTO vendor_po_line_items (po_id, material_type, item_type, quantity, unit_price, unit, description) VALUES ('VPO-2025-001', 'Steel', 'Raw Material', 5000, 85, 'kg', 'MS Steel Rods 14.2mm')", (err) => err ? reject(err) : resolve());
+    });
+    await new Promise((resolve, reject) => {
+      db.run("INSERT OR REPLACE INTO vendor_po_line_items (po_id, material_type, item_type, quantity, unit_price, unit, description) VALUES ('VPO-2025-001', 'Steel', 'Raw Material', 3000, 88, 'kg', 'MS Steel Rods 17.2mm')", (err) => err ? reject(err) : resolve());
+    });
+    await new Promise((resolve, reject) => {
+      db.run("INSERT OR REPLACE INTO vendor_po_line_items (po_id, material_type, item_type, quantity, unit_price, unit, description) VALUES ('VPO-2025-002', 'Copper Anode', 'Raw Material', 2000, 750, 'kg', 'Copper Anode 99.9% purity')", (err) => err ? reject(err) : resolve());
+    });
+    await new Promise((resolve, reject) => {
+      db.run("INSERT OR REPLACE INTO vendor_po_line_items (po_id, material_type, item_type, quantity, unit_price, unit, description) VALUES ('VPO-2025-003', 'Steel', 'Raw Material', 4000, 87, 'kg', 'MS Steel Rods 20mm')", (err) => err ? reject(err) : resolve());
+    });
+
+    // Insert Client POs
+    const clientPOs = [
+      ['CPO-2025-001', 'C001', '2025-01-08', '2025-02-15', 'In Production', 'Ground rods for infrastructure project', 'INR'],
+      ['CPO-2025-002', 'C002', '2025-01-12', '2025-02-28', 'Confirmed', 'National grid expansion - Phase 3', 'INR'],
+      ['CPO-2025-003', 'C003', '2025-01-18', '2025-03-10', 'Pending', 'Mumbai Metro Line 7 earthing system', 'INR'],
+      ['CPO-2025-004', 'C004', '2025-01-20', '2025-02-20', 'In Production', 'Railway electrification project', 'INR'],
+      ['CPO-2025-005', 'C005', '2025-01-22', '2025-03-05', 'Confirmed', 'Substation grounding system', 'INR']
+    ];
+
+    for (const cpo of clientPOs) {
+      await new Promise((resolve, reject) => {
+        db.run('INSERT OR REPLACE INTO client_purchase_orders VALUES (?,?,?,?,?,?,?)', cpo, (err) => err ? reject(err) : resolve());
+      });
+    }
+
+    // Insert Client PO Line Items
+    const clientPOItems = [
+      ['CPO-2025-001', 'CE1034', 500, 650],
+      ['CPO-2025-001', 'CE1535', 300, 950],
+      ['CPO-2025-002', 'CE2036', 400, 1250],
+      ['CPO-2025-002', 'CE1535', 600, 950],
+      ['CPO-2025-003', 'CE2036', 800, 1250],
+      ['CPO-2025-003', 'CE2030', 200, 1350],
+      ['CPO-2025-004', 'CE1424', 1000, 550],
+      ['CPO-2025-004', 'CE1718', 500, 600],
+      ['CPO-2025-005', 'CE2036', 300, 1250],
+      ['CPO-2025-005', 'CE1535', 400, 950]
+    ];
+
+    for (const item of clientPOItems) {
+      await new Promise((resolve, reject) => {
+        db.run('INSERT OR REPLACE INTO client_po_line_items (po_id, product_id, quantity, unit_price) VALUES (?,?,?,?)', item, (err) => err ? reject(err) : resolve());
+      });
+    }
+
+    // Insert Shipments
+    const shipments = [
+      ['SHIP-2025-001', 'CPO-2025-001', '2025-02-10', '2025-02-15', null, 'In Transit', 'TRK-2025-001234', 'Partial shipment - 60% of order'],
+      ['SHIP-2025-002', 'CPO-2025-004', '2025-02-15', '2025-02-20', null, 'Preparing', 'TRK-2025-001235', 'Full order ready for dispatch']
+    ];
+
+    for (const ship of shipments) {
+      await new Promise((resolve, reject) => {
+        db.run('INSERT OR REPLACE INTO shipments VALUES (?,?,?,?,?,?,?,?)', ship, (err) => err ? reject(err) : resolve());
+      });
+    }
+
+    console.log('✅ Test data setup complete!');
+    res.json({
+      success: true,
+      message: 'Test data loaded successfully!',
+      summary: {
+        vendors: 5,
+        customers: 5,
+        products: 6,
+        boms: 12,
+        rawMaterials: 4,
+        inventory: 6,
+        vendorPOs: 3,
+        vendorPOItems: 4,
+        clientPOs: 5,
+        clientPOItems: 10,
+        shipments: 2
+      }
+    });
+  } catch (err) {
+    console.error('Error setting up test data:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('*', (req, res) => {
