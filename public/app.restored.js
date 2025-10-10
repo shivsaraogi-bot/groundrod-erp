@@ -1873,6 +1873,66 @@ function JobWorkOrders({ vendors, products, onRefresh }){
 function Shipments({ shipments }){
   const [editingShipment, setEditingShipment] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [clientPOs, setClientPOs] = useState([]);
+  const [newShipmentForm, setNewShipmentForm] = useState({
+    id: '',
+    po_id: '',
+    shipment_date: new Date().toISOString().split('T')[0],
+    bl_number: '',
+    container_number: '',
+    carrier: '',
+    destination: '',
+    tracking_number: ''
+  });
+
+  React.useEffect(() => {
+    fetchClientPOs();
+  }, []);
+
+  async function fetchClientPOs(){
+    try {
+      const res = await fetch(`${API_URL}/client-purchase-orders`);
+      if (res.ok) {
+        const data = await res.json();
+        setClientPOs(data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch client POs', err);
+    }
+  }
+
+  async function createShipment(){
+    if (!newShipmentForm.id || !newShipmentForm.po_id) {
+      alert('Please enter Shipment ID and select a Client PO');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/shipments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newShipmentForm)
+      });
+      if (res.ok) {
+        alert('Shipment created successfully');
+        setNewShipmentForm({
+          id: '',
+          po_id: '',
+          shipment_date: new Date().toISOString().split('T')[0],
+          bl_number: '',
+          container_number: '',
+          carrier: '',
+          destination: '',
+          tracking_number: ''
+        });
+        window.location.reload();
+      } else {
+        const error = await res.json();
+        alert(`Failed to create shipment: ${error.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
+  }
 
   function handleRowClick(shipment){
     setEditForm({
@@ -1882,7 +1942,8 @@ function Shipments({ shipments }){
       bl_number: shipment.bl_number,
       container_number: shipment.container_number,
       carrier: shipment.carrier,
-      destination: shipment.destination
+      destination: shipment.destination,
+      tracking_number: shipment.tracking_number
     });
     setEditingShipment(shipment);
   }
@@ -1912,7 +1973,90 @@ function Shipments({ shipments }){
   }
 
   return (
-    React.createElement('div', null,
+    React.createElement('div', { className: 'space-y-6' },
+      React.createElement(Section, { title: 'Create Shipment' },
+        React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-4 gap-3 mb-3' },
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Shipment ID *'),
+            React.createElement('input', {
+              className: 'border rounded px-2 py-1 w-full',
+              placeholder: 'e.g., SHP001',
+              value: newShipmentForm.id,
+              onChange: e => setNewShipmentForm({ ...newShipmentForm, id: e.target.value })
+            })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Client PO *'),
+            React.createElement('select', {
+              className: 'border rounded px-2 py-1 w-full',
+              value: newShipmentForm.po_id,
+              onChange: e => setNewShipmentForm({ ...newShipmentForm, po_id: e.target.value })
+            },
+              React.createElement('option', { value: '' }, '-- Select Client PO --'),
+              clientPOs.map(po => React.createElement('option', { key: po.id, value: po.id }, `${po.id} - ${po.customer_name || po.customer_id}`))
+            )
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Shipment Date'),
+            React.createElement('input', {
+              type: 'date',
+              className: 'border rounded px-2 py-1 w-full',
+              value: newShipmentForm.shipment_date,
+              onChange: e => setNewShipmentForm({ ...newShipmentForm, shipment_date: e.target.value })
+            })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Carrier'),
+            React.createElement('input', {
+              className: 'border rounded px-2 py-1 w-full',
+              placeholder: 'e.g., DHL, FedEx',
+              value: newShipmentForm.carrier,
+              onChange: e => setNewShipmentForm({ ...newShipmentForm, carrier: e.target.value })
+            })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Tracking Number'),
+            React.createElement('input', {
+              className: 'border rounded px-2 py-1 w-full',
+              placeholder: 'Carrier tracking #',
+              value: newShipmentForm.tracking_number,
+              onChange: e => setNewShipmentForm({ ...newShipmentForm, tracking_number: e.target.value })
+            })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'BL Number'),
+            React.createElement('input', {
+              className: 'border rounded px-2 py-1 w-full',
+              placeholder: 'Bill of Lading',
+              value: newShipmentForm.bl_number,
+              onChange: e => setNewShipmentForm({ ...newShipmentForm, bl_number: e.target.value })
+            })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Container Number'),
+            React.createElement('input', {
+              className: 'border rounded px-2 py-1 w-full',
+              placeholder: 'Container #',
+              value: newShipmentForm.container_number,
+              onChange: e => setNewShipmentForm({ ...newShipmentForm, container_number: e.target.value })
+            })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Destination'),
+            React.createElement('input', {
+              className: 'border rounded px-2 py-1 w-full',
+              placeholder: 'City/Country',
+              value: newShipmentForm.destination,
+              onChange: e => setNewShipmentForm({ ...newShipmentForm, destination: e.target.value })
+            })
+          )
+        ),
+        React.createElement('button', {
+          onClick: createShipment,
+          className: 'px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700'
+        }, 'Create Shipment')
+      ),
+
       React.createElement(EnhancedTable, {
         title: 'Shipments',
         data: shipments,
@@ -1923,6 +2067,7 @@ function Shipments({ shipments }){
           { key: 'bl_number', label: 'BL No.', render: (val) => val || '-' },
           { key: 'container_number', label: 'Container', render: (val) => val || '-' },
           { key: 'carrier', label: 'Carrier', render: (val) => val || '-' },
+          { key: 'tracking_number', label: 'Tracking #', render: (val) => val || '-' },
           { key: 'destination', label: 'Destination', render: (val) => val || '-' }
         ],
         primaryKey: 'id',
@@ -1932,7 +2077,7 @@ function Shipments({ shipments }){
         filterOptions: [
           { key: 'po_id', label: 'PO', values: [...new Set(shipments.map(s => s.po_id).filter(Boolean))] }
         ],
-        defaultVisibleColumns: { id: true, po_id: true, shipment_date: true, bl_number: true, container_number: true, carrier: true, destination: true }
+        defaultVisibleColumns: { id: true, po_id: true, shipment_date: true, bl_number: true, container_number: true, carrier: true, tracking_number: true, destination: true }
       }),
 
       React.createElement(EditModal, {
@@ -1991,7 +2136,15 @@ function Shipments({ shipments }){
                 onChange: e => setEditForm({ ...editForm, carrier: e.target.value })
               })
             ),
-            React.createElement('div', { className: 'md:col-span-2' },
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Tracking Number'),
+              React.createElement('input', {
+                className: 'border rounded px-3 py-2 w-full',
+                value: editForm.tracking_number || '',
+                onChange: e => setEditForm({ ...editForm, tracking_number: e.target.value })
+              })
+            ),
+            React.createElement('div', null,
               React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Destination'),
               React.createElement('input', {
                 className: 'border rounded px-3 py-2 w-full',
