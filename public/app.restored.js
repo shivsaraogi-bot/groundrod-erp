@@ -2529,6 +2529,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
   // Controls
   const [invData, setInvData] = useState(inventory);
   const [invCols, setInvCols] = useState({ product:true, steel_rods:true, plated:true, machined:true, qc:true, stamped:true, packed:true, total:true });
+  const [hideZeroInventory, setHideZeroInventory] = useState(true); // Hide zero inventory by default
   useEffect(() => { setInvData(inventory); }, [inventory]);
   async function refetch(){
     const params = new URLSearchParams();
@@ -2576,7 +2577,11 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
         if (!showAdjustmentsHistory) refreshStockAdjustments();
       },
       className:'px-4 py-2 bg-gray-600 text-white rounded font-semibold'
-    }, showAdjustmentsHistory ? 'Hide Adjustments' : 'View Adjustments')
+    }, showAdjustmentsHistory ? 'Hide Adjustments' : 'View Adjustments'),
+    React.createElement('button', {
+      onClick: () => setHideZeroInventory(!hideZeroInventory),
+      className: `px-4 py-2 rounded font-semibold ${hideZeroInventory ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-700'}`
+    }, hideZeroInventory ? 'Show All Products' : 'Hide Zero Inventory')
   );
   const [rmForm, setRmForm] = useState({ material:'', current_stock:0, reorder_level:0, last_purchase_date:'' });
   const [editingRM, setEditingRM] = useState(null);
@@ -2960,10 +2965,16 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
         controls,
         React.createElement(EnhancedTable, {
           title: '',
-          data: (invData||[]).map(r => ({
-            ...r,
-            total: (r.steel_rods||0)+(r.plated||0)+(r.machined||0)+(r.qc||0)+(r.stamped||0)+(r.packed||0)
-          })),
+          data: (invData||[])
+            .map(r => ({
+              ...r,
+              total: (r.steel_rods||0)+(r.plated||0)+(r.machined||0)+(r.qc||0)+(r.stamped||0)+(r.packed||0)
+            }))
+            .filter(r => {
+              if (!hideZeroInventory) return true;
+              // Hide if all inventory values are zero
+              return r.total > 0;
+            }),
           columns: [
             { key: 'product_description', label: 'Product' },
             { key: 'steel_rods', label: 'Steel Rods', render: (val) => val || 0 },
