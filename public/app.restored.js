@@ -404,7 +404,10 @@ function Header({ onRefresh }){
             React.createElement('h1', { className: 'text-2xl font-bold text-white tracking-tight' }, 'Ground Rod ERP'),
             React.createElement('p', { className: 'text-blue-100 text-sm' }, 'Copper Bonded Ground Rod Manufacturing & Export')
           ),
-          React.createElement('button', { onClick: onRefresh, className: 'px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 font-semibold transition' }, 'Refresh')
+          React.createElement('button', { onClick: onRefresh, className: 'px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 font-semibold transition flex items-center gap-2' },
+            React.createElement('span', { className: 'text-lg' }, '🔄'),
+            'Refresh'
+          )
         )
       )
     )
@@ -804,17 +807,26 @@ function DailyProduction({ products, onSubmit }){
       React.createElement('div', { className: 'flex justify-between gap-3 pt-4 border-t' },
         React.createElement('button', {
           onClick: () => deleteProduction(editingProduction.id),
-          className: 'px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700'
-        }, 'Delete Entry'),
+          className: 'px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 flex items-center gap-2'
+        },
+          React.createElement('span', { className: 'text-base' }, '🗑️'),
+          'Delete Entry'
+        ),
         React.createElement('div', { className: 'flex gap-3' },
           React.createElement('button', {
             onClick: () => setEditingProduction(null),
-            className: 'px-4 py-2 border border-gray-300 rounded hover:bg-gray-50'
-          }, 'Cancel'),
+            className: 'px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-2'
+          },
+            React.createElement('span', { className: 'text-base' }, '❌'),
+            'Cancel'
+          ),
           React.createElement('button', {
             onClick: saveProductionEdit,
-            className: 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700'
-          }, 'Save Changes')
+            className: 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2'
+          },
+            React.createElement('span', { className: 'text-base' }, '💾'),
+            'Save Changes'
+          )
         )
       )
     )
@@ -828,8 +840,14 @@ function DailyProduction({ products, onSubmit }){
           React.createElement('label', { className: 'text-sm font-semibold text-gray-700' }, 'Date'),
           React.createElement('input', { type: 'date', value: date, onChange: e=>setDate(e.target.value), className: 'ml-2 border rounded px-2 py-1' })
         ),
-        React.createElement('button', { onClick: addEntry, className: 'px-3 py-2 bg-blue-600 text-white rounded' }, 'Add Line'),
-        React.createElement('button', { onClick: save, className: 'px-3 py-2 bg-green-600 text-white rounded' }, 'Save')
+        React.createElement('button', { onClick: addEntry, className: 'px-3 py-2 bg-blue-600 text-white rounded flex items-center gap-2' },
+          React.createElement('span', { className: 'text-base' }, '➕'),
+          'Add Line'
+        ),
+        React.createElement('button', { onClick: save, className: 'px-3 py-2 bg-green-600 text-white rounded flex items-center gap-2' },
+          React.createElement('span', { className: 'text-base' }, '💾'),
+          'Save'
+        )
       ),
       React.createElement('div', { className: 'overflow-x-auto' },
         React.createElement('table', { className: 'min-w-full border-collapse' },
@@ -1000,8 +1018,11 @@ function DrawingOperations({ products, rawMaterials, onSubmit }) {
         ),
         React.createElement('button', {
           onClick: () => setVisible(true),
-          className: 'px-4 py-2 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700'
-        }, 'Show Drawing Operations')
+          className: 'px-4 py-2 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700 flex items-center gap-2'
+        },
+          React.createElement('span', { className: 'text-base' }, '👁️'),
+          'Show Drawing Operations'
+        )
       )
     );
   }
@@ -1011,8 +1032,11 @@ function DrawingOperations({ products, rawMaterials, onSubmit }) {
       React.createElement('h3', { className: 'text-lg font-bold text-gray-900' }, '🏭 Drawing Operations (Steel → Cores)'),
       React.createElement('button', {
         onClick: () => setVisible(false),
-        className: 'px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300'
-      }, 'Hide')
+        className: 'px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300 flex items-center gap-1'
+      },
+        React.createElement('span', { className: 'text-xs' }, '👁️‍🗨️'),
+        'Hide'
+      )
     ),
 
     React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-4 gap-4' },
@@ -1099,8 +1123,11 @@ function DrawingOperations({ products, rawMaterials, onSubmit }) {
     React.createElement('div', { className: 'flex justify-end pt-3 border-t' },
       React.createElement('button', {
         onClick: saveOperation,
-        className: 'px-6 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700'
-      }, '💾 Record Drawing Operation')
+        className: 'px-6 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700 flex items-center gap-2'
+      },
+        React.createElement('span', { className: 'text-base' }, '💾'),
+        'Record Drawing Operation'
+      )
     ),
 
     React.createElement('div', { className: 'pt-4 border-t' },
@@ -1626,9 +1653,12 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
           React.createElement('div', { className: 'flex justify-between items-center mb-3' },
             React.createElement('h4', { className: 'font-semibold text-lg' }, 'Line Items'),
             React.createElement('button', {
-              className: 'px-3 py-1 bg-blue-600 text-white rounded text-sm',
+              className: 'px-3 py-1 bg-blue-600 text-white rounded text-sm flex items-center gap-1',
               onClick: addNewItem
-            }, '+ Add Item')
+            },
+              React.createElement('span', { className: 'text-xs' }, '➕'),
+              'Add Item'
+            )
           ),
 
           // Line Items Table
@@ -1711,9 +1741,12 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                       // Actions
                       React.createElement('td', { className: 'p-2 border' },
                         React.createElement('button', {
-                          className: 'px-2 py-1 bg-red-600 text-white rounded text-xs',
+                          className: 'px-2 py-1 bg-red-600 text-white rounded text-xs flex items-center gap-1',
                           onClick: () => removeNewItem(idx)
-                        }, 'Remove')
+                        },
+                          React.createElement('span', null, '🗑️'),
+                          'Remove'
+                        )
                       )
                     ),
                     // New product details row (if checkbox is checked)
@@ -1802,9 +1835,12 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
           // Submit button
           React.createElement('div', { className: 'flex justify-end mt-4' },
             React.createElement('button', {
-              className: 'px-6 py-2 bg-green-600 text-white rounded font-semibold',
+              className: 'px-6 py-2 bg-green-600 text-white rounded font-semibold flex items-center gap-2',
               onClick: add
-            }, 'Create Purchase Order')
+            },
+              React.createElement('span', { className: 'text-base' }, '➕'),
+              'Create Purchase Order'
+            )
           )
         )
       )
@@ -1837,7 +1873,20 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
             return terms[val] || val;
           }},
           { key: 'mode_of_delivery', label: 'Delivery Mode', render: (val) => val || '-' },
-          { key: 'status', label: 'Status' },
+          { key: 'status', label: 'Status', render: (val) => {
+            const statusConfig = {
+              'Pending': { icon: '🕐', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+              'Confirmed': { icon: '✅', color: 'bg-blue-100 text-blue-800 border-blue-300' },
+              'In Production': { icon: '⚙️', color: 'bg-purple-100 text-purple-800 border-purple-300' },
+              'Completed': { icon: '✔️', color: 'bg-green-100 text-green-800 border-green-300' },
+              'Cancelled': { icon: '❌', color: 'bg-red-100 text-red-800 border-red-300' }
+            };
+            const config = statusConfig[val] || { icon: '❓', color: 'bg-gray-100 text-gray-800 border-gray-300' };
+            return React.createElement('span', { className: `inline-flex items-center gap-1 px-2 py-1 rounded border font-semibold text-xs ${config.color}` },
+              React.createElement('span', null, config.icon),
+              val
+            );
+          }},
           { key: 'notes', label: 'Notes', render: (val) => val || '-' },
           { key: 'pdf_path', label: 'PDF', render: (val) => val ? React.createElement('a', { href: `${API_URL}${val}`, target: '_blank', className: 'text-blue-600 hover:underline' }, '📄 View') : '-' }
         ],
@@ -1855,8 +1904,11 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
           React.createElement('button', {
             key: 'view-items',
             onClick: (e) => { e.stopPropagation(); toggleRowExpansion(po.id); },
-            className: 'px-2 py-1 bg-blue-600 text-white rounded text-sm mr-2'
-          }, expandedRows[po.id] ? 'Hide Items' : 'View Items')
+            className: 'px-2 py-1 bg-blue-600 text-white rounded text-sm mr-2 flex items-center gap-1'
+          },
+            React.createElement('span', null, expandedRows[po.id] ? '🔼' : '👁️'),
+            expandedRows[po.id] ? 'Hide Items' : 'View Items'
+          )
         ]
       }),
 
@@ -2161,12 +2213,18 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                 setEditingPO(null);
                 setEditPdfFile(null);
               },
-              className: 'px-4 py-2 border border-gray-300 rounded hover:bg-gray-50'
-            }, 'Cancel'),
+              className: 'px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-2'
+            },
+              React.createElement('span', { className: 'text-base' }, '❌'),
+              'Cancel'
+            ),
             React.createElement('button', {
               onClick: saveEdit,
-              className: 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700'
-            }, 'Save Changes')
+              className: 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2'
+            },
+              React.createElement('span', { className: 'text-base' }, '💾'),
+              'Save Changes'
+            )
           )
         )
       )
@@ -2223,7 +2281,10 @@ function VendorPurchaseOrders({ purchaseOrders, vendors, onRefresh }){
           React.createElement('select', { className:'border rounded px-2 py-1', value: form.status, onChange:e=>setForm({...form,status:e.target.value}) },
             ['Pending','Ordered','In Transit','Completed','Cancelled'].map(s=> React.createElement('option', { key:s, value:s }, s))
           ),
-          React.createElement('button', { onClick:add, className:'px-3 py-2 bg-green-600 text-white rounded' }, 'Add')
+          React.createElement('button', { onClick:add, className:'px-3 py-2 bg-green-600 text-white rounded flex items-center gap-2' },
+            React.createElement('span', { className: 'text-base' }, '➕'),
+            'Add'
+          )
         )
       ),
       React.createElement(EnhancedTable, {
@@ -2234,7 +2295,20 @@ function VendorPurchaseOrders({ purchaseOrders, vendors, onRefresh }){
           { key: 'vendor_name', label: 'Vendor' },
           { key: 'po_date', label: 'PO Date' },
           { key: 'due_date', label: 'Due Date' },
-          { key: 'status', label: 'Status' },
+          { key: 'status', label: 'Status', render: (val) => {
+            const statusConfig = {
+              'Pending': { icon: '🕐', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+              'Ordered': { icon: '📝', color: 'bg-blue-100 text-blue-800 border-blue-300' },
+              'In Transit': { icon: '🚚', color: 'bg-purple-100 text-purple-800 border-purple-300' },
+              'Completed': { icon: '✅', color: 'bg-green-100 text-green-800 border-green-300' },
+              'Cancelled': { icon: '❌', color: 'bg-red-100 text-red-800 border-red-300' }
+            };
+            const config = statusConfig[val] || { icon: '❓', color: 'bg-gray-100 text-gray-800 border-gray-300' };
+            return React.createElement('span', { className: `inline-flex items-center gap-1 px-2 py-1 rounded border font-semibold text-xs ${config.color}` },
+              React.createElement('span', null, config.icon),
+              val
+            );
+          }},
           { key: 'notes', label: 'Notes', render: (val) => val || '-' }
         ],
         primaryKey: 'id',
@@ -2473,7 +2547,10 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
             React.createElement('select', { className:'border rounded px-3 py-2', value: form.status, onChange:e=>setForm({...form,status:e.target.value}) },
               STATUSES.map(s => React.createElement('option', { key:s, value:s }, s))
             ),
-            React.createElement('button', { onClick:add, className:'px-4 py-2 bg-green-600 text-white rounded font-semibold' }, 'Create')
+            React.createElement('button', { onClick:add, className:'px-4 py-2 bg-green-600 text-white rounded font-semibold flex items-center gap-2' },
+              React.createElement('span', { className: 'text-base' }, '➕'),
+              'Create'
+            )
           ),
 
           // Conditional Steel Core Production fields
@@ -3208,12 +3285,18 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
       React.createElement('div', { className: 'mb-4 flex gap-3' },
         React.createElement('button', {
           onClick: () => setShowGenerateModal(true),
-          className: 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700'
-        }, 'Generate Invoice from PO'),
+          className: 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2'
+        },
+          React.createElement('span', { className: 'text-base' }, '📄'),
+          'Generate Invoice from PO'
+        ),
         React.createElement('button', {
           onClick: () => setShowPaymentModal(true),
-          className: 'px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700'
-        }, 'Record Payment')
+          className: 'px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2'
+        },
+          React.createElement('span', { className: 'text-base' }, '💵'),
+          'Record Payment'
+        )
       ),
 
       React.createElement(EnhancedTable, {
@@ -3229,8 +3312,16 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
           { key: 'amount_paid', label: 'Paid', render: (val, row) => `${row.currency || 'INR'} ${val?.toFixed(2) || '0.00'}` },
           { key: 'outstanding_amount', label: 'Outstanding', render: (val, row) => `${row.currency || 'INR'} ${val?.toFixed(2) || '0.00'}` },
           { key: 'payment_status', label: 'Status', render: (val) => {
-            const color = val === 'Paid' ? 'green' : val === 'Partial' ? 'yellow' : 'red';
-            return React.createElement('span', { className: `px-2 py-1 rounded text-xs font-semibold bg-${color}-100 text-${color}-800` }, val || 'Pending');
+            const statusConfig = {
+              'Paid': { icon: '💵', color: 'bg-green-100 text-green-800 border-green-300' },
+              'Partial': { icon: '⚠️', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+              'Pending': { icon: '🕐', color: 'bg-red-100 text-red-800 border-red-300' }
+            };
+            const config = statusConfig[val] || statusConfig['Pending'];
+            return React.createElement('span', { className: `inline-flex items-center gap-1 px-2 py-1 rounded border font-semibold text-xs ${config.color}` },
+              React.createElement('span', null, config.icon),
+              val || 'Pending'
+            );
           }}
         ],
         primaryKey: 'invoice_number',
@@ -3246,13 +3337,19 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
           React.createElement('button', {
             key: 'payment',
             onClick: (e) => { e.stopPropagation(); openPaymentModal(invoice); },
-            className: 'px-2 py-1 bg-green-600 text-white rounded text-sm mr-2'
-          }, 'Add Payment'),
+            className: 'px-2 py-1 bg-green-600 text-white rounded text-sm mr-2 flex items-center gap-1'
+          },
+            React.createElement('span', null, '💵'),
+            'Add Payment'
+          ),
           React.createElement('button', {
             key: 'view-payments',
             onClick: (e) => { e.stopPropagation(); viewPayments(invoice); },
-            className: 'px-2 py-1 bg-gray-600 text-white rounded text-sm'
-          }, 'View Payments')
+            className: 'px-2 py-1 bg-gray-600 text-white rounded text-sm flex items-center gap-1'
+          },
+            React.createElement('span', null, '👁️'),
+            'View Payments'
+          )
         ]
       }),
 
@@ -3609,7 +3706,23 @@ function InventoryView({ inventory }){
       React.createElement('div', { className: 'overflow-x-auto' },
         React.createElement('table', { className: 'min-w-full border-collapse' },
           React.createElement('thead', null,
-            React.createElement('tr', { className: 'bg-gray-100' }, ['Product','Steel Rods','Plated','Machined','QC','Stamped','Packed','Total'].map(h => React.createElement('th', { key: h, className: 'p-4 font-bold text-center' }, h)))
+            React.createElement('tr', { className: 'bg-gray-100' },
+              [
+                { label: 'Product', icon: '' },
+                { label: 'Steel Rods', icon: '🔩' },
+                { label: 'Plated', icon: '⚡' },
+                { label: 'Machined', icon: '🔧' },
+                { label: 'QC', icon: '✔️' },
+                { label: 'Stamped', icon: '🏷️' },
+                { label: 'Packed', icon: '📦' },
+                { label: 'Total', icon: '📊' }
+              ].map(h => React.createElement('th', { key: h.label, className: 'p-4 font-bold text-center' },
+                h.icon ? React.createElement('span', { className: 'inline-flex items-center gap-1' },
+                  React.createElement('span', null, h.icon),
+                  h.label
+                ) : h.label
+              ))
+            )
           ),
           React.createElement('tbody', null,
             inventory.map((item, idx) => {
@@ -3674,22 +3787,34 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
         products.map(p => React.createElement('option', { key:p.id, value:p.id }, `${p.id} - ${p.description}`))
       )
     ),
-    React.createElement('button', { onClick: refetch, className:'px-3 py-2 bg-blue-600 text-white rounded' }, 'Apply'),
+    React.createElement('button', { onClick: refetch, className:'px-3 py-2 bg-blue-600 text-white rounded flex items-center gap-2' },
+      React.createElement('span', { className: 'text-base' }, '🔄'),
+      'Apply'
+    ),
     React.createElement('button', {
       onClick: () => setShowStockAdjustment(true),
-      className:'px-4 py-2 bg-green-600 text-white rounded font-semibold'
-    }, '+ Stock Adjustment'),
+      className:'px-4 py-2 bg-green-600 text-white rounded font-semibold flex items-center gap-2'
+    },
+      React.createElement('span', { className: 'text-base' }, '➕'),
+      'Stock Adjustment'
+    ),
     React.createElement('button', {
       onClick: () => {
         setShowAdjustmentsHistory(!showAdjustmentsHistory);
         if (!showAdjustmentsHistory) refreshStockAdjustments();
       },
-      className:'px-4 py-2 bg-gray-600 text-white rounded font-semibold'
-    }, showAdjustmentsHistory ? 'Hide Adjustments' : 'View Adjustments'),
+      className:'px-4 py-2 bg-gray-600 text-white rounded font-semibold flex items-center gap-2'
+    },
+      React.createElement('span', { className: 'text-base' }, showAdjustmentsHistory ? '👁️‍🗨️' : '👁️'),
+      showAdjustmentsHistory ? 'Hide Adjustments' : 'View Adjustments'
+    ),
     React.createElement('button', {
       onClick: () => setHideZeroInventory(!hideZeroInventory),
-      className: `px-4 py-2 rounded font-semibold ${hideZeroInventory ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-700'}`
-    }, hideZeroInventory ? 'Show All Products' : 'Hide Zero Inventory')
+      className: `px-4 py-2 rounded font-semibold flex items-center gap-2 ${hideZeroInventory ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-700'}`
+    },
+      React.createElement('span', { className: 'text-base' }, hideZeroInventory ? '👁️' : '🚫'),
+      hideZeroInventory ? 'Show All Products' : 'Hide Zero Inventory'
+    )
   );
   const [rmForm, setRmForm] = useState({ material:'', current_stock:0, reorder_level:0, last_purchase_date:'' });
   const [editingRM, setEditingRM] = useState(null);
@@ -4308,7 +4433,10 @@ function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, on
           React.createElement('option', { value: '' }, `All ${filter.label}`),
           (filter.values || []).map(val => React.createElement('option', { key: val, value: val }, val))
         )),
-        onExport && React.createElement('button', { onClick: () => onExport(filteredData, orderedColumns), className: 'ml-auto px-3 py-2 bg-gray-700 text-white rounded' }, 'Export CSV')
+        onExport && React.createElement('button', { onClick: () => onExport(filteredData, orderedColumns), className: 'ml-auto px-3 py-2 bg-gray-700 text-white rounded flex items-center gap-2' },
+          React.createElement('span', { className: 'text-base' }, '📊'),
+          'Export CSV'
+        )
       ),
       React.createElement('div', { className: 'flex flex-wrap gap-2 items-center' },
         React.createElement('span', { className: 'text-sm font-semibold text-gray-700' }, 'Columns:'),
@@ -4340,7 +4468,10 @@ function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, on
               )),
               React.createElement('td', { className: 'p-3 text-right border', onClick: (e) => e.stopPropagation() },
                 actions && actions(row),
-                onDelete && React.createElement('button', { onClick: () => onDelete(row[primaryKey]), className: 'px-2 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700' }, 'Delete')
+                onDelete && React.createElement('button', { onClick: () => onDelete(row[primaryKey]), className: 'px-2 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 flex items-center gap-1' },
+                  React.createElement('span', null, '🗑️'),
+                  'Delete'
+                )
               )
             )) : React.createElement('tr', null, React.createElement('td', { colSpan: orderedColumns.length + 1, className: 'p-8 text-center text-gray-500' }, 'No data found'))
           )
@@ -4362,8 +4493,14 @@ function EditModal({ isOpen, onClose, title, children, onSave }) {
       ),
       React.createElement('div', { className: 'p-6' }, children),
       onSave && React.createElement('div', { className: 'sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end gap-3' },
-        React.createElement('button', { onClick: onClose, className: 'px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 font-semibold' }, 'Cancel'),
-        React.createElement('button', { onClick: onSave, className: 'px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold' }, 'Save')
+        React.createElement('button', { onClick: onClose, className: 'px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 font-semibold flex items-center gap-2' },
+          React.createElement('span', { className: 'text-base' }, '❌'),
+          'Cancel'
+        ),
+        React.createElement('button', { onClick: onSave, className: 'px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2' },
+          React.createElement('span', { className: 'text-base' }, '💾'),
+          'Save'
+        )
       )
     )
   );
@@ -4530,7 +4667,10 @@ function CustomerManagementEx({ customers, onRefresh }){
         React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Email', value: form.email, onChange: e=>setForm({...form,email:e.target.value}) }),
         React.createElement('input', { className: 'border rounded px-3 py-2 md:col-span-3', placeholder: 'Office Address', value: form.office_address, onChange: e=>setForm({...form,office_address:e.target.value}) }),
         React.createElement('input', { className: 'border rounded px-3 py-2 md:col-span-3', placeholder: 'Warehouse Address', value: form.warehouse_address, onChange: e=>setForm({...form,warehouse_address:e.target.value}) }),
-        React.createElement('button', { onClick: add, className: 'px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700' }, 'Add Customer')
+        React.createElement('button', { onClick: add, className: 'px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700 flex items-center gap-2' },
+          React.createElement('span', { className: 'text-base' }, '➕'),
+          'Add Customer'
+        )
       )
     ),
     React.createElement(Section, { title: 'Bulk Import Customers (CSV)' },
@@ -4569,8 +4709,14 @@ function CustomerManagementEx({ customers, onRefresh }){
           React.createElement('div', { className:'md:col-span-2' }, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Warehouse Address'), React.createElement('textarea', { className:'border rounded px-3 py-2 w-full', rows:2, value:editForm.warehouse_address || '', onChange:e=>setEditForm({...editForm, warehouse_address:e.target.value}) }))
         ),
         React.createElement('div', { className:'flex justify-end gap-3 mt-6' },
-          React.createElement('button', { onClick:()=>setEditingCustomer(null), className:'px-4 py-2 border rounded text-gray-700 hover:bg-gray-100' }, 'Cancel'),
-          React.createElement('button', { onClick:saveEdit, className:'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700' }, 'Save Changes')
+          React.createElement('button', { onClick:()=>setEditingCustomer(null), className:'px-4 py-2 border rounded text-gray-700 hover:bg-gray-100 flex items-center gap-2' },
+            React.createElement('span', { className: 'text-base' }, '❌'),
+            'Cancel'
+          ),
+          React.createElement('button', { onClick:saveEdit, className:'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2' },
+            React.createElement('span', { className: 'text-base' }, '💾'),
+            'Save Changes'
+          )
         )
       )
     )
@@ -5671,13 +5817,17 @@ function MetricCard({ title, value, color }){
 // MetricCard with drill (click navigates to Inventory with filters)
 function MetricCardDrill({ id, title, value, color }){
   const colors = { blue: 'from-blue-400 to-blue-600 border-blue-300', green: 'from-green-400 to-green-600 border-green-300', orange: 'from-orange-400 to-orange-600 border-orange-300', red: 'from-red-400 to-red-600 border-red-300' };
+  const icons = { wip: '⚙️', finished: '✅', pending: '🕐', overdue: '⚠️' };
   const handleClick = () => {
     // Simple drill: navigate to Inventory tab
     const ev = new CustomEvent('dash-drill', { detail: { metric: id }});
     window.dispatchEvent(ev);
   };
-  return React.createElement('button', { onClick: handleClick, className: `text-left w-full bg-gradient-to-br ${colors[color]} rounded-xl shadow-lg p-6 border-2 text-white` },
-    React.createElement('div', { className: 'text-sm font-bold opacity-90 mb-2' }, title),
+  return React.createElement('button', { onClick: handleClick, className: `text-left w-full bg-gradient-to-br ${colors[color]} rounded-xl shadow-lg p-6 border-2 text-white hover:scale-105 transition-transform` },
+    React.createElement('div', { className: 'flex items-center gap-2 text-sm font-bold opacity-90 mb-2' },
+      React.createElement('span', { className: 'text-2xl' }, icons[id] || '📊'),
+      title
+    ),
     React.createElement('div', { className: 'text-4xl font-bold' }, value)
   );
 }
