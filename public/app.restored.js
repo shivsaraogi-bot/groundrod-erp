@@ -4267,6 +4267,7 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
   const [editing, setEditing] = useState(null);
   const [openItems, setOpenItems] = useState({});
   const [itemsCache, setItemsCache] = useState({});
+  const [editingItems, setEditingItems] = useState({}); // Track which items are being edited
   const [rawMaterials, setRawMaterials] = useState([]);
   const [products, setProducts] = useState([]);
   const [newItem, setNewItem] = useState({ item_type:'Raw Material', item:'', product_id:'', product_stage:'', description:'', qty:0, unit_price:0, unit:'kg' });
@@ -4302,12 +4303,57 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
       setNewItem({ item_type:'Raw Material', item:'', product_id:'', product_stage:'', description:'', qty:0, unit_price:0, unit:'kg' });
     }
   }
-  async function updateItem(vpoId, item){
-    const res = await fetch(`${API_URL}/vendor-purchase-orders/${vpoId}/items/${item.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(item) });
+  async function updateItem(vpoId, itemId){
+    const editedItem = editingItems[`${vpoId}-${itemId}`];
+    if (!editedItem) return;
+
+    const payload = {
+      material_type: editedItem.material_type || editedItem.item,
+      quantity: editedItem.quantity,
+      unit_price: editedItem.unit_price
+    };
+
+    const res = await fetch(`${API_URL}/vendor-purchase-orders/${vpoId}/items/${itemId}`, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+
     if (res.ok) {
       const idata = await (await fetch(`${API_URL}/vendor-purchase-orders/${vpoId}/items`)).json();
       setItemsCache({ ...itemsCache, [vpoId]: idata });
+      // Clear editing state for this item
+      const newEditingItems = {...editingItems};
+      delete newEditingItems[`${vpoId}-${itemId}`];
+      setEditingItems(newEditingItems);
+    } else {
+      alert('Failed to update item');
     }
+  }
+
+  function startEditingItem(vpoId, item){
+    const key = `${vpoId}-${item.id}`;
+    setEditingItems({
+      ...editingItems,
+      [key]: {
+        id: item.id,
+        material_type: item.material_type || item.item,
+        item: item.item,
+        quantity: item.quantity || item.qty,
+        unit_price: item.unit_price || 0
+      }
+    });
+  }
+
+  function updateEditingItem(vpoId, itemId, field, value){
+    const key = `${vpoId}-${itemId}`;
+    setEditingItems({
+      ...editingItems,
+      [key]: {
+        ...editingItems[key],
+        [field]: value
+      }
+    });
   }
   async function deleteItem(vpoId, itemId){
     await fetch(`${API_URL}/vendor-purchase-orders/${vpoId}/items/${itemId}`, { method:'DELETE' });
@@ -4424,21 +4470,57 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
                   React.createElement('tr', { className:'bg-gray-100' }, ['Type','Item','Stage','Quantity','Unit Price','Unit','Line Total','Actions'].map(h=> React.createElement('th', { key:h, className:'p-2 text-sm text-center border' }, h)))
                 ),
                 React.createElement('tbody', null,
-                  (itemsCache[id]||[]).map(it => (
-                    React.createElement('tr', { key:it.id, className:'border-b' },
+                  (itemsCache[id]||[]).map(it => {
+                    const editKey = `${id}-${it.id}`;
+                    const isEditing = !!editingItems[editKey];
+                    const editData = editingItems[editKey] || {};
+
+                    return React.createElement('tr', { key:it.id, className:'border-b' },
                       React.createElement('td', { className:'p-2 text-sm text-center border' }, it.item_type || 'Raw Material'),
                       React.createElement('td', { className:'p-2 text-sm text-center border' }, it.product_id || it.material_type || it.item),
                       React.createElement('td', { className:'p-2 text-sm text-center border' }, it.product_stage ? it.product_stage.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-'),
-                      React.createElement('td', { className:'p-2 text-center border' }, React.createElement('input', { type:'number', className:'border rounded px-2 py-1 w-24 text-center', defaultValue:it.quantity || it.qty, onChange:e=>it.quantity=Number(e.target.value||0) })),
-                      React.createElement('td', { className:'p-2 text-center border' }, React.createElement('input', { type:'number', className:'border rounded px-2 py-1 w-24 text-center', defaultValue:it.unit_price || 0, onChange:e=>it.unit_price=Number(e.target.value||0) })),
+                      React.createElement('td', { className:'p-2 text-center border' },
+                        React.createElement('input', {
+                          type:'number',
+                          className:'border rounded px-2 py-1 w-24 text-center',
+                          value: isEditing ? editData.quantity : (it.quantity || it.qty),
+                          onChange: e => {
+                            if (!isEditing) startEditingItem(id, it);
+                            updateEditingItem(id, it.id, 'quantity', Number(e.target.value||0));
+                          }
+                        })
+                      ),
+                      React.createElement('td', { className:'p-2 text-center border' },
+                        React.createElement('input', {
+                          type:'number',
+                          className:'border rounded px-2 py-1 w-24 text-center',
+                          value: isEditing ? editData.unit_price : (it.unit_price || 0),
+                          onChange: e => {
+                            if (!isEditing) startEditingItem(id, it);
+                            updateEditingItem(id, it.id, 'unit_price', Number(e.target.value||0));
+                          }
+                        })
+                      ),
                       React.createElement('td', { className:'p-2 text-sm text-center border' }, it.unit || 'kg'),
-                      React.createElement('td', { className:'p-2 text-sm text-center font-semibold border' }, ((it.quantity || it.qty || 0) * (it.unit_price || 0)).toFixed(2)),
+                      React.createElement('td', { className:'p-2 text-sm text-center font-semibold border' },
+                        (isEditing
+                          ? (editData.quantity * editData.unit_price).toFixed(2)
+                          : ((it.quantity || it.qty || 0) * (it.unit_price || 0)).toFixed(2)
+                        )
+                      ),
                       React.createElement('td', { className:'p-2 text-center border space-x-2' },
-                        React.createElement('button', { className:'px-2 py-1 bg-blue-600 text-white rounded text-sm', onClick:()=>updateItem(id, it) }, 'Save'),
-                        React.createElement('button', { className:'px-2 py-1 bg-red-600 text-white rounded text-sm', onClick:()=>deleteItem(id, it.id) }, 'Delete')
+                        React.createElement('button', {
+                          className:'px-2 py-1 bg-blue-600 text-white rounded text-sm',
+                          onClick: () => updateItem(id, it.id),
+                          disabled: !isEditing
+                        }, 'Save'),
+                        React.createElement('button', {
+                          className:'px-2 py-1 bg-red-600 text-white rounded text-sm',
+                          onClick: () => deleteItem(id, it.id)
+                        }, 'Delete')
                       )
-                    )
-                  ))
+                    );
+                  })
                 )
               )
             )
