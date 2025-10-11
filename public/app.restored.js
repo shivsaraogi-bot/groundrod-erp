@@ -4158,11 +4158,15 @@ function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, on
             )
           ),
           React.createElement('tbody', null,
-            filteredData.length > 0 ? filteredData.map((row, rowIdx) => React.createElement('tr', { key: row[primaryKey] || rowIdx, className: 'border-b hover:bg-blue-50 transition-colors' },
-              orderedColumns.map(col => React.createElement('td', { key: col.key, className: `p-3 border ${col.key === primaryKey ? 'font-mono font-semibold text-blue-600 cursor-pointer hover:underline' : ''}`, onClick: col.key === primaryKey && onRowClick ? () => onRowClick(row) : undefined },
+            filteredData.length > 0 ? filteredData.map((row, rowIdx) => React.createElement('tr', {
+              key: row[primaryKey] || rowIdx,
+              className: `border-b hover:bg-blue-50 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`,
+              onClick: onRowClick ? () => onRowClick(row) : undefined
+            },
+              orderedColumns.map(col => React.createElement('td', { key: col.key, className: `p-3 border ${col.key === primaryKey ? 'font-mono font-semibold text-blue-600' : ''}` },
                 col.render ? col.render(row[col.key], row) : (row[col.key] || '-')
               )),
-              React.createElement('td', { className: 'p-3 text-right border' },
+              React.createElement('td', { className: 'p-3 text-right border', onClick: (e) => e.stopPropagation() },
                 actions && actions(row),
                 onDelete && React.createElement('button', { onClick: () => onDelete(row[primaryKey]), className: 'px-2 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700' }, 'Delete')
               )
