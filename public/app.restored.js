@@ -2964,6 +2964,8 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentForm, setPaymentForm] = useState({ invoice_number: '', po_id: '', payment_date: '', amount: 0, payment_method: 'Bank Transfer', reference_number: '', notes: '' });
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [editingPayment, setEditingPayment] = useState(null);
+  const [paymentEditForm, setPaymentEditForm] = useState({});
 
   React.useEffect(() => {
     setLocalInvoices(invoices || []);
@@ -3079,6 +3081,61 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
       }
     } catch (err) {
       alert('Error recording payment');
+      console.error(err);
+    }
+  }
+
+  function handlePaymentEdit(payment) {
+    setPaymentEditForm({
+      payment_date: payment.payment_date || '',
+      amount: payment.amount || 0,
+      payment_method: payment.payment_method || 'Bank Transfer',
+      reference_number: payment.reference_number || '',
+      notes: payment.notes || ''
+    });
+    setEditingPayment(payment);
+  }
+
+  async function savePaymentEdit() {
+    if (!editingPayment) return;
+
+    try {
+      const res = await fetch(`${API_URL}/payments/${editingPayment.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paymentEditForm)
+      });
+
+      if (res.ok) {
+        setEditingPayment(null);
+        await refreshInvoices();
+        if (onRefresh) await onRefresh();
+        alert('Payment updated successfully');
+      } else {
+        const err = await res.json();
+        alert(`Failed to update payment: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      alert('Error updating payment');
+      console.error(err);
+    }
+  }
+
+  async function deletePayment(paymentId) {
+    if (!confirm('Delete this payment? The invoice outstanding amount will be adjusted accordingly.')) return;
+
+    try {
+      const res = await fetch(`${API_URL}/payments/${paymentId}`, { method: 'DELETE' });
+      if (res.ok) {
+        await refreshInvoices();
+        if (onRefresh) await onRefresh();
+        alert('Payment deleted successfully');
+      } else {
+        const err = await res.json();
+        alert(`Failed to delete payment: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      alert('Error deleting payment');
       console.error(err);
     }
   }
@@ -3408,7 +3465,7 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
           React.createElement('table', { className: 'min-w-full border-collapse' },
             React.createElement('thead', null,
               React.createElement('tr', { className: 'bg-gray-100' },
-                ['Date', 'Amount', 'Method', 'Reference', 'Notes'].map(h => React.createElement('th', { key: h, className: 'p-2 text-left text-sm font-semibold' }, h))
+                ['Date', 'Amount', 'Method', 'Reference', 'Notes', 'Actions'].map(h => React.createElement('th', { key: h, className: 'p-2 text-left text-sm font-semibold' }, h))
               )
             ),
             React.createElement('tbody', null,
@@ -3418,13 +3475,81 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
                   React.createElement('td', { className: 'p-2 text-sm font-semibold' }, payment.amount?.toFixed(2)),
                   React.createElement('td', { className: 'p-2 text-sm' }, payment.payment_method || '-'),
                   React.createElement('td', { className: 'p-2 text-sm' }, payment.reference_number || '-'),
-                  React.createElement('td', { className: 'p-2 text-sm' }, payment.notes || '-')
+                  React.createElement('td', { className: 'p-2 text-sm' }, payment.notes || '-'),
+                  React.createElement('td', { className: 'p-2 text-sm space-x-2' },
+                    React.createElement('button', {
+                      onClick: () => handlePaymentEdit(payment),
+                      className: 'px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700'
+                    }, 'Edit'),
+                    React.createElement('button', {
+                      onClick: () => deletePayment(payment.id),
+                      className: 'px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700'
+                    }, 'Delete')
+                  )
                 )
               )
             )
           ),
           localPayments.filter(p => p.invoice_number === selectedInvoice.invoice_number).length === 0 &&
             React.createElement('div', { className: 'text-center text-gray-500 py-4' }, 'No payments recorded yet')
+        )
+      }),
+
+      editingPayment && React.createElement(EditModal, {
+        title: 'Edit Payment',
+        isOpen: !!editingPayment,
+        onClose: () => setEditingPayment(null),
+        onSave: savePaymentEdit,
+        children: React.createElement('div', { className: 'space-y-4' },
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Payment Date'),
+            React.createElement('input', {
+              type: 'date',
+              className: 'border rounded px-3 py-2 w-full',
+              value: paymentEditForm.payment_date || '',
+              onChange: e => setPaymentEditForm({ ...paymentEditForm, payment_date: e.target.value })
+            })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Amount'),
+            React.createElement('input', {
+              type: 'number',
+              step: '0.01',
+              className: 'border rounded px-3 py-2 w-full',
+              value: paymentEditForm.amount || '',
+              onChange: e => setPaymentEditForm({ ...paymentEditForm, amount: parseFloat(e.target.value) || 0 })
+            })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Payment Method'),
+            React.createElement('select', {
+              className: 'border rounded px-3 py-2 w-full',
+              value: paymentEditForm.payment_method || 'Bank Transfer',
+              onChange: e => setPaymentEditForm({ ...paymentEditForm, payment_method: e.target.value })
+            },
+              ['Bank Transfer', 'Cash', 'Check', 'Wire Transfer', 'Credit Card', 'Other'].map(method =>
+                React.createElement('option', { key: method, value: method }, method)
+              )
+            )
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Reference Number'),
+            React.createElement('input', {
+              className: 'border rounded px-3 py-2 w-full',
+              placeholder: 'Transaction/Check #',
+              value: paymentEditForm.reference_number || '',
+              onChange: e => setPaymentEditForm({ ...paymentEditForm, reference_number: e.target.value })
+            })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Notes'),
+            React.createElement('textarea', {
+              className: 'border rounded px-3 py-2 w-full',
+              rows: 2,
+              value: paymentEditForm.notes || '',
+              onChange: e => setPaymentEditForm({ ...paymentEditForm, notes: e.target.value })
+            })
+          )
         )
       })
     )

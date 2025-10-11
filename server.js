@@ -4203,6 +4203,112 @@ app.post('/api/payments', (req, res) => {
   );
 });
 
+// Update payment
+app.put('/api/payments/:id', (req, res) => {
+  const { id } = req.params;
+  const { payment_date, amount, payment_method, reference_number, notes } = req.body;
+
+  if (!payment_date || !amount) {
+    return res.status(400).json({ error: 'Payment date and amount are required' });
+  }
+
+  // Get old payment details
+  db.get('SELECT * FROM payment_history WHERE id = ?', [id], (err, oldPayment) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!oldPayment) return res.status(404).json({ error: 'Payment not found' });
+
+    db.run('BEGIN TRANSACTION', (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      // Update payment record
+      db.run(
+        `UPDATE payment_history SET
+          payment_date = ?,
+          amount = ?,
+          payment_method = ?,
+          reference_number = ?,
+          notes = ?
+        WHERE id = ?`,
+        [payment_date, amount, payment_method || null, reference_number || null, notes || null, id],
+        function(updateErr) {
+          if (updateErr) {
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: updateErr.message });
+          }
+
+          // Calculate the delta in payment amount
+          const amountDelta = parseFloat(amount) - parseFloat(oldPayment.amount);
+
+          // Update invoice amounts
+          db.get('SELECT amount_paid, total_amount FROM invoices WHERE invoice_number = ?', [oldPayment.invoice_number], (err2, invoice) => {
+            if (err2) {
+              db.run('ROLLBACK');
+              return res.status(500).json({ error: err2.message });
+            }
+            if (!invoice) {
+              db.run('ROLLBACK');
+              return res.status(404).json({ error: 'Invoice not found' });
+            }
+
+            const new_amount_paid = (invoice.amount_paid || 0) + amountDelta;
+            const new_outstanding = invoice.total_amount - new_amount_paid;
+            const new_status = new_outstanding <= 0 ? 'Paid' : new_outstanding < invoice.total_amount ? 'Partial' : 'Pending';
+
+            db.run(
+              `UPDATE invoices SET
+                amount_paid = ?,
+                outstanding_amount = ?,
+                payment_status = ?,
+                updated_at = CURRENT_TIMESTAMP
+              WHERE invoice_number = ?`,
+              [new_amount_paid, new_outstanding, new_status, oldPayment.invoice_number],
+              (err3) => {
+                if (err3) {
+                  db.run('ROLLBACK');
+                  return res.status(500).json({ error: err3.message });
+                }
+
+                // Update client PO if exists
+                if (oldPayment.po_id) {
+                  db.run(
+                    `UPDATE client_purchase_orders SET
+                      amount_paid = ?,
+                      outstanding_amount = ?,
+                      payment_status = ?
+                    WHERE id = ?`,
+                    [new_amount_paid, new_outstanding, new_status, oldPayment.po_id],
+                    (err4) => {
+                      if (err4) {
+                        db.run('ROLLBACK');
+                        return res.status(500).json({ error: err4.message });
+                      }
+                      db.run('COMMIT', (commitErr) => {
+                        if (commitErr) {
+                          db.run('ROLLBACK');
+                          return res.status(500).json({ error: commitErr.message });
+                        }
+                        res.json({ message: 'Payment updated successfully' });
+                      });
+                    }
+                  );
+                } else {
+                  db.run('COMMIT', (commitErr) => {
+                    if (commitErr) {
+                      db.run('ROLLBACK');
+                      return res.status(500).json({ error: commitErr.message });
+                    }
+                    res.json({ message: 'Payment updated successfully' });
+                  });
+                }
+              }
+            );
+          });
+        }
+      );
+    });
+  });
+});
+
 // Delete payment
 app.delete('/api/payments/:id', (req, res) => {
   const { id } = req.params;
