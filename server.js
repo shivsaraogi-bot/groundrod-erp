@@ -4695,17 +4695,30 @@ app.post('/api/inventory/check-availability', (req, res) => {
 // ============================================================================
 
 app.post('/api/chat', async (req, res) => {
+  console.log('📨 Gemini chat request received');
+
   if (!GoogleGenAI) {
-    return res.status(503).json({ error: 'Gemini AI not available. Install @google/genai package.' });
+    console.error('❌ GoogleGenAI SDK not loaded');
+    return res.status(503).json({
+      error: 'Gemini AI not available',
+      details: 'The @google/genai package failed to load. Please check server logs.'
+    });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY not configured in environment variables' });
+    console.error('❌ GEMINI_API_KEY not found in environment');
+    return res.status(400).json({
+      error: 'Gemini API key not configured',
+      details: 'GEMINI_API_KEY environment variable is missing. Please add it on Render.'
+    });
   }
+
+  console.log('✅ Gemini API key found, length:', apiKey.length);
 
   try {
     const { message, conversationHistory = [] } = req.body;
+    console.log('💬 User message:', message.substring(0, 50) + '...');
 
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
@@ -4928,13 +4941,16 @@ Set this in **Daily Production** when recording stamping operations."
 User message: ${message}`;
 
     // Call Gemini API using new SDK
+    console.log('🚀 Initializing Gemini AI client...');
     const ai = new GoogleGenAI({ apiKey });
 
+    console.log('📤 Sending request to Gemini API (model: gemini-2.5-flash)...');
     // Use gemini-2.5-flash model (user confirmed this is available)
     const result = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: systemPrompt
     });
+    console.log('📥 Received response from Gemini API');
 
     // Extract text from response - new SDK returns candidates array
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -4964,10 +4980,12 @@ User message: ${message}`;
     });
 
   } catch (error) {
-    console.error('Gemini API error:', error);
+    console.error('❌ Gemini API error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       error: 'Failed to process chat message',
-      details: error.message
+      details: error.message,
+      type: error.name || 'Unknown error'
     });
   }
 });
@@ -4977,7 +4995,10 @@ User message: ${message}`;
 // ============================================================================
 
 app.post('/api/chat/claude', async (req, res) => {
+  console.log('📨 Claude chat request received');
+
   if (!Anthropic) {
+    console.error('❌ Anthropic SDK not loaded');
     return res.status(503).json({
       error: 'Claude AI not available',
       details: 'The @anthropic-ai/sdk package is not installed. Please install it or use Gemini instead.'
@@ -4986,6 +5007,7 @@ app.post('/api/chat/claude', async (req, res) => {
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
+    console.error('❌ ANTHROPIC_API_KEY not found in environment');
     return res.status(400).json({
       error: 'Claude API key not configured',
       details: 'Please add ANTHROPIC_API_KEY to your environment variables on Render, or use Gemini (Fast) mode instead.',
@@ -4993,8 +5015,11 @@ app.post('/api/chat/claude', async (req, res) => {
     });
   }
 
+  console.log('✅ Claude API key found, length:', apiKey.length);
+
   try {
     const { message, conversationHistory = [] } = req.body;
+    console.log('💬 User message:', message.substring(0, 50) + '...');
 
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
@@ -5104,8 +5129,10 @@ ${recentProduction.slice(0, 10).map(p => `- ${p.production_date}: ${p.product_id
     ];
 
     // Call Claude API
+    console.log('🚀 Initializing Claude AI client...');
     const anthropic = new Anthropic({ apiKey });
 
+    console.log('📤 Sending request to Claude API (model: claude-3-5-sonnet)...');
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 4096,
@@ -5113,6 +5140,7 @@ ${recentProduction.slice(0, 10).map(p => `- ${p.production_date}: ${p.product_id
       messages: messages
     });
 
+    console.log('📥 Received response from Claude API');
     const text = response.content[0].text;
 
     console.log(`✅ Claude response received: ${text.substring(0, 100)}...`);
@@ -5123,10 +5151,12 @@ ${recentProduction.slice(0, 10).map(p => `- ${p.production_date}: ${p.product_id
     });
 
   } catch (error) {
-    console.error('Claude API error:', error);
+    console.error('❌ Claude API error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       error: 'Failed to process chat message',
-      details: error.message
+      details: error.message,
+      type: error.name || 'Unknown error'
     });
   }
 });
