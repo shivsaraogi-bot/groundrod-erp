@@ -2520,9 +2520,21 @@ app.post('/api/production', (req, res) => {
         entry.marking_text || null,
         entry.allocated_po_id || null
       ], function(histErr) {
-        if (histErr) { failed = true; failedMsg = histErr.message; return; }
+        if (histErr) {
+          failed = true;
+          failedMsg = histErr.message;
+          console.error('Production history insert error:', histErr);
+          processedCount++;
+          if (processedCount === totalEntries) {
+            stmt.finalize();
+            try { db.run('ROLLBACK'); } catch(_){}
+            return res.status(500).json({ error: failedMsg });
+          }
+          return;
+        }
 
         const productionId = this.lastID;
+        console.log(`✅ Production entry saved: ${entry.product_id}, updating inventory...`);
 
         // SEQUENTIAL FLOW: Update inventory stages
         // Each stage consumes from previous stage and adds to current stage
@@ -2560,7 +2572,20 @@ app.post('/api/production', (req, res) => {
           // packed: add what was packed
           packedQty
         ], (invErr) => {
-          if (invErr) { failed = true; failedMsg = invErr.message; return; }
+          if (invErr) {
+            failed = true;
+            failedMsg = `Inventory update error for ${entry.product_id}: ${invErr.message}`;
+            console.error('❌ Inventory update failed:', failedMsg);
+            processedCount++;
+            if (processedCount === totalEntries) {
+              stmt.finalize();
+              try { db.run('ROLLBACK'); } catch(_){}
+              return res.status(500).json({ error: failedMsg });
+            }
+            return;
+          }
+
+          console.log(`✅ Inventory updated for ${entry.product_id}`);
 
           // MARKING/ALLOCATION TRACKING: Record marked inventory for stamped and packed stages
           const markingType = entry.marking_type || 'unmarked';
