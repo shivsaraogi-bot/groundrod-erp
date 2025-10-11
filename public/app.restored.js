@@ -1029,7 +1029,7 @@ function DrawingOperations({ products, rawMaterials, onSubmit }) {
 
   return React.createElement('div', { className: 'bg-white rounded-xl shadow-md p-6 border border-gray-200 space-y-4' },
     React.createElement('div', { className: 'flex items-center justify-between border-b pb-3 mb-4' },
-      React.createElement('h3', { className: 'text-lg font-bold text-gray-900' }, '🏭 Drawing Operations (Steel → Cores)'),
+      React.createElement('h3', { className: 'text-lg font-bold text-gray-900' }, '🏭 Drawing Operations (Steel → Steel Rods)'),
       React.createElement('button', {
         onClick: () => setVisible(false),
         className: 'px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300 flex items-center gap-1'
@@ -1051,7 +1051,7 @@ function DrawingOperations({ products, rawMaterials, onSubmit }) {
       ),
 
       React.createElement('div', null,
-        React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Core Product *'),
+        React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Steel Rod Product *'),
         React.createElement('select', {
           value: form.product_id,
           onChange: e => setForm({ ...form, product_id: e.target.value }),
@@ -1088,7 +1088,7 @@ function DrawingOperations({ products, rawMaterials, onSubmit }) {
       ),
 
       React.createElement('div', null,
-        React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Cores Produced *'),
+        React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Steel Rods Produced *'),
         React.createElement('input', {
           type: 'number',
           min: 0,
@@ -1099,7 +1099,7 @@ function DrawingOperations({ products, rawMaterials, onSubmit }) {
       ),
 
       React.createElement('div', null,
-        React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Cores Rejected'),
+        React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Steel Rods Rejected'),
         React.createElement('input', {
           type: 'number',
           min: 0,
@@ -1137,10 +1137,10 @@ function DrawingOperations({ products, rawMaterials, onSubmit }) {
         data: operations,
         columns: [
           { key: 'drawing_date', label: 'Date' },
-          { key: 'product_description', label: 'Core Product', render: (val, row) => val || row.product_id },
+          { key: 'product_description', label: 'Steel Rod Product', render: (val, row) => val || row.product_id },
           { key: 'raw_steel_material', label: 'Steel Material' },
           { key: 'steel_consumed', label: 'Steel Used (kg)', render: val => Number(val || 0).toFixed(2) },
-          { key: 'cores_produced', label: 'Cores Produced' },
+          { key: 'cores_produced', label: 'Steel Rods Produced' },
           { key: 'cores_rejected', label: 'Rejected' },
           { key: 'notes', label: 'Notes', render: val => val || '-' }
         ],
@@ -2410,13 +2410,13 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
   const [openDetails, setOpenDetails] = useState({});
   const [items, setItems] = useState({});
   const [form, setForm] = useState({
-    id:'', vendor_id:'', jw_date:'', due_date:'', job_type:'Steel Core Production', status:'Open', notes:'',
+    id:'', vendor_id:'', jw_date:'', due_date:'', job_type:'Steel Rod Production', status:'Open', notes:'',
     raw_steel_material: '', steel_consumed: 0, cores_produced: 0, cores_rejected: 0, core_product_id: ''
   });
   const [editing, setEditing] = useState(null);
   const listSectionRef = React.useRef(null);
 
-  const JOB_TYPES = ['Steel Core Production', 'Custom Machining', 'Other Processing'];
+  const JOB_TYPES = ['Steel Rod Production', 'Custom Machining', 'Other Processing'];
   const STATUSES = ['Open', 'In Progress', 'Completed', 'Cancelled'];
 
   React.useEffect(() => {
@@ -2440,17 +2440,17 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
       alert('Please fill JW ID and Date');
       return;
     }
-    // Validate Steel Core Production fields
-    if (form.job_type === 'Steel Core Production') {
+    // Validate Steel Rod Production fields
+    if (form.job_type === 'Steel Rod Production') {
       if (!form.raw_steel_material || !form.steel_consumed || !form.cores_produced || !form.core_product_id) {
-        alert('Please fill all Steel Core Production fields: Raw Steel Material, Steel Consumed, Cores Produced, and Core Product');
+        alert('Please fill all Steel Rod Production fields: Raw Steel Material, Steel Consumed, Steel Rods Produced, and Steel Rod Product');
         return;
       }
     }
     const res = await fetch(`${API_URL}/jobwork/orders`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
     if (res.ok) {
       setForm({
-        id:'', vendor_id:'', jw_date:'', due_date:'', job_type:'Steel Core Production', status:'Open', notes:'',
+        id:'', vendor_id:'', jw_date:'', due_date:'', job_type:'Steel Rod Production', status:'Open', notes:'',
         raw_steel_material: '', steel_consumed: 0, cores_produced: 0, cores_rejected: 0, core_product_id: ''
       });
       await refreshOrders();
@@ -2553,9 +2553,9 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
             )
           ),
 
-          // Conditional Steel Core Production fields
-          form.job_type === 'Steel Core Production' && React.createElement('div', { className: 'bg-blue-50 p-4 rounded border border-blue-200' },
-            React.createElement('h4', { className: 'font-semibold text-sm text-blue-800 mb-3' }, 'Steel Core Production Details'),
+          // Conditional Steel Rod Production fields
+          form.job_type === 'Steel Rod Production' && React.createElement('div', { className: 'bg-blue-50 p-4 rounded border border-blue-200' },
+            React.createElement('h4', { className: 'font-semibold text-sm text-blue-800 mb-3' }, 'Steel Rod Production Details'),
             React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-5 gap-3' },
               React.createElement('select', {
                 className: 'border rounded px-3 py-2',
@@ -2579,7 +2579,7 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
                 value: form.core_product_id,
                 onChange: e => setForm({...form, core_product_id: e.target.value})
               },
-                React.createElement('option', { value: '' }, 'Select Core Product'),
+                React.createElement('option', { value: '' }, 'Select Steel Rod Product'),
                 products && products.map(p =>
                   React.createElement('option', { key: p.id, value: p.id }, `${p.id} - ${p.description}`)
                 )
@@ -2587,14 +2587,14 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
               React.createElement('input', {
                 type: 'number',
                 className: 'border rounded px-3 py-2',
-                placeholder: 'Cores Produced',
+                placeholder: 'Steel Rods Produced',
                 value: form.cores_produced || '',
                 onChange: e => setForm({...form, cores_produced: Number(e.target.value)})
               }),
               React.createElement('input', {
                 type: 'number',
                 className: 'border rounded px-3 py-2',
-                placeholder: 'Cores Rejected',
+                placeholder: 'Steel Rods Rejected',
                 value: form.cores_rejected || '',
                 onChange: e => setForm({...form, cores_rejected: Number(e.target.value)})
               })
@@ -4039,7 +4039,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
           value: stockAdjustmentForm.stage,
           onChange: e => setStockAdjustmentForm({ ...stockAdjustmentForm, stage: e.target.value })
         },
-          React.createElement('option', { value: 'cores' }, 'Cores (Steel Rods from Job Work)'),
+          React.createElement('option', { value: 'steel_rods' }, 'Steel Rods'),
           React.createElement('option', { value: 'plated' }, 'Plated'),
           React.createElement('option', { value: 'machined' }, 'Machined'),
           React.createElement('option', { value: 'qc' }, 'QC'),
