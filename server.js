@@ -612,6 +612,21 @@ function initializeDatabase() {
       FOREIGN KEY (product_id) REFERENCES products(id)
     )`);
 
+    // Drawing Operations table for in-house steel core production
+    db.run(`CREATE TABLE IF NOT EXISTS drawing_operations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      drawing_date DATE NOT NULL,
+      product_id TEXT NOT NULL,
+      raw_steel_material TEXT NOT NULL,
+      steel_consumed REAL NOT NULL,
+      cores_produced INTEGER NOT NULL,
+      cores_rejected INTEGER NOT NULL,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      is_deleted INTEGER DEFAULT 0,
+      FOREIGN KEY (product_id) REFERENCES products(id)
+    )`);
+
     // Raw Materials Inventory table (UPDATED)
     db.run(`CREATE TABLE IF NOT EXISTS raw_materials_inventory (
       material TEXT PRIMARY KEY,
@@ -2676,6 +2691,147 @@ app.delete('/api/stock-adjustments/:id', (req, res) => {
           db.run('COMMIT', (commitErr) => {
             if (commitErr) return res.status(500).json({ error: commitErr.message });
             res.json({ message: 'Stock adjustment deleted and inventory reversed' });
+          });
+        });
+      });
+    });
+  });
+});
+
+// ============= Drawing Operations API =============
+// GET all drawing operations
+app.get('/api/drawing-operations', (req, res) => {
+  db.all(`
+    SELECT
+      d.*,
+      p.description as product_description
+    FROM drawing_operations d
+    LEFT JOIN products p ON d.product_id = p.id
+    WHERE d.is_deleted = 0
+    ORDER BY d.drawing_date DESC, d.id DESC
+    LIMIT 100
+  `, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// POST create drawing operation
+app.post('/api/drawing-operations', (req, res) => {
+  const { drawing_date, product_id, raw_steel_material, steel_consumed, cores_produced, cores_rejected, notes } = req.body;
+
+  if (!drawing_date || !product_id || !raw_steel_material || cores_produced == null || steel_consumed == null) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  db.serialize(() => {
+    db.run('BEGIN');
+
+    // Insert drawing operation record
+    db.run(`
+      INSERT INTO drawing_operations
+      (drawing_date, product_id, raw_steel_material, steel_consumed, cores_produced, cores_rejected, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [
+      drawing_date,
+      product_id,
+      raw_steel_material,
+      Number(steel_consumed),
+      Number(cores_produced),
+      Number(cores_rejected || 0),
+      notes || ''
+    ], function(err) {
+      if (err) {
+        db.run('ROLLBACK');
+        return res.status(500).json({ error: err.message });
+      }
+
+      // Update inventory: Add produced cores
+      db.run(`
+        INSERT INTO inventory (product_id, cores, updated_at)
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(product_id) DO UPDATE SET
+          cores = cores + ?,
+          updated_at = CURRENT_TIMESTAMP
+      `, [product_id, Number(cores_produced), Number(cores_produced)], (invErr) => {
+        if (invErr) {
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: invErr.message });
+        }
+
+        // Consume raw steel from raw materials inventory
+        db.run(`
+          UPDATE raw_materials_inventory
+          SET current_stock = MAX(0, current_stock - ?),
+              updated_at = CURRENT_TIMESTAMP
+          WHERE material = ?
+        `, [Number(steel_consumed), raw_steel_material], (matErr) => {
+          if (matErr) {
+            console.warn('Raw material deduction warning:', matErr.message);
+          }
+
+          db.run('COMMIT', (commitErr) => {
+            if (commitErr) {
+              return res.status(500).json({ error: commitErr.message });
+            }
+            res.json({
+              message: 'Drawing operation recorded successfully',
+              id: this.lastID,
+              cores_produced: Number(cores_produced),
+              steel_consumed: Number(steel_consumed)
+            });
+          });
+        });
+      });
+    });
+  });
+});
+
+// DELETE drawing operation (reverses inventory changes)
+app.delete('/api/drawing-operations/:id', (req, res) => {
+  const { id } = req.params;
+
+  db.get('SELECT * FROM drawing_operations WHERE id = ? AND is_deleted = 0', [id], (err, operation) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!operation) return res.status(404).json({ error: 'Drawing operation not found' });
+
+    db.serialize(() => {
+      db.run('BEGIN');
+
+      // Reverse inventory: Subtract cores
+      db.run(`
+        UPDATE inventory
+        SET cores = MAX(0, cores - ?),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE product_id = ?
+      `, [operation.cores_produced, operation.product_id], (invErr) => {
+        if (invErr) {
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: invErr.message });
+        }
+
+        // Return steel to raw materials inventory
+        db.run(`
+          UPDATE raw_materials_inventory
+          SET current_stock = current_stock + ?,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE material = ?
+        `, [operation.steel_consumed, operation.raw_steel_material], (matErr) => {
+          if (matErr) {
+            console.warn('Raw material return warning:', matErr.message);
+          }
+
+          // Mark as deleted (soft delete)
+          db.run('UPDATE drawing_operations SET is_deleted = 1 WHERE id = ?', [id], (delErr) => {
+            if (delErr) {
+              db.run('ROLLBACK');
+              return res.status(500).json({ error: delErr.message });
+            }
+
+            db.run('COMMIT', (commitErr) => {
+              if (commitErr) return res.status(500).json({ error: commitErr.message });
+              res.json({ message: 'Drawing operation deleted and inventory reversed' });
+            });
           });
         });
       });

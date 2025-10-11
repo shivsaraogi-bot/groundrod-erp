@@ -112,7 +112,10 @@ function GroundRodERP() {
       React.createElement(NavTabs, { activeTab, setActiveTab }),
       React.createElement('main', { className: 'max-w-7xl mx-auto px-6 py-6' },
         activeTab === 'dashboard' && React.createElement(Dashboard, { stats: dashboardStats, riskAnalysis, clientPurchaseOrders, inventory }),
-        activeTab === 'production' && React.createElement(DailyProduction, { products, onSubmit: fetchAllData }),
+        activeTab === 'production' && React.createElement('div', { className: 'space-y-6' },
+          React.createElement(DrawingOperations, { products, rawMaterials, onSubmit: fetchAllData }),
+          React.createElement(DailyProduction, { products, onSubmit: fetchAllData })
+        ),
         activeTab === 'client-orders' && React.createElement(ClientPurchaseOrders, { purchaseOrders: clientPurchaseOrders, products, customers, onRefresh: fetchAllData }),
         activeTab === 'invoices' && React.createElement(InvoiceManagement, { invoices, payments, clientPurchaseOrders, onRefresh: fetchAllData }),
         activeTab === 'vendor-orders' && React.createElement(VendorPurchaseOrdersEx, { purchaseOrders: vendorPurchaseOrders, vendors, onRefresh: fetchAllData }),
@@ -422,6 +425,224 @@ function DailyProduction({ products, onSubmit }){
           defaultVisibleColumns: { production_date: true, product_description: true, plated: true, machined: true, qc: true, stamped: true, packed: true, rejected: true, notes: true }
         })
       )
+    )
+  );
+}
+
+function DrawingOperations({ products, rawMaterials, onSubmit }) {
+  const [visible, setVisible] = useState(false);
+  const [form, setForm] = useState({
+    drawing_date: new Date().toISOString().slice(0,10),
+    product_id: products[0]?.id || '',
+    raw_steel_material: '',
+    steel_consumed: 0,
+    cores_produced: 0,
+    cores_rejected: 0,
+    notes: ''
+  });
+  const [operations, setOperations] = useState([]);
+
+  async function loadOperations() {
+    try {
+      const res = await fetch(`${API_URL}/drawing-operations`);
+      if (res.ok) setOperations(await res.json());
+    } catch (err) {
+      console.error('Failed to load drawing operations', err);
+    }
+  }
+
+  useEffect(() => {
+    if (visible) loadOperations();
+  }, [visible]);
+
+  async function saveOperation() {
+    if (!form.product_id || !form.raw_steel_material || form.cores_produced <= 0 || form.steel_consumed <= 0) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/drawing-operations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+
+      if (res.ok) {
+        alert('Drawing operation recorded successfully');
+        setForm({
+          drawing_date: new Date().toISOString().slice(0,10),
+          product_id: products[0]?.id || '',
+          raw_steel_material: '',
+          steel_consumed: 0,
+          cores_produced: 0,
+          cores_rejected: 0,
+          notes: ''
+        });
+        loadOperations();
+        if (onSubmit) onSubmit();
+      } else {
+        const error = await res.json();
+        alert(`Error: ${error.error}`);
+      }
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
+  }
+
+  async function deleteOperation(id) {
+    if (!confirm('Delete this drawing operation? This will reverse inventory changes.')) return;
+
+    try {
+      const res = await fetch(`${API_URL}/drawing-operations/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('Drawing operation deleted');
+        loadOperations();
+        if (onSubmit) onSubmit();
+      }
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
+  }
+
+  if (!visible) {
+    return React.createElement('div', { className: 'bg-blue-50 border-l-4 border-blue-500 p-4 rounded' },
+      React.createElement('div', { className: 'flex items-center justify-between' },
+        React.createElement('div', null,
+          React.createElement('h3', { className: 'font-semibold text-blue-900' }, '🏭 In-House Drawing Operations'),
+          React.createElement('p', { className: 'text-sm text-blue-700 mt-1' },
+            'Convert raw steel into steel cores using in-house drawing machine'
+          )
+        ),
+        React.createElement('button', {
+          onClick: () => setVisible(true),
+          className: 'px-4 py-2 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700'
+        }, 'Show Drawing Operations')
+      )
+    );
+  }
+
+  return React.createElement('div', { className: 'bg-white rounded-xl shadow-md p-6 border border-gray-200 space-y-4' },
+    React.createElement('div', { className: 'flex items-center justify-between border-b pb-3 mb-4' },
+      React.createElement('h3', { className: 'text-lg font-bold text-gray-900' }, '🏭 Drawing Operations (Steel → Cores)'),
+      React.createElement('button', {
+        onClick: () => setVisible(false),
+        className: 'px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300'
+      }, 'Hide')
+    ),
+
+    React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-4 gap-4' },
+      React.createElement('div', null,
+        React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Date *'),
+        React.createElement('input', {
+          type: 'date',
+          value: form.drawing_date,
+          onChange: e => setForm({ ...form, drawing_date: e.target.value }),
+          className: 'border rounded px-3 py-2 w-full'
+        })
+      ),
+
+      React.createElement('div', null,
+        React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Core Product *'),
+        React.createElement('select', {
+          value: form.product_id,
+          onChange: e => setForm({ ...form, product_id: e.target.value }),
+          className: 'border rounded px-3 py-2 w-full'
+        },
+          products.map(p => React.createElement('option', { key: p.id, value: p.id }, `${p.id} - ${p.description}`))
+        )
+      ),
+
+      React.createElement('div', null,
+        React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Raw Steel Material *'),
+        React.createElement('select', {
+          value: form.raw_steel_material,
+          onChange: e => setForm({ ...form, raw_steel_material: e.target.value }),
+          className: 'border rounded px-3 py-2 w-full'
+        },
+          React.createElement('option', { value: '' }, '-- Select Material --'),
+          rawMaterials.map(m => React.createElement('option', { key: m.material, value: m.material },
+            `${m.material} (Stock: ${m.current_stock || 0})`
+          ))
+        )
+      ),
+
+      React.createElement('div', null,
+        React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Steel Consumed (kg) *'),
+        React.createElement('input', {
+          type: 'number',
+          min: 0,
+          step: 0.01,
+          value: form.steel_consumed,
+          onChange: e => setForm({ ...form, steel_consumed: e.target.value }),
+          className: 'border rounded px-3 py-2 w-full'
+        })
+      ),
+
+      React.createElement('div', null,
+        React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Cores Produced *'),
+        React.createElement('input', {
+          type: 'number',
+          min: 0,
+          value: form.cores_produced,
+          onChange: e => setForm({ ...form, cores_produced: e.target.value }),
+          className: 'border rounded px-3 py-2 w-full'
+        })
+      ),
+
+      React.createElement('div', null,
+        React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Cores Rejected'),
+        React.createElement('input', {
+          type: 'number',
+          min: 0,
+          value: form.cores_rejected,
+          onChange: e => setForm({ ...form, cores_rejected: e.target.value }),
+          className: 'border rounded px-3 py-2 w-full'
+        })
+      ),
+
+      React.createElement('div', { className: 'md:col-span-2' },
+        React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Notes'),
+        React.createElement('input', {
+          value: form.notes,
+          onChange: e => setForm({ ...form, notes: e.target.value }),
+          className: 'border rounded px-3 py-2 w-full',
+          placeholder: 'Optional notes'
+        })
+      )
+    ),
+
+    React.createElement('div', { className: 'flex justify-end pt-3 border-t' },
+      React.createElement('button', {
+        onClick: saveOperation,
+        className: 'px-6 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700'
+      }, '💾 Record Drawing Operation')
+    ),
+
+    React.createElement('div', { className: 'pt-4 border-t' },
+      React.createElement('h4', { className: 'font-semibold text-gray-900 mb-3' }, 'Recent Drawing Operations'),
+      React.createElement(EnhancedTable, {
+        title: '',
+        data: operations,
+        columns: [
+          { key: 'drawing_date', label: 'Date' },
+          { key: 'product_description', label: 'Core Product', render: (val, row) => val || row.product_id },
+          { key: 'raw_steel_material', label: 'Steel Material' },
+          { key: 'steel_consumed', label: 'Steel Used (kg)', render: val => Number(val || 0).toFixed(2) },
+          { key: 'cores_produced', label: 'Cores Produced' },
+          { key: 'cores_rejected', label: 'Rejected' },
+          { key: 'notes', label: 'Notes', render: val => val || '-' }
+        ],
+        primaryKey: 'id',
+        onRowClick: null,
+        onDelete: deleteOperation,
+        filterOptions: [
+          { key: 'product_description', label: 'Product', values: [...new Set(operations.map(o => o.product_description || o.product_id).filter(Boolean))] },
+          { key: 'raw_steel_material', label: 'Material', values: [...new Set(operations.map(o => o.raw_steel_material).filter(Boolean))] },
+          { key: 'drawing_date', label: 'Date', values: [...new Set(operations.map(o => o.drawing_date).filter(Boolean))] }
+        ],
+        defaultVisibleColumns: { drawing_date: true, product_description: true, raw_steel_material: true, steel_consumed: true, cores_produced: true, cores_rejected: true, notes: true }
+      })
     )
   );
 }
