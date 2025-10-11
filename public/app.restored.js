@@ -6,7 +6,7 @@ const API_URL = window.location.origin + '/api';
 // ============================================================================
 
 function ChatWidget() {
-  console.log('ChatWidget component loaded - v16.0');
+  console.log('ChatWidget component loaded - v18.1');
   const [isOpen, setIsOpen] = useState(false);
   const [aiModel, setAiModel] = useState('gemini'); // 'gemini' or 'claude'
   const [messages, setMessages] = useState([
