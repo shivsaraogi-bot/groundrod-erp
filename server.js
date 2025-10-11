@@ -3021,14 +3021,15 @@ app.post('/api/drawing-operations', (req, res) => {
         return res.status(500).json({ error: err.message });
       }
 
-      // Update inventory: Add produced cores
+      // Update inventory: Add produced steel rods (cores)
       db.run(`
-        INSERT INTO inventory (product_id, cores, updated_at)
-        VALUES (?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO inventory (product_id, cores, steel_rods, updated_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(product_id) DO UPDATE SET
           cores = cores + ?,
+          steel_rods = steel_rods + ?,
           updated_at = CURRENT_TIMESTAMP
-      `, [product_id, Number(cores_produced), Number(cores_produced)], (invErr) => {
+      `, [product_id, Number(cores_produced), Number(cores_produced), Number(cores_produced), Number(cores_produced)], (invErr) => {
         if (invErr) {
           db.run('ROLLBACK');
           return res.status(500).json({ error: invErr.message });
@@ -3073,13 +3074,14 @@ app.delete('/api/drawing-operations/:id', (req, res) => {
     db.serialize(() => {
       db.run('BEGIN');
 
-      // Reverse inventory: Subtract cores
+      // Reverse inventory: Subtract cores and steel_rods
       db.run(`
         UPDATE inventory
         SET cores = MAX(0, cores - ?),
+            steel_rods = MAX(0, steel_rods - ?),
             updated_at = CURRENT_TIMESTAMP
         WHERE product_id = ?
-      `, [operation.cores_produced, operation.product_id], (invErr) => {
+      `, [operation.cores_produced, operation.cores_produced, operation.product_id], (invErr) => {
         if (invErr) {
           db.run('ROLLBACK');
           return res.status(500).json({ error: invErr.message });
