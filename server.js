@@ -4978,12 +4978,19 @@ User message: ${message}`;
 
 app.post('/api/chat/claude', async (req, res) => {
   if (!Anthropic) {
-    return res.status(503).json({ error: 'Claude AI not available. Install @anthropic-ai/sdk package.' });
+    return res.status(503).json({
+      error: 'Claude AI not available',
+      details: 'The @anthropic-ai/sdk package is not installed. Please install it or use Gemini instead.'
+    });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured in environment variables' });
+    return res.status(400).json({
+      error: 'Claude API key not configured',
+      details: 'Please add ANTHROPIC_API_KEY to your environment variables on Render, or use Gemini (Fast) mode instead.',
+      fallback: 'Switch to Gemini (Fast) mode which is already configured and working.'
+    });
   }
 
   try {

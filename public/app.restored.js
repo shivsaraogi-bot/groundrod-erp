@@ -40,12 +40,26 @@ function ChatWidget() {
         })
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        // Handle HTML error pages (when server returns non-JSON)
         setMessages(prev => [...prev, {
           role: 'bot',
-          content: `❌ Error: ${data.error || 'Failed to process message'}`
+          content: `❌ ${aiModel === 'claude' ? 'Claude' : 'Gemini'} Error: Server returned invalid response.\n\n💡 ${aiModel === 'claude' ? 'Claude API key may not be configured. Try switching to Gemini (Fast) mode!' : 'Please try again or contact support.'}`
+        }]);
+        return;
+      }
+
+      if (!res.ok) {
+        let errorMsg = data.error || 'Failed to process message';
+        if (data.details) errorMsg += `\n\n${data.details}`;
+        if (data.fallback) errorMsg += `\n\n💡 ${data.fallback}`;
+
+        setMessages(prev => [...prev, {
+          role: 'bot',
+          content: `❌ Error: ${errorMsg}`
         }]);
         return;
       }
