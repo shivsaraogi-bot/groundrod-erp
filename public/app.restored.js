@@ -3676,16 +3676,29 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
 
   // Production Trace functions
   async function handleInventoryClick(row) {
-    if (!row.product_id) return;
+    console.log('Inventory row clicked:', row);
+    if (!row.product_id) {
+      console.error('No product_id found in row:', row);
+      alert('Cannot trace inventory: product_id is missing');
+      return;
+    }
+
+    const url = `${API_URL}/inventory/${encodeURIComponent(row.product_id)}/production-trace?limit=${traceLimit}`;
+    console.log('Fetching production trace from:', url);
 
     setTracingInventory(row);
     try {
-      const res = await fetch(`${API_URL}/inventory/${encodeURIComponent(row.product_id)}/production-trace?limit=${traceLimit}`);
+      const res = await fetch(url);
+      console.log('Response status:', res.status, 'Content-Type:', res.headers.get('content-type'));
+
       if (res.ok) {
         const data = await res.json();
+        console.log('Production trace data:', data);
         setProductionTrace(data || []);
       } else {
-        alert('Failed to fetch production trace');
+        const text = await res.text();
+        console.error('Failed response:', text.substring(0, 200));
+        alert(`Failed to fetch production trace: ${res.status} ${res.statusText}`);
         setProductionTrace([]);
       }
     } catch (err) {
