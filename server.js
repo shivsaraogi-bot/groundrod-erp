@@ -4486,9 +4486,31 @@ When user wants to create/update data:
 
 User message: ${message}`;
 
-    // Call Gemini API
+    // Call Gemini API with fallback model detection
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+    // Try multiple model names in order of preference
+    const modelNames = ['gemini-1.5-flash-latest', 'gemini-1.5-pro-latest', 'gemini-pro', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+    let model = null;
+    let lastError = null;
+
+    for (const modelName of modelNames) {
+      try {
+        model = genAI.getGenerativeModel({ model: modelName });
+        // Test if model works with a simple prompt
+        await model.generateContent('test');
+        console.log(`✅ Using Gemini model: ${modelName}`);
+        break;
+      } catch (e) {
+        console.log(`❌ Model ${modelName} not available: ${e.message}`);
+        lastError = e;
+        model = null;
+      }
+    }
+
+    if (!model) {
+      throw new Error(`No Gemini models available. Last error: ${lastError?.message || 'Unknown'}. Please check your API key at https://aistudio.google.com/app/apikey`);
+    }
 
     const result = await model.generateContent(systemPrompt);
     const response = await result.response;
