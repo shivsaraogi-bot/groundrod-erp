@@ -4026,7 +4026,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
           data: (invData||[])
             .map(r => ({
               ...r,
-              total: (r.steel_rods||0)+(r.plated||0)+(r.machined||0)+(r.qc||0)+(r.stamped||0)+(r.packed||0)
+              total: (r.cores||0)+(r.plated||0)+(r.machined||0)+(r.qc||0)+(r.stamped||0)+(r.packed||0)
             }))
             .filter(r => {
               if (!hideZeroInventory) return true;
@@ -4035,7 +4035,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
             }),
           columns: [
             { key: 'product_description', label: 'Product' },
-            { key: 'steel_rods', label: 'Steel Rods', render: (val) => val || 0 },
+            { key: 'cores', label: 'Cores', render: (val) => val || 0 },
             { key: 'plated', label: 'Plated', render: (val) => val || 0 },
             { key: 'machined', label: 'Machined', render: (val) => val || 0 },
             { key: 'qc', label: 'QC', render: (val) => val || 0 },
@@ -4050,7 +4050,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
           filterOptions: [
             { key: 'product_description', label: 'Product', values: [...new Set((invData||[]).map(r => r.product_description).filter(Boolean))] }
           ],
-          defaultVisibleColumns: { product_description: true, steel_rods: true, plated: true, machined: true, qc: true, stamped: true, packed: true, total: true }
+          defaultVisibleColumns: { product_description: true, cores: true, plated: true, machined: true, qc: true, stamped: true, packed: true, total: true }
         })
       )
     )
