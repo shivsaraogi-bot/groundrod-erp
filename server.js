@@ -2690,6 +2690,176 @@ app.get('/api/production', (req, res) => {
   });
 });
 
+// Update production entry
+app.put('/api/production/:id', (req, res) => {
+  const { id } = req.params;
+  const { production_date, plated, machined, qc, stamped, packed, rejected, marking_type, marking_text, notes } = req.body;
+
+  // First, get the old values to reverse inventory changes
+  db.get('SELECT * FROM production_history WHERE id = ?', [id], (err, oldEntry) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!oldEntry) return res.status(404).json({ error: 'Production entry not found' });
+
+    db.run('BEGIN TRANSACTION', (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      // Update production_history
+      db.run(`
+        UPDATE production_history
+        SET production_date = ?, plated = ?, machined = ?, qc = ?, stamped = ?, packed = ?, rejected = ?,
+            marking_type = ?, marking_text = ?, notes = ?
+        WHERE id = ?
+      `, [production_date, plated || 0, machined || 0, qc || 0, stamped || 0, packed || 0, rejected || 0,
+          marking_type || 'unmarked', marking_text || '', notes || '', id], function(updateErr) {
+        if (updateErr) {
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: updateErr.message });
+        }
+
+        // Reverse old inventory changes and apply new ones
+        const oldPlated = Number(oldEntry.plated || 0);
+        const oldMachined = Number(oldEntry.machined || 0);
+        const oldQC = Number(oldEntry.qc || 0);
+        const oldStamped = Number(oldEntry.stamped || 0);
+        const oldPacked = Number(oldEntry.packed || 0);
+
+        const newPlated = Number(plated || 0);
+        const newMachined = Number(machined || 0);
+        const newQC = Number(qc || 0);
+        const newStamped = Number(stamped || 0);
+        const newPacked = Number(packed || 0);
+
+        // Calculate net inventory delta (new - old)
+        const deltaPlated = newPlated - oldPlated;
+        const deltaMachined = newMachined - oldMachined;
+        const deltaQC = newQC - oldQC;
+        const deltaStamped = newStamped - oldStamped;
+        const deltaPacked = newPacked - oldPacked;
+
+        // Update inventory with net delta
+        // Same sequential flow logic as original production POST
+        db.run(`
+          INSERT INTO inventory (product_id, cores, plated, machined, qc, stamped, packed, updated_at)
+          VALUES (?, 0, 0, 0, 0, 0, 0, CURRENT_TIMESTAMP)
+          ON CONFLICT(product_id) DO UPDATE SET
+            cores = MAX(0, cores - ?),
+            plated = MAX(0, plated - ? - ? - ? - ? + ?),
+            machined = MAX(0, machined - ? - ? - ? + ?),
+            qc = MAX(0, qc - ? - ? + ?),
+            stamped = MAX(0, stamped - ? + ?),
+            packed = packed + ?,
+            updated_at = CURRENT_TIMESTAMP
+        `, [
+          oldEntry.product_id,
+          deltaPlated + deltaMachined + deltaQC + deltaStamped + deltaPacked,
+          deltaMachined, deltaQC, deltaStamped, deltaPacked, deltaPlated,
+          deltaQC, deltaStamped, deltaPacked, deltaMachined,
+          deltaStamped, deltaPacked, deltaQC,
+          deltaPacked, deltaStamped,
+          deltaPacked
+        ], (invErr) => {
+          if (invErr) {
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: `Inventory update error: ${invErr.message}` });
+          }
+
+          db.run('COMMIT', (commitErr) => {
+            if (commitErr) {
+              db.run('ROLLBACK');
+              return res.status(500).json({ error: commitErr.message });
+            }
+            res.json({ message: 'Production entry updated successfully' });
+          });
+        });
+      });
+    });
+  });
+});
+
+// Delete production entry
+app.delete('/api/production/:id', (req, res) => {
+  const { id } = req.params;
+
+  // First, get the entry to reverse inventory changes
+  db.get('SELECT * FROM production_history WHERE id = ?', [id], (err, entry) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!entry) return res.status(404).json({ error: 'Production entry not found' });
+
+    db.run('BEGIN TRANSACTION', (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      // Delete the production entry
+      db.run('DELETE FROM production_history WHERE id = ?', [id], (deleteErr) => {
+        if (deleteErr) {
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: deleteErr.message });
+        }
+
+        // Reverse inventory changes (negate all quantities)
+        const plated = Number(entry.plated || 0);
+        const machined = Number(entry.machined || 0);
+        const qcQty = Number(entry.qc || 0);
+        const stamped = Number(entry.stamped || 0);
+        const packed = Number(entry.packed || 0);
+
+        db.run(`
+          INSERT INTO inventory (product_id, cores, plated, machined, qc, stamped, packed, updated_at)
+          VALUES (?, 0, 0, 0, 0, 0, 0, CURRENT_TIMESTAMP)
+          ON CONFLICT(product_id) DO UPDATE SET
+            cores = cores + ?,
+            plated = plated + ? + ? + ? + ? - ?,
+            machined = machined + ? + ? + ? - ?,
+            qc = qc + ? + ? - ?,
+            stamped = stamped + ? - ?,
+            packed = packed - ?,
+            updated_at = CURRENT_TIMESTAMP
+        `, [
+          entry.product_id,
+          plated + machined + qcQty + stamped + packed,
+          machined, qcQty, stamped, packed, plated,
+          qcQty, stamped, packed, machined,
+          stamped, packed, qcQty,
+          packed, stamped,
+          packed
+        ], (invErr) => {
+          if (invErr) {
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: `Inventory reversal error: ${invErr.message}` });
+          }
+
+          db.run('COMMIT', (commitErr) => {
+            if (commitErr) {
+              db.run('ROLLBACK');
+              return res.status(500).json({ error: commitErr.message });
+            }
+            res.json({ message: 'Production entry deleted successfully' });
+          });
+        });
+      });
+    });
+  });
+});
+
+// Get production trace for a specific product (for inventory tracing)
+app.get('/api/inventory/:productId/production-trace', (req, res) => {
+  const { productId } = req.params;
+  const limit = Math.max(1, Math.min(500, parseInt(req.query.limit || '50', 10)));
+
+  const sql = `
+    SELECT ph.id, ph.production_date, ph.product_id,
+           ph.plated, ph.machined, ph.qc, ph.stamped, ph.packed, ph.rejected, ph.notes,
+           ph.marking_type, ph.marking_text
+    FROM production_history ph
+    WHERE ph.product_id = ?
+    ORDER BY ph.production_date DESC, ph.id DESC
+    LIMIT ?`;
+
+  db.all(sql, [productId, limit], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
 // ============= Stock Adjustments API =============
 // Get all stock adjustments
 app.get('/api/stock-adjustments', (req, res) => {

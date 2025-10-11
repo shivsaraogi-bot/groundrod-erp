@@ -569,6 +569,9 @@ function DailyProduction({ products, onSubmit }){
   const [entries, setEntries] = useState([]);
   const [recent, setRecent] = useState([]);
   const [limit, setLimit] = useState(20);
+  const [editingProduction, setEditingProduction] = useState(null);
+  const [editForm, setEditForm] = useState({});
+
   async function loadRecent(l){
     try { const r = await fetch(`${API_URL}/production?limit=${encodeURIComponent(l||limit)}`); setRecent(await r.json()); } catch {}
   }
@@ -576,8 +579,204 @@ function DailyProduction({ products, onSubmit }){
   function addEntry(){ setEntries([...entries, { product_id: products[0]?.id || '', plated:0,machined:0,qc:0,stamped:0,packed:0,rejected:0,notes:'', marking_type:'unmarked', marking_text:'' }]); }
   function updateEntry(i, field, val){ const e=[...entries]; e[i][field]= (['notes','product_id','marking_type','marking_text'].includes(field))? val : Number(val||0); setEntries(e); }
   async function save(){ await fetch(`${API_URL}/production`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ date, entries }) }); setEntries([]); onSubmit?.(); alert('Production saved'); loadRecent(limit); }
+
+  function handleProductionClick(row) {
+    setEditingProduction(row);
+    setEditForm({
+      production_date: row.production_date || '',
+      product_id: row.product_id || '',
+      plated: row.plated || 0,
+      machined: row.machined || 0,
+      qc: row.qc || 0,
+      stamped: row.stamped || 0,
+      packed: row.packed || 0,
+      rejected: row.rejected || 0,
+      marking_type: row.marking_type || 'unmarked',
+      marking_text: row.marking_text || '',
+      notes: row.notes || ''
+    });
+  }
+
+  async function saveProductionEdit() {
+    if (!editingProduction) return;
+
+    try {
+      const res = await fetch(`${API_URL}/production/${editingProduction.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm)
+      });
+
+      if (res.ok) {
+        alert('Production entry updated successfully');
+        setEditingProduction(null);
+        loadRecent(limit);
+        if (onSubmit) onSubmit();
+      } else {
+        const error = await res.json();
+        alert(`Error: ${error.error}`);
+      }
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
+  }
+
+  async function deleteProduction(id) {
+    if (!confirm('Delete this production entry? Inventory will be adjusted accordingly.')) return;
+
+    try {
+      const res = await fetch(`${API_URL}/production/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('Production entry deleted');
+        setEditingProduction(null);
+        loadRecent(limit);
+        if (onSubmit) onSubmit();
+      } else {
+        const error = await res.json();
+        alert(`Error: ${error.error}`);
+      }
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
+  }
+  const editProductionModal = editingProduction && React.createElement(EditModal, {
+    isOpen: editingProduction !== null,
+    onClose: () => setEditingProduction(null),
+    title: `Edit Production Entry #${editingProduction.id || ''}`
+  },
+    React.createElement('div', { className: 'space-y-4' },
+      React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Production Date'),
+          React.createElement('input', {
+            type: 'date',
+            className: 'border rounded px-3 py-2 w-full',
+            value: editForm.production_date || '',
+            onChange: e => setEditForm({ ...editForm, production_date: e.target.value })
+          })
+        ),
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Product ID'),
+          React.createElement('input', {
+            className: 'border rounded px-3 py-2 w-full bg-gray-100',
+            value: editForm.product_id || '',
+            disabled: true
+          })
+        ),
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Plated'),
+          React.createElement('input', {
+            type: 'number',
+            min: 0,
+            className: 'border rounded px-3 py-2 w-full',
+            value: editForm.plated || 0,
+            onChange: e => setEditForm({ ...editForm, plated: Number(e.target.value || 0) })
+          })
+        ),
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Machined'),
+          React.createElement('input', {
+            type: 'number',
+            min: 0,
+            className: 'border rounded px-3 py-2 w-full',
+            value: editForm.machined || 0,
+            onChange: e => setEditForm({ ...editForm, machined: Number(e.target.value || 0) })
+          })
+        ),
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'QC'),
+          React.createElement('input', {
+            type: 'number',
+            min: 0,
+            className: 'border rounded px-3 py-2 w-full',
+            value: editForm.qc || 0,
+            onChange: e => setEditForm({ ...editForm, qc: Number(e.target.value || 0) })
+          })
+        ),
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Stamped'),
+          React.createElement('input', {
+            type: 'number',
+            min: 0,
+            className: 'border rounded px-3 py-2 w-full',
+            value: editForm.stamped || 0,
+            onChange: e => setEditForm({ ...editForm, stamped: Number(e.target.value || 0) })
+          })
+        ),
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Packed'),
+          React.createElement('input', {
+            type: 'number',
+            min: 0,
+            className: 'border rounded px-3 py-2 w-full',
+            value: editForm.packed || 0,
+            onChange: e => setEditForm({ ...editForm, packed: Number(e.target.value || 0) })
+          })
+        ),
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Rejected'),
+          React.createElement('input', {
+            type: 'number',
+            min: 0,
+            className: 'border rounded px-3 py-2 w-full',
+            value: editForm.rejected || 0,
+            onChange: e => setEditForm({ ...editForm, rejected: Number(e.target.value || 0) })
+          })
+        ),
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Marking Type'),
+          React.createElement('select', {
+            className: 'border rounded px-3 py-2 w-full',
+            value: editForm.marking_type || 'unmarked',
+            onChange: e => setEditForm({ ...editForm, marking_type: e.target.value })
+          },
+            React.createElement('option', { value: 'unmarked' }, 'Unmarked'),
+            React.createElement('option', { value: 'nikkon_brand' }, 'Nikkon Brand'),
+            React.createElement('option', { value: 'client_brand' }, 'Client Brand')
+          )
+        ),
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Marking Text'),
+          React.createElement('input', {
+            className: 'border rounded px-3 py-2 w-full',
+            value: editForm.marking_text || '',
+            onChange: e => setEditForm({ ...editForm, marking_text: e.target.value }),
+            disabled: editForm.marking_type === 'unmarked'
+          })
+        )
+      ),
+      React.createElement('div', null,
+        React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Notes'),
+        React.createElement('textarea', {
+          className: 'border rounded px-3 py-2 w-full',
+          rows: 3,
+          value: editForm.notes || '',
+          onChange: e => setEditForm({ ...editForm, notes: e.target.value })
+        })
+      ),
+
+      React.createElement('div', { className: 'flex justify-between gap-3 pt-4 border-t' },
+        React.createElement('button', {
+          onClick: () => deleteProduction(editingProduction.id),
+          className: 'px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700'
+        }, 'Delete Entry'),
+        React.createElement('div', { className: 'flex gap-3' },
+          React.createElement('button', {
+            onClick: () => setEditingProduction(null),
+            className: 'px-4 py-2 border border-gray-300 rounded hover:bg-gray-50'
+          }, 'Cancel'),
+          React.createElement('button', {
+            onClick: saveProductionEdit,
+            className: 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700'
+          }, 'Save Changes')
+        )
+      )
+    )
+  );
+
   return (
     React.createElement('div', { className: 'bg-white rounded-xl shadow-md p-6 border border-gray-200 space-y-4' },
+      editProductionModal,
       React.createElement('div', { className: 'flex gap-3 items-end' },
         React.createElement('div', null,
           React.createElement('label', { className: 'text-sm font-semibold text-gray-700' }, 'Date'),
@@ -643,6 +842,7 @@ function DailyProduction({ products, onSubmit }){
           title: '',
           data: recent,
           columns: [
+            { key: 'id', label: 'ID' },
             { key: 'production_date', label: 'Date' },
             { key: 'product_description', label: 'Product', render: (val, row) => val || row.product_id },
             { key: 'plated', label: 'Plated', render: (val) => val || 0 },
@@ -654,13 +854,13 @@ function DailyProduction({ products, onSubmit }){
             { key: 'notes', label: 'Notes', render: (val) => val || '-' }
           ],
           primaryKey: 'id',
-          onRowClick: null,
+          onRowClick: handleProductionClick,
           onDelete: null,
           filterOptions: [
             { key: 'product_description', label: 'Product', values: [...new Set(recent.map(r => r.product_description || r.product_id).filter(Boolean))] },
             { key: 'production_date', label: 'Date', values: [...new Set(recent.map(r => r.production_date).filter(Boolean))] }
           ],
-          defaultVisibleColumns: { production_date: true, product_description: true, plated: true, machined: true, qc: true, stamped: true, packed: true, rejected: true, notes: true }
+          defaultVisibleColumns: { id: true, production_date: true, product_description: true, plated: true, machined: true, qc: true, stamped: true, packed: true, rejected: true, notes: true }
         })
       )
     )
@@ -3339,6 +3539,11 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
   const [stockAdjustments, setStockAdjustments] = useState([]);
   const [showAdjustmentsHistory, setShowAdjustmentsHistory] = useState(false);
 
+  // Production Trace state
+  const [tracingInventory, setTracingInventory] = useState(null);
+  const [productionTrace, setProductionTrace] = useState([]);
+  const [traceLimit, setTraceLimit] = useState(50);
+
   React.useEffect(() => {
     setLocalRawMaterials(rawMaterials || []);
   }, [rawMaterials]);
@@ -3466,6 +3671,27 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
       }
     } catch (err) {
       alert(`Error: ${err.message}`);
+    }
+  }
+
+  // Production Trace functions
+  async function handleInventoryClick(row) {
+    if (!row.product_id) return;
+
+    setTracingInventory(row);
+    try {
+      const res = await fetch(`${API_URL}/inventory/${encodeURIComponent(row.product_id)}/production-trace?limit=${traceLimit}`);
+      if (res.ok) {
+        const data = await res.json();
+        setProductionTrace(data || []);
+      } else {
+        alert('Failed to fetch production trace');
+        setProductionTrace([]);
+      }
+    } catch (err) {
+      console.error('Error fetching production trace:', err);
+      alert(`Error: ${err.message}`);
+      setProductionTrace([]);
     }
   }
 
@@ -3599,9 +3825,89 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
     })
   );
 
+  // Production Trace Modal
+  const productionTraceModal = tracingInventory && React.createElement(EditModal, {
+    isOpen: tracingInventory !== null,
+    onClose: () => setTracingInventory(null),
+    title: `Production History - ${tracingInventory.product_description || tracingInventory.product_id}`
+  },
+    React.createElement('div', { className: 'space-y-4' },
+      React.createElement('div', { className: 'bg-blue-50 p-4 rounded border border-blue-200 mb-4' },
+        React.createElement('h4', { className: 'font-semibold text-blue-900 mb-2' }, 'Current Inventory'),
+        React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-3 text-sm' },
+          React.createElement('div', null,
+            React.createElement('div', { className: 'text-blue-700 font-medium' }, 'Steel Rods'),
+            React.createElement('div', { className: 'font-bold text-lg' }, tracingInventory.steel_rods || 0)
+          ),
+          React.createElement('div', null,
+            React.createElement('div', { className: 'text-blue-700 font-medium' }, 'Plated'),
+            React.createElement('div', { className: 'font-bold text-lg' }, tracingInventory.plated || 0)
+          ),
+          React.createElement('div', null,
+            React.createElement('div', { className: 'text-blue-700 font-medium' }, 'Machined'),
+            React.createElement('div', { className: 'font-bold text-lg' }, tracingInventory.machined || 0)
+          ),
+          React.createElement('div', null,
+            React.createElement('div', { className: 'text-blue-700 font-medium' }, 'QC'),
+            React.createElement('div', { className: 'font-bold text-lg' }, tracingInventory.qc || 0)
+          ),
+          React.createElement('div', null,
+            React.createElement('div', { className: 'text-blue-700 font-medium' }, 'Stamped'),
+            React.createElement('div', { className: 'font-bold text-lg' }, tracingInventory.stamped || 0)
+          ),
+          React.createElement('div', null,
+            React.createElement('div', { className: 'text-blue-700 font-medium' }, 'Packed'),
+            React.createElement('div', { className: 'font-bold text-lg' }, tracingInventory.packed || 0)
+          )
+        )
+      ),
+
+      React.createElement('h4', { className: 'font-semibold text-gray-800 mb-2' }, `Recent ${traceLimit} Production Entries`),
+      productionTrace.length === 0 ? (
+        React.createElement('div', { className: 'p-4 bg-gray-50 border border-gray-200 rounded text-center text-gray-600' },
+          'No production history found for this product.'
+        )
+      ) : (
+        React.createElement('div', { className: 'max-h-96 overflow-y-auto' },
+          React.createElement('table', { className: 'min-w-full border-collapse text-sm' },
+            React.createElement('thead', { className: 'bg-gray-100 sticky top-0' },
+              React.createElement('tr', null,
+                ['Date', 'Plated', 'Machined', 'QC', 'Stamped', 'Packed', 'Rejected', 'Notes'].map(h =>
+                  React.createElement('th', { key: h, className: 'p-2 text-left border-b' }, h)
+                )
+              )
+            ),
+            React.createElement('tbody', null,
+              productionTrace.map((entry, idx) =>
+                React.createElement('tr', { key: idx, className: 'border-b hover:bg-gray-50' },
+                  React.createElement('td', { className: 'p-2' }, entry.production_date || '-'),
+                  React.createElement('td', { className: 'p-2 text-right' }, entry.plated || 0),
+                  React.createElement('td', { className: 'p-2 text-right' }, entry.machined || 0),
+                  React.createElement('td', { className: 'p-2 text-right' }, entry.qc || 0),
+                  React.createElement('td', { className: 'p-2 text-right' }, entry.stamped || 0),
+                  React.createElement('td', { className: 'p-2 text-right' }, entry.packed || 0),
+                  React.createElement('td', { className: 'p-2 text-right' }, entry.rejected || 0),
+                  React.createElement('td', { className: 'p-2 text-xs' }, entry.notes || '-')
+                )
+              )
+            )
+          )
+        )
+      ),
+
+      React.createElement('div', { className: 'flex justify-end gap-3 pt-4 border-t' },
+        React.createElement('button', {
+          onClick: () => setTracingInventory(null),
+          className: 'px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700'
+        }, 'Close')
+      )
+    )
+  );
+
   return (
     React.createElement('div', { className:'space-y-6' },
       stockAdjustmentModal,
+      productionTraceModal,
       adjustmentsHistoryTable,
       React.createElement(Section, { title:'Raw Materials' },
         React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-5 gap-3 mb-3' },
@@ -3724,7 +4030,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
             { key: 'total', label: 'Total', render: (val) => val || 0 }
           ],
           primaryKey: 'product_id',
-          onRowClick: null,
+          onRowClick: handleInventoryClick,
           onDelete: null,
           onExport: (data, cols) => downloadCSV('wip-inventory.csv', cols.map(c=>({key:c.key,label:c.label})), data),
           filterOptions: [
