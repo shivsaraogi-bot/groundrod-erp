@@ -756,7 +756,24 @@ function initializeDatabase() {
     db.all("PRAGMA table_info(invoices)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('advance_percent')) db.run("ALTER TABLE invoices ADD COLUMN advance_percent REAL", ()=>{}); if(!n.includes('balance_payment_terms')) db.run("ALTER TABLE invoices ADD COLUMN balance_payment_terms TEXT", ()=>{}); if(!n.includes('mode_of_delivery')) db.run("ALTER TABLE invoices ADD COLUMN mode_of_delivery TEXT", ()=>{}); if(!n.includes('expected_delivery_date')) db.run("ALTER TABLE invoices ADD COLUMN expected_delivery_date TEXT", ()=>{}); } });
     db.all("PRAGMA table_info(vendor_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE vendor_purchase_orders ADD COLUMN is_deleted INTEGER", ()=>{}); } });
     db.all("PRAGMA table_info(shipments)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE shipments ADD COLUMN is_deleted INTEGER", ()=>{}); if(!n.includes('carrier')) db.run("ALTER TABLE shipments ADD COLUMN carrier TEXT", ()=>{}); if(!n.includes('destination')) db.run("ALTER TABLE shipments ADD COLUMN destination TEXT", ()=>{}); if(!n.includes('tracking_number')) db.run("ALTER TABLE shipments ADD COLUMN tracking_number TEXT", ()=>{}); if(!n.includes('tracking_status')) db.run("ALTER TABLE shipments ADD COLUMN tracking_status TEXT", ()=>{}); if(!n.includes('tracking_last_updated')) db.run("ALTER TABLE shipments ADD COLUMN tracking_last_updated DATETIME", ()=>{}); if(!n.includes('estimated_delivery')) db.run("ALTER TABLE shipments ADD COLUMN estimated_delivery TEXT", ()=>{}); if(!n.includes('carrier_detected')) db.run("ALTER TABLE shipments ADD COLUMN carrier_detected TEXT", ()=>{}); } });
-    db.all("PRAGMA table_info(production_history)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE production_history ADD COLUMN is_deleted INTEGER", ()=>{}); } });
+    db.all("PRAGMA table_info(production_history)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE production_history ADD COLUMN is_deleted INTEGER", ()=>{}); if(!n.includes('marking_type')) db.run("ALTER TABLE production_history ADD COLUMN marking_type TEXT DEFAULT 'unmarked'", ()=>{}); if(!n.includes('marking_text')) db.run("ALTER TABLE production_history ADD COLUMN marking_text TEXT", ()=>{}); if(!n.includes('allocated_po_id')) db.run("ALTER TABLE production_history ADD COLUMN allocated_po_id TEXT", ()=>{}); } });
+    db.all("PRAGMA table_info(client_po_line_items)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('marking_type')) db.run("ALTER TABLE client_po_line_items ADD COLUMN marking_type TEXT DEFAULT 'unmarked'", ()=>{}); if(!n.includes('marking_text')) db.run("ALTER TABLE client_po_line_items ADD COLUMN marking_text TEXT", ()=>{}); } });
+
+    // Inventory allocations table for tracking marked/branded inventory
+    db.run(`CREATE TABLE IF NOT EXISTS inventory_allocations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id TEXT NOT NULL,
+      stage TEXT NOT NULL,
+      marking_type TEXT NOT NULL,
+      marking_text TEXT,
+      quantity INTEGER NOT NULL,
+      allocated_po_id TEXT,
+      allocated_date DATE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (product_id) REFERENCES products(id),
+      FOREIGN KEY (allocated_po_id) REFERENCES client_purchase_orders(id)
+    )`);
+
     insertSampleData();
   });
 }
