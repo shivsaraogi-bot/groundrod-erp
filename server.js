@@ -17,11 +17,12 @@ app.use(express.static('public'));
 // Serve uploaded PDFs statically as well
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Optional PDF import deps (guarded)
-let multer = null; let pdfParse = null; let csvParse = null; let AfterShip = null;
+let multer = null; let pdfParse = null; let csvParse = null; let AfterShip = null; let GoogleGenerativeAI = null;
 try { multer = require('multer'); } catch(_) {}
 try { pdfParse = require('pdf-parse'); } catch(_) {}
 try { csvParse = require('csv-parse/sync'); } catch(_) {}
 try { AfterShip = require('aftership').default || require('aftership'); } catch(_) {}
+try { GoogleGenerativeAI = require('@google/generative-ai').GoogleGenerativeAI; } catch(_) {}
 const upload = multer ? multer({ storage: multer.memoryStorage() }) : null;
 
 function normalizeDateInput(d){
@@ -4322,6 +4323,273 @@ app.post('/api/inventory/check-availability', (req, res) => {
       });
     }
   );
+});
+
+// ============================================================================
+// GEMINI AI CHATBOT ENDPOINT
+// ============================================================================
+
+app.post('/api/chat', async (req, res) => {
+  if (!GoogleGenerativeAI) {
+    return res.status(503).json({ error: 'Gemini AI not available. Install @google/generative-ai package.' });
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'GEMINI_API_KEY not configured in environment variables' });
+  }
+
+  try {
+    const { message, conversationHistory = [] } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    // Fetch current system data for context
+    const products = await new Promise((resolve, reject) => {
+      db.all('SELECT * FROM products WHERE is_deleted = 0 ORDER BY id', [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    const inventory = await new Promise((resolve, reject) => {
+      db.all('SELECT * FROM inventory', [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    const customers = await new Promise((resolve, reject) => {
+      db.all('SELECT * FROM customers WHERE is_deleted = 0 ORDER BY id', [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    const vendors = await new Promise((resolve, reject) => {
+      db.all('SELECT * FROM vendors WHERE is_deleted = 0 ORDER BY id', [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    const clientPOs = await new Promise((resolve, reject) => {
+      db.all(`SELECT po.*, c.name as customer_name
+              FROM client_purchase_orders po
+              LEFT JOIN customers c ON po.customer_id = c.id
+              WHERE po.is_deleted = 0
+              ORDER BY po.po_date DESC LIMIT 50`, [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    const recentProduction = await new Promise((resolve, reject) => {
+      db.all(`SELECT * FROM production_history
+              ORDER BY production_date DESC LIMIT 20`, [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    const rawMaterials = await new Promise((resolve, reject) => {
+      db.all('SELECT * FROM raw_materials_inventory', [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    // Build comprehensive system prompt
+    const systemPrompt = `You are an intelligent ERP assistant for a copper bonded ground rod manufacturing company. Your role is to help users with:
+1. **Querying data** - Answer questions about inventory, orders, production, etc.
+2. **Guided data entry** - Help users create orders, record production, etc. by asking clarifying questions
+3. **Smart suggestions** - Provide recommendations based on patterns and business rules
+4. **Validation** - Warn about potential issues (e.g., low inventory, unusual quantities)
+
+# Current System Data (as of ${new Date().toISOString().slice(0,10)}):
+
+## Products (${products.length} total):
+${products.slice(0, 10).map(p => `- ${p.id}: ${p.description} (${p.diameter}${p.diameter_unit} × ${p.length}${p.length_unit})`).join('\n')}
+${products.length > 10 ? `... and ${products.length - 10} more` : ''}
+
+## Current Inventory Summary:
+${inventory.slice(0, 10).map(inv => {
+  const prod = products.find(p => p.id === inv.product_id);
+  return `- ${inv.product_id} (${prod?.description || 'Unknown'}): Cores: ${inv.cores || 0}, Plated: ${inv.plated || 0}, Machined: ${inv.machined || 0}, QC: ${inv.qc || 0}, Stamped: ${inv.stamped || 0}, Packed: ${inv.packed || 0}`;
+}).join('\n')}
+
+## Customers (${customers.length} total):
+${customers.slice(0, 10).map(c => `- ${c.id}: ${c.name}`).join('\n')}
+${customers.length > 10 ? `... and ${customers.length - 10} more` : ''}
+
+## Vendors (${vendors.length} total):
+${vendors.slice(0, 10).map(v => `- ${v.id}: ${v.name}`).join('\n')}
+${vendors.length > 10 ? `... and ${vendors.length - 10} more` : ''}
+
+## Recent Client Orders (${clientPOs.length} shown):
+${clientPOs.slice(0, 5).map(po => `- ${po.id}: ${po.customer_name} - Status: ${po.status} - Date: ${po.po_date}`).join('\n')}
+
+## Recent Production Activity:
+${recentProduction.slice(0, 5).map(p => `- ${p.production_date}: ${p.product_id} - Plated: ${p.plated || 0}, Machined: ${p.machined || 0}, QC: ${p.qc || 0}, Stamped: ${p.stamped || 0}, Packed: ${p.packed || 0}`).join('\n')}
+
+## Raw Materials Inventory:
+${rawMaterials.map(rm => `- ${rm.material}: ${rm.current_stock} ${rm.unit} (Committed: ${rm.committed_stock || 0})`).join('\n')}
+
+# Production Workflow:
+Steel Cores → Plating → Machining → QC → Stamping/Marking → Packing
+(Each stage consumes from previous stage - sequential flow)
+
+# Your Capabilities:
+
+**READ-ONLY QUERIES** (You can answer directly):
+- "Show me inventory for product X"
+- "What orders are pending for customer Y?"
+- "Which vendors do we use for copper?"
+- "What was produced yesterday?"
+
+**GUIDED DATA ENTRY** (Ask questions, then return action JSON):
+When user wants to create/update data:
+1. Ask clarifying questions one at a time
+2. Validate inputs and warn about issues
+3. Once you have all info, return JSON in this format:
+
+{
+  "action": "create_vendor_po" | "record_production" | "create_shipment" | "update_order_status" | etc.,
+  "data": {
+    // All required fields
+  },
+  "needsConfirmation": true/false,
+  "warnings": ["Optional warning messages"]
+}
+
+**SMART SUGGESTIONS**:
+- Suggest recently used vendors/customers
+- Warn about low inventory
+- Flag unusual quantities (e.g., 10x normal)
+- Remind about sequential production flow
+
+# Important Business Rules:
+1. Production is SEQUENTIAL: Can't pack without stamping, can't stamp without QC, etc.
+2. Marking types: unmarked (flexible), nikkon_brand (semi-flexible), client_brand (locked to customer)
+3. Always validate inventory availability before confirming operations
+4. Job Work types: Steel Core Production, Custom Machining, Other Processing
+
+# Response Guidelines:
+- Be concise and friendly
+- Use bullet points for lists
+- Include relevant numbers/data
+- Ask ONE clarifying question at a time (not multiple)
+- If ambiguous (e.g., "ABC order" but 3 exist), ask which one
+- For complex operations, break into steps
+
+User message: ${message}`;
+
+    // Call Gemini API
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const result = await model.generateContent(systemPrompt);
+    const response = await result.response;
+    const text = response.text();
+
+    // Check if response contains action JSON
+    let actionData = null;
+    const jsonMatch = text.match(/\{[\s\S]*"action"[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        actionData = JSON.parse(jsonMatch[0]);
+      } catch (e) {
+        // Not valid JSON, treat as regular text
+      }
+    }
+
+    res.json({
+      response: text,
+      action: actionData,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Gemini API error:', error);
+    res.status(500).json({
+      error: 'Failed to process chat message',
+      details: error.message
+    });
+  }
+});
+
+// Action execution endpoint (for confirmed actions from chatbot)
+app.post('/api/chat/execute', async (req, res) => {
+  try {
+    const { action, data } = req.body;
+
+    if (!action || !data) {
+      return res.status(400).json({ error: 'Action and data required' });
+    }
+
+    // Execute the requested action
+    switch (action) {
+      case 'create_vendor_po':
+        // Reuse existing endpoint logic
+        const vpoId = data.id || `VPO-${Date.now()}`;
+        db.run(
+          `INSERT INTO vendor_purchase_orders (id, vendor_id, po_date, due_date, status, notes) VALUES (?,?,?,?,?,?)`,
+          [vpoId, data.vendor_id, data.po_date, data.due_date || null, data.status || 'Pending', data.notes || ''],
+          (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, message: `Created vendor PO ${vpoId}`, id: vpoId });
+          }
+        );
+        break;
+
+      case 'record_production':
+        // Similar to existing production endpoint
+        const { production_date, entries } = data;
+        if (!entries || !Array.isArray(entries)) {
+          return res.status(400).json({ error: 'Entries array required' });
+        }
+
+        db.serialize(() => {
+          db.run('BEGIN');
+
+          const stmt = db.prepare(`INSERT INTO production_history
+            (production_date, product_id, plated, machined, qc, stamped, packed, rejected, notes, marking_type, marking_text)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+
+          entries.forEach(entry => {
+            stmt.run([
+              production_date,
+              entry.product_id,
+              entry.plated || 0,
+              entry.machined || 0,
+              entry.qc || 0,
+              entry.stamped || 0,
+              entry.packed || 0,
+              entry.rejected || 0,
+              entry.notes || '',
+              entry.marking_type || 'unmarked',
+              entry.marking_text || null
+            ]);
+          });
+
+          stmt.finalize();
+          db.run('COMMIT', (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, message: 'Production recorded successfully' });
+          });
+        });
+        break;
+
+      default:
+        res.status(400).json({ error: `Unknown action: ${action}` });
+    }
+
+  } catch (error) {
+    console.error('Action execution error:', error);
+    res.status(500).json({ error: 'Failed to execute action', details: error.message });
+  }
 });
 
 app.get('*', (req, res) => {

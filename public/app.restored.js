@@ -1,5 +1,225 @@
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
 const API_URL = window.location.origin + '/api';
+
+// ============================================================================
+// GEMINI AI CHATBOT WIDGET
+// ============================================================================
+
+function ChatWidget() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState([
+    { role: 'bot', content: '👋 Hi! I\'m your ERP assistant. Ask me about inventory, orders, or let me help you add data to the system!' }
+  ]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  async function sendMessage() {
+    if (!input.trim() || loading) return;
+
+    const userMessage = input.trim();
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API_URL}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMessage })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessages(prev => [...prev, {
+          role: 'bot',
+          content: `❌ Error: ${data.error || 'Failed to process message'}`
+        }]);
+        return;
+      }
+
+      // Add bot response
+      setMessages(prev => [...prev, { role: 'bot', content: data.response }]);
+
+      // If action required, show confirmation buttons
+      if (data.action) {
+        setPendingAction(data.action);
+      }
+
+    } catch (error) {
+      setMessages(prev => [...prev, {
+        role: 'bot',
+        content: `❌ Error: ${error.message}`
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function executeAction() {
+    if (!pendingAction) return;
+
+    setLoading(true);
+    setMessages(prev => [...prev, { role: 'user', content: '✅ Confirmed' }]);
+
+    try {
+      const res = await fetch(`${API_URL}/chat/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pendingAction)
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setMessages(prev => [...prev, {
+          role: 'bot',
+          content: `✅ ${data.message || 'Action completed successfully!'}`
+        }]);
+      } else {
+        setMessages(prev => [...prev, {
+          role: 'bot',
+          content: `❌ Error: ${data.error || 'Failed to execute action'}`
+        }]);
+      }
+
+      setPendingAction(null);
+    } catch (error) {
+      setMessages(prev => [...prev, {
+        role: 'bot',
+        content: `❌ Error: ${error.message}`
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function cancelAction() {
+    setPendingAction(null);
+    setMessages(prev => [...prev, { role: 'user', content: '❌ Cancelled' }]);
+  }
+
+  if (!isOpen) {
+    return React.createElement('button', {
+      onClick: () => setIsOpen(true),
+      className: 'fixed bottom-6 right-6 w-16 h-16 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 flex items-center justify-center text-2xl z-50 transition-transform hover:scale-110',
+      title: 'Open AI Assistant'
+    }, '🤖');
+  }
+
+  return React.createElement('div', {
+    className: 'fixed bottom-6 right-6 w-96 h-[600px] bg-white rounded-lg shadow-2xl flex flex-col z-50 border border-gray-200'
+  },
+    // Header
+    React.createElement('div', {
+      className: 'bg-blue-600 text-white p-4 rounded-t-lg flex justify-between items-center'
+    },
+      React.createElement('div', { className: 'flex items-center gap-2' },
+        React.createElement('span', { className: 'text-2xl' }, '🤖'),
+        React.createElement('div', null,
+          React.createElement('div', { className: 'font-semibold' }, 'ERP Assistant'),
+          React.createElement('div', { className: 'text-xs opacity-90' }, 'Powered by Gemini AI')
+        )
+      ),
+      React.createElement('button', {
+        onClick: () => setIsOpen(false),
+        className: 'text-white hover:bg-blue-700 rounded px-2 py-1'
+      }, '✕')
+    ),
+
+    // Messages
+    React.createElement('div', {
+      className: 'flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50'
+    },
+      messages.map((msg, idx) =>
+        React.createElement('div', {
+          key: idx,
+          className: `flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`
+        },
+          React.createElement('div', {
+            className: `max-w-[80%] rounded-lg p-3 ${
+              msg.role === 'user'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-800 border border-gray-200'
+            }`
+          },
+            React.createElement('div', {
+              className: 'text-sm whitespace-pre-wrap',
+              style: { wordBreak: 'break-word' }
+            }, msg.content)
+          )
+        )
+      ),
+      loading && React.createElement('div', {
+        className: 'flex justify-start'
+      },
+        React.createElement('div', {
+          className: 'bg-white border border-gray-200 rounded-lg p-3'
+        },
+          React.createElement('div', { className: 'flex gap-1' },
+            React.createElement('div', {
+              className: 'w-2 h-2 bg-blue-600 rounded-full animate-bounce',
+              style: { animationDelay: '0ms' }
+            }),
+            React.createElement('div', {
+              className: 'w-2 h-2 bg-blue-600 rounded-full animate-bounce',
+              style: { animationDelay: '150ms' }
+            }),
+            React.createElement('div', {
+              className: 'w-2 h-2 bg-blue-600 rounded-full animate-bounce',
+              style: { animationDelay: '300ms' }
+            })
+          )
+        )
+      ),
+      React.createElement('div', { ref: messagesEndRef })
+    ),
+
+    // Action confirmation buttons
+    pendingAction && React.createElement('div', {
+      className: 'p-3 bg-yellow-50 border-t border-yellow-200 flex gap-2'
+    },
+      React.createElement('button', {
+        onClick: executeAction,
+        disabled: loading,
+        className: 'flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 text-sm font-semibold'
+      }, '✅ Confirm & Execute'),
+      React.createElement('button', {
+        onClick: cancelAction,
+        disabled: loading,
+        className: 'px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 disabled:opacity-50 text-sm'
+      }, '❌ Cancel')
+    ),
+
+    // Input area
+    React.createElement('div', {
+      className: 'p-4 border-t border-gray-200 bg-white rounded-b-lg'
+    },
+      React.createElement('div', { className: 'flex gap-2' },
+        React.createElement('input', {
+          type: 'text',
+          value: input,
+          onChange: e => setInput(e.target.value),
+          onKeyPress: e => e.key === 'Enter' && sendMessage(),
+          placeholder: 'Ask me anything...',
+          disabled: loading,
+          className: 'flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50'
+        }),
+        React.createElement('button', {
+          onClick: sendMessage,
+          disabled: !input.trim() || loading,
+          className: 'px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+        }, '→')
+      )
+    )
+  );
+}
 
 function GroundRodERP() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -125,7 +345,9 @@ function GroundRodERP() {
         activeTab === 'products' && React.createElement(ProductMasterEx, { products, calculateWeights, onRefresh: fetchAllData }),
         activeTab === 'customers' && React.createElement(CustomerManagementEx, { customers, onRefresh: fetchAllData }),
         activeTab === 'vendors' && React.createElement(VendorManagement, { vendors, onRefresh: fetchAllData }),
-      )
+      ),
+      // AI Chatbot Widget - floating button in bottom-right corner
+      React.createElement(ChatWidget)
     )
   );
 }
