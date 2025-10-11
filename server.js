@@ -4489,8 +4489,8 @@ User message: ${message}`;
     // Call Gemini API with fallback model detection
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // Try multiple model names in order of preference
-    const modelNames = ['gemini-1.5-flash-latest', 'gemini-1.5-pro-latest', 'gemini-pro', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+    // Try multiple model names in order of preference (newest first)
+    const modelNames = ['gemini-2.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro-latest', 'gemini-pro', 'gemini-1.5-flash', 'gemini-1.5-pro'];
     let model = null;
     let lastError = null;
 
