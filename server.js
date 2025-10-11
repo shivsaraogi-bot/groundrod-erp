@@ -758,6 +758,7 @@ function initializeDatabase() {
     db.all("PRAGMA table_info(shipments)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE shipments ADD COLUMN is_deleted INTEGER", ()=>{}); if(!n.includes('carrier')) db.run("ALTER TABLE shipments ADD COLUMN carrier TEXT", ()=>{}); if(!n.includes('destination')) db.run("ALTER TABLE shipments ADD COLUMN destination TEXT", ()=>{}); if(!n.includes('tracking_number')) db.run("ALTER TABLE shipments ADD COLUMN tracking_number TEXT", ()=>{}); if(!n.includes('tracking_status')) db.run("ALTER TABLE shipments ADD COLUMN tracking_status TEXT", ()=>{}); if(!n.includes('tracking_last_updated')) db.run("ALTER TABLE shipments ADD COLUMN tracking_last_updated DATETIME", ()=>{}); if(!n.includes('estimated_delivery')) db.run("ALTER TABLE shipments ADD COLUMN estimated_delivery TEXT", ()=>{}); if(!n.includes('carrier_detected')) db.run("ALTER TABLE shipments ADD COLUMN carrier_detected TEXT", ()=>{}); } });
     db.all("PRAGMA table_info(production_history)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE production_history ADD COLUMN is_deleted INTEGER", ()=>{}); if(!n.includes('marking_type')) db.run("ALTER TABLE production_history ADD COLUMN marking_type TEXT DEFAULT 'unmarked'", ()=>{}); if(!n.includes('marking_text')) db.run("ALTER TABLE production_history ADD COLUMN marking_text TEXT", ()=>{}); if(!n.includes('allocated_po_id')) db.run("ALTER TABLE production_history ADD COLUMN allocated_po_id TEXT", ()=>{}); } });
     db.all("PRAGMA table_info(client_po_line_items)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('marking_type')) db.run("ALTER TABLE client_po_line_items ADD COLUMN marking_type TEXT DEFAULT 'unmarked'", ()=>{}); if(!n.includes('marking_text')) db.run("ALTER TABLE client_po_line_items ADD COLUMN marking_text TEXT", ()=>{}); } });
+    db.all("PRAGMA table_info(job_work_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('raw_steel_material')) db.run("ALTER TABLE job_work_orders ADD COLUMN raw_steel_material TEXT", ()=>{}); if(!n.includes('steel_consumed')) db.run("ALTER TABLE job_work_orders ADD COLUMN steel_consumed REAL", ()=>{}); if(!n.includes('cores_produced')) db.run("ALTER TABLE job_work_orders ADD COLUMN cores_produced INTEGER", ()=>{}); if(!n.includes('cores_rejected')) db.run("ALTER TABLE job_work_orders ADD COLUMN cores_rejected INTEGER", ()=>{}); if(!n.includes('core_product_id')) db.run("ALTER TABLE job_work_orders ADD COLUMN core_product_id TEXT", ()=>{}); } });
 
     // Inventory allocations table for tracking marked/branded inventory
     db.run(`CREATE TABLE IF NOT EXISTS inventory_allocations (
@@ -1851,19 +1852,22 @@ app.get('/api/jobwork/orders', (req, res) => {
   });
 });
 app.post('/api/jobwork/orders', (req, res) => {
-  const { id, vendor_id, jw_date, due_date, job_type='Rod Making', status='Open', notes='' } = req.body||{};
+  const { id, vendor_id, jw_date, due_date, job_type='Steel Core Production', status='Open', notes='', raw_steel_material, steel_consumed, cores_produced, cores_rejected, core_product_id } = req.body||{};
   if (!id || !jw_date) return res.status(400).json({ error:'id and jw_date required' });
-  db.run(`INSERT INTO job_work_orders (id, vendor_id, jw_date, due_date, job_type, status, notes, created_at, updated_at)
-          VALUES (?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`, [id, vendor_id||'', jw_date, due_date||'', job_type, status, notes], function(err){
+
+  db.run(`INSERT INTO job_work_orders (id, vendor_id, jw_date, due_date, job_type, status, notes, raw_steel_material, steel_consumed, cores_produced, cores_rejected, core_product_id, created_at, updated_at)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`,
+          [id, vendor_id||'', jw_date, due_date||'', job_type, status, notes, raw_steel_material||null, steel_consumed||null, cores_produced||null, cores_rejected||null, core_product_id||null],
+          function(err){
     if (err) return res.status(500).json({ error: err.message });
     res.json({ message:'JWO created' });
   });
 });
 app.put('/api/jobwork/orders/:id', (req, res) => {
   const { id } = req.params;
-  const { vendor_id, jw_date, due_date, job_type, status, notes } = req.body||{};
-  db.run(`UPDATE job_work_orders SET vendor_id=?, jw_date=?, due_date=?, job_type=?, status=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-    [vendor_id||'', jw_date||'', due_date||'', job_type||'Rod Making', status||'Open', notes||'', id], function(err){
+  const { vendor_id, jw_date, due_date, job_type, status, notes, raw_steel_material, steel_consumed, cores_produced, cores_rejected, core_product_id } = req.body||{};
+  db.run(`UPDATE job_work_orders SET vendor_id=?, jw_date=?, due_date=?, job_type=?, status=?, notes=?, raw_steel_material=?, steel_consumed=?, cores_produced=?, cores_rejected=?, core_product_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+    [vendor_id||'', jw_date||'', due_date||'', job_type||'Steel Core Production', status||'Open', notes||'', raw_steel_material||null, steel_consumed||null, cores_produced||null, cores_rejected||null, core_product_id||null, id], function(err){
       if (err) return res.status(500).json({ error: err.message });
       res.json({ message:'JWO updated' });
     });
@@ -1905,15 +1909,43 @@ app.post('/api/jobwork/orders/:id/receive', (req,res)=>{
   if (!items.length) return res.status(400).json({ error:'No items' });
 
   // Get the job work order to determine job_type
-  db.get('SELECT job_type FROM job_work_orders WHERE id=?', [id], (err, order)=>{
+  db.get('SELECT job_type, raw_steel_material, steel_consumed, cores_produced, cores_rejected, core_product_id FROM job_work_orders WHERE id=?', [id], (err, order)=>{
     if (err) return res.status(500).json({ error: err.message });
     if (!order) return res.status(404).json({ error: 'Job work order not found' });
 
-    const jobType = order.job_type || 'Rod Making';
+    const jobType = order.job_type || 'Steel Core Production';
 
     db.serialize(()=>{
       db.run('BEGIN');
       try{
+        // Handle Steel Core Production separately (doesn't use items)
+        if (jobType === 'Steel Core Production') {
+          const pid = order.core_product_id;
+          const coresProduced = Number(order.cores_produced || 0);
+          const steelConsumed = Number(order.steel_consumed || 0);
+          const rawSteelMaterial = order.raw_steel_material;
+
+          if (pid && coresProduced > 0 && steelConsumed > 0 && rawSteelMaterial) {
+            // Add cores to inventory
+            db.run(`INSERT INTO inventory (product_id, cores, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(product_id) DO UPDATE SET cores = cores + excluded.cores, updated_at=CURRENT_TIMESTAMP`, [pid, coresProduced]);
+
+            // Consume raw steel from raw materials inventory
+            db.run(`UPDATE raw_materials_inventory
+                    SET current_stock = MAX(0, current_stock - ?), updated_at = CURRENT_TIMESTAMP
+                    WHERE material = ?`, [steelConsumed, rawSteelMaterial]);
+
+            // Record receipt
+            db.run(`INSERT INTO job_work_receipts (order_id, product_id, qty, received_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)`, [id, pid, coresProduced]);
+          }
+
+          // Update job work order status to Completed
+          db.run('UPDATE job_work_orders SET status = ? WHERE id = ?', ['Completed', id]);
+
+          db.run('COMMIT', (e)=>{ if(e) return res.status(500).json({ error:e.message }); res.json({ message:`Steel Core Production job work received`, cores_produced: coresProduced }); });
+          return;
+        }
+
         items.forEach(it=>{
           const pid = it.product_id; const qty = Number(it.qty||0);
           if (!pid || !(qty>0)) return;

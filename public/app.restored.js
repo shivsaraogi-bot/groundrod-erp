@@ -1870,8 +1870,10 @@ function JobWorkOrders({ vendors, products, onRefresh }){
   const [editing, setEditing] = useState(null);
   const listSectionRef = React.useRef(null);
 
-  const JOB_TYPES = ['Rod Making', 'Plating'];
+  const JOB_TYPES = ['Steel Core Production', 'Custom Machining', 'Other Processing'];
   const STATUSES = ['Open', 'In Progress', 'Completed', 'Cancelled'];
+  // NOTE: Steel Core Production type requires additional fields like in Drawing Operations
+  // TODO: Add conditional UI fields when job_type === 'Steel Core Production'
 
   React.useEffect(() => {
     refreshOrders();
