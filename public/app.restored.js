@@ -413,17 +413,17 @@ function Header({ onRefresh }){
 
 function NavTabs({ activeTab, setActiveTab }){
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard' },
-    { id: 'production', label: 'Production' },
-    { id: 'client-orders', label: 'Client Orders' },
-    { id: 'invoices', label: 'Invoices' },
-    { id: 'vendor-orders', label: 'Vendor Orders' },
-    { id: 'job-work', label: 'Job Work' },
-    { id: 'shipments', label: 'Shipments' },
-    { id: 'inventory', label: 'Inventory' },
-    { id: 'products', label: 'Products' },
-    { id: 'customers', label: 'Customers' },
-    { id: 'vendors', label: 'Vendors' },
+    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'production', label: 'Production', icon: '⚙️' },
+    { id: 'client-orders', label: 'Client Orders', icon: '📋' },
+    { id: 'invoices', label: 'Invoices', icon: '💰' },
+    { id: 'vendor-orders', label: 'Vendor Orders', icon: '📦' },
+    { id: 'job-work', label: 'Job Work', icon: '🔧' },
+    { id: 'shipments', label: 'Shipments', icon: '🚚' },
+    { id: 'inventory', label: 'Inventory', icon: '📦' },
+    { id: 'products', label: 'Products', icon: '🏭' },
+    { id: 'customers', label: 'Customers', icon: '👥' },
+    { id: 'vendors', label: 'Vendors', icon: '🏢' },
   ];
   return (
     React.createElement('nav', { className: 'bg-white shadow-md border-b-2 border-gray-200' },
@@ -432,8 +432,11 @@ function NavTabs({ activeTab, setActiveTab }){
           tabs.map(tab => (
             React.createElement('button', {
               key: tab.id, onClick: () => setActiveTab(tab.id),
-              className: `px-5 py-3 font-semibold transition-all whitespace-nowrap rounded-t-lg ${activeTab === tab.id ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-blue-50'}`
-            }, tab.label)
+              className: `px-5 py-3 font-semibold transition-all whitespace-nowrap rounded-t-lg flex items-center gap-2 ${activeTab === tab.id ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'}`
+            },
+              React.createElement('span', { className: 'text-xl' }, tab.icon),
+              React.createElement('span', null, tab.label)
+            )
           ))
         )
       )
