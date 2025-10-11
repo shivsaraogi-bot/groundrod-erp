@@ -4490,13 +4490,20 @@ User message: ${message}`;
     const ai = new GoogleGenAI({ apiKey });
 
     // Use gemini-2.5-flash model (user confirmed this is available)
-    const response = await ai.models.generateContent({
+    const result = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: systemPrompt
     });
 
-    const text = response.text;
-    console.log(`✅ Gemini response received`);
+    // Extract text from response - new SDK returns candidates array
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    if (!text) {
+      console.error('Gemini response structure:', JSON.stringify(result, null, 2));
+      throw new Error('No text content in Gemini response');
+    }
+
+    console.log(`✅ Gemini response received: ${text.substring(0, 100)}...`);
 
     // Check if response contains action JSON
     let actionData = null;
