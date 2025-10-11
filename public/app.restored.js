@@ -351,8 +351,8 @@ function DailyProduction({ products, onSubmit }){
     try { const r = await fetch(`${API_URL}/production?limit=${encodeURIComponent(l||limit)}`); setRecent(await r.json()); } catch {}
   }
   useEffect(()=>{ loadRecent(limit); },[]);
-  function addEntry(){ setEntries([...entries, { product_id: products[0]?.id || '', plated:0,machined:0,qc:0,stamped:0,packed:0,rejected:0,notes:'' }]); }
-  function updateEntry(i, field, val){ const e=[...entries]; e[i][field]= (['notes','product_id'].includes(field))? val : Number(val||0); setEntries(e); }
+  function addEntry(){ setEntries([...entries, { product_id: products[0]?.id || '', plated:0,machined:0,qc:0,stamped:0,packed:0,rejected:0,notes:'', marking_type:'unmarked', marking_text:'' }]); }
+  function updateEntry(i, field, val){ const e=[...entries]; e[i][field]= (['notes','product_id','marking_type','marking_text'].includes(field))? val : Number(val||0); setEntries(e); }
   async function save(){ await fetch(`${API_URL}/production`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ date, entries }) }); setEntries([]); onSubmit?.(); alert('Production saved'); loadRecent(limit); }
   return (
     React.createElement('div', { className: 'bg-white rounded-xl shadow-md p-6 border border-gray-200 space-y-4' },
@@ -368,24 +368,40 @@ function DailyProduction({ products, onSubmit }){
         React.createElement('table', { className: 'min-w-full border-collapse' },
           React.createElement('thead', null,
             React.createElement('tr', { className: 'bg-gray-100' },
-              ['Product','Plated','Machined','QC','Stamped','Packed','Rejected','Notes'].map(h=> React.createElement('th', { key: h, className: 'p-2' }, h))
+              ['Product','Plated','Machined','QC','Stamped','Packed','Rejected','Marking Type','Marking Text','Notes'].map(h=> React.createElement('th', { key: h, className: 'p-2 text-xs' }, h))
             )
           ),
           React.createElement('tbody', null,
             entries.map((en,i)=> (
               React.createElement('tr', { key: i, className: 'border-b' },
                 React.createElement('td', { className: 'p-2' },
-                  React.createElement('select', { value: en.product_id, onChange: e=>updateEntry(i,'product_id',e.target.value), className: 'border rounded px-2 py-1' },
+                  React.createElement('select', { value: en.product_id, onChange: e=>updateEntry(i,'product_id',e.target.value), className: 'border rounded px-2 py-1 text-sm' },
                     products.map(p=> React.createElement('option', { key: p.id, value: p.id }, `${p.id} - ${p.description}`))
                   )
                 ),
                 ['plated','machined','qc','stamped','packed','rejected'].map(f=> (
                   React.createElement('td', { key: f, className: 'p-2' },
-                    React.createElement('input', { type: 'number', min: 0, value: en[f], onChange: e=>updateEntry(i,f,e.target.value), className: 'w-24 border rounded px-2 py-1 text-right' })
+                    React.createElement('input', { type: 'number', min: 0, value: en[f], onChange: e=>updateEntry(i,f,e.target.value), className: 'w-20 border rounded px-2 py-1 text-right text-sm' })
                   )
                 )),
                 React.createElement('td', { className: 'p-2' },
-                  React.createElement('input', { value: en.notes, onChange: e=>updateEntry(i,'notes',e.target.value), className: 'border rounded px-2 py-1' })
+                  React.createElement('select', { value: en.marking_type||'unmarked', onChange: e=>updateEntry(i,'marking_type',e.target.value), className: 'border rounded px-2 py-1 text-sm' },
+                    React.createElement('option', { value: 'unmarked' }, 'Unmarked'),
+                    React.createElement('option', { value: 'nikkon_brand' }, 'Nikkon Brand'),
+                    React.createElement('option', { value: 'client_brand' }, 'Client Brand')
+                  )
+                ),
+                React.createElement('td', { className: 'p-2' },
+                  React.createElement('input', {
+                    value: en.marking_text||'',
+                    onChange: e=>updateEntry(i,'marking_text',e.target.value),
+                    className: 'w-32 border rounded px-2 py-1 text-sm',
+                    placeholder: en.marking_type==='client_brand' ? 'e.g., ABC Corp' : en.marking_type==='nikkon_brand' ? 'Nikkon Ferro' : 'N/A',
+                    disabled: en.marking_type==='unmarked'
+                  })
+                ),
+                React.createElement('td', { className: 'p-2' },
+                  React.createElement('input', { value: en.notes||'', onChange: e=>updateEntry(i,'notes',e.target.value), className: 'border rounded px-2 py-1 text-sm' })
                 )
               )
             ))

@@ -2465,8 +2465,8 @@ app.post('/api/production', (req, res) => {
 
     const stmt = db.prepare(`
       INSERT INTO production_history
-      (production_date, product_id, plated, machined, qc, stamped, packed, rejected, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (production_date, product_id, plated, machined, qc, stamped, packed, rejected, notes, marking_type, marking_text, allocated_po_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     let processedCount = 0;
@@ -2482,7 +2482,10 @@ app.post('/api/production', (req, res) => {
         entry.stamped || 0,
         entry.packed || 0,
         entry.rejected || 0,
-        entry.notes || ''
+        entry.notes || '',
+        entry.marking_type || 'unmarked',
+        entry.marking_text || null,
+        entry.allocated_po_id || null
       ], function(histErr) {
         if (histErr) { failed = true; failedMsg = histErr.message; return; }
 
@@ -2525,6 +2528,33 @@ app.post('/api/production', (req, res) => {
           packedQty
         ], (invErr) => {
           if (invErr) { failed = true; failedMsg = invErr.message; return; }
+
+          // MARKING/ALLOCATION TRACKING: Record marked inventory for stamped and packed stages
+          const markingType = entry.marking_type || 'unmarked';
+          const markingText = entry.marking_text || null;
+          const allocatedPOId = entry.allocated_po_id || null;
+
+          // Record stamped inventory allocation if stamped quantity > 0
+          if (stampedQty > 0) {
+            db.run(`
+              INSERT INTO inventory_allocations
+              (product_id, stage, marking_type, marking_text, quantity, allocated_po_id, allocated_date)
+              VALUES (?, 'stamped', ?, ?, ?, ?, ?)
+            `, [entry.product_id, markingType, markingText, stampedQty, allocatedPOId, date], (allocErr) => {
+              if (allocErr) console.warn('Stamped allocation tracking warning:', allocErr.message);
+            });
+          }
+
+          // Record packed inventory allocation if packed quantity > 0
+          if (packedQty > 0) {
+            db.run(`
+              INSERT INTO inventory_allocations
+              (product_id, stage, marking_type, marking_text, quantity, allocated_po_id, allocated_date)
+              VALUES (?, 'packed', ?, ?, ?, ?, ?)
+            `, [entry.product_id, markingType, markingText, packedQty, allocatedPOId, date], (allocErr) => {
+              if (allocErr) console.warn('Packed allocation tracking warning:', allocErr.message);
+            });
+          }
 
           // CRITICAL: Consume raw materials based on BOM for packed (finished) quantity
           const packedUnits = Number(entry.packed||0);
