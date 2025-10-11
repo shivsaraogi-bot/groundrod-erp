@@ -28,7 +28,10 @@
       "Bash(npm rebuild:*)",
       "Bash(del groundrod.db)",
       "Bash(copy groundrod-test.db groundrod.db)",
-      "Bash(git remote get-url:*)"
+      "Bash(git remote get-url:*)",
+      "Bash(Start-Sleep 5)",
+      "Bash(npm info:*)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": [],
     "ask": []

@@ -17,12 +17,12 @@ app.use(express.static('public'));
 // Serve uploaded PDFs statically as well
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Optional PDF import deps (guarded)
-let multer = null; let pdfParse = null; let csvParse = null; let AfterShip = null; let GoogleGenerativeAI = null;
+let multer = null; let pdfParse = null; let csvParse = null; let AfterShip = null; let GoogleGenAI = null;
 try { multer = require('multer'); } catch(_) {}
 try { pdfParse = require('pdf-parse'); } catch(_) {}
 try { csvParse = require('csv-parse/sync'); } catch(_) {}
 try { AfterShip = require('aftership').default || require('aftership'); } catch(_) {}
-try { GoogleGenerativeAI = require('@google/generative-ai').GoogleGenerativeAI; } catch(_) {}
+try { GoogleGenAI = require('@google/genai').GoogleGenAI; } catch(_) {}
 const upload = multer ? multer({ storage: multer.memoryStorage() }) : null;
 
 function normalizeDateInput(d){
@@ -4330,8 +4330,8 @@ app.post('/api/inventory/check-availability', (req, res) => {
 // ============================================================================
 
 app.post('/api/chat', async (req, res) => {
-  if (!GoogleGenerativeAI) {
-    return res.status(503).json({ error: 'Gemini AI not available. Install @google/generative-ai package.' });
+  if (!GoogleGenAI) {
+    return res.status(503).json({ error: 'Gemini AI not available. Install @google/genai package.' });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -4486,35 +4486,17 @@ When user wants to create/update data:
 
 User message: ${message}`;
 
-    // Call Gemini API with fallback model detection
-    const genAI = new GoogleGenerativeAI(apiKey);
+    // Call Gemini API using new SDK
+    const ai = new GoogleGenAI({ apiKey });
 
-    // Try multiple model names in order of preference (newest first)
-    const modelNames = ['gemini-2.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro-latest', 'gemini-pro', 'gemini-1.5-flash', 'gemini-1.5-pro'];
-    let model = null;
-    let lastError = null;
+    // Use gemini-2.5-flash model (user confirmed this is available)
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: systemPrompt
+    });
 
-    for (const modelName of modelNames) {
-      try {
-        model = genAI.getGenerativeModel({ model: modelName });
-        // Test if model works with a simple prompt
-        await model.generateContent('test');
-        console.log(`✅ Using Gemini model: ${modelName}`);
-        break;
-      } catch (e) {
-        console.log(`❌ Model ${modelName} not available: ${e.message}`);
-        lastError = e;
-        model = null;
-      }
-    }
-
-    if (!model) {
-      throw new Error(`No Gemini models available. Last error: ${lastError?.message || 'Unknown'}. Please check your API key at https://aistudio.google.com/app/apikey`);
-    }
-
-    const result = await model.generateContent(systemPrompt);
-    const response = await result.response;
-    const text = response.text();
+    const text = response.text;
+    console.log(`✅ Gemini response received`);
 
     // Check if response contains action JSON
     let actionData = null;
