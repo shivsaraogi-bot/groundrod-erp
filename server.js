@@ -5132,9 +5132,9 @@ ${recentProduction.slice(0, 10).map(p => `- ${p.production_date}: ${p.product_id
     console.log('🚀 Initializing Claude AI client...');
     const anthropic = new Anthropic({ apiKey });
 
-    console.log('📤 Sending request to Claude API (model: claude-3-5-sonnet)...');
+    console.log('📤 Sending request to Claude API (model: claude-3-5-sonnet-20250219)...');
     const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-3-5-sonnet-20250219',
       max_tokens: 4096,
       system: systemMessage,
       messages: messages
