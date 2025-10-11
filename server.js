@@ -2456,43 +2456,43 @@ app.post('/api/production', (req, res) => {
 
         const productionId = this.lastID;
 
-        // Update inventory stages
+        // SEQUENTIAL FLOW: Update inventory stages
+        // Each stage consumes from previous stage and adds to current stage
+        // Flow: cores -> plated -> machined -> qc -> stamped -> packed
+
+        const platedQty = Number(entry.plated || 0);
+        const machinedQty = Number(entry.machined || 0);
+        const qcQty = Number(entry.qc || 0);
+        const stampedQty = Number(entry.stamped || 0);
+        const packedQty = Number(entry.packed || 0);
+
         db.run(`
-          INSERT INTO inventory (product_id, plated, machined, qc, stamped, packed)
-          VALUES (?, ?, ?, ?, ?, ?)
+          INSERT INTO inventory (product_id, cores, plated, machined, qc, stamped, packed, updated_at)
+          VALUES (?, 0, 0, 0, 0, 0, 0, CURRENT_TIMESTAMP)
           ON CONFLICT(product_id) DO UPDATE SET
-            plated = plated + excluded.plated,
-            machined = machined + excluded.machined,
-            qc = qc + excluded.qc,
-            stamped = stamped + excluded.stamped,
-            packed = packed + excluded.packed,
+            cores = MAX(0, cores - ?),
+            plated = MAX(0, plated - ? - ? - ? - ? + ?),
+            machined = MAX(0, machined - ? - ? - ? + ?),
+            qc = MAX(0, qc - ? - ? + ?),
+            stamped = MAX(0, stamped - ? + ?),
+            packed = packed + ?,
             updated_at = CURRENT_TIMESTAMP
         `, [
           entry.product_id,
-          entry.plated || 0,
-          entry.machined || 0,
-          entry.qc || 0,
-          entry.stamped || 0,
-          entry.packed || 0
+          // cores: subtract plated quantity (plating consumes cores)
+          platedQty,
+          // plated: subtract what moves to machined, qc, stamped, packed, add what was plated
+          machinedQty, qcQty, stampedQty, packedQty, platedQty,
+          // machined: subtract what moves to qc, stamped, packed, add what was machined
+          qcQty, stampedQty, packedQty, machinedQty,
+          // qc: subtract what moves to stamped, packed, add what passed qc
+          stampedQty, packedQty, qcQty,
+          // stamped: subtract what moves to packed, add what was stamped
+          packedQty, stampedQty,
+          // packed: add what was packed
+          packedQty
         ], (invErr) => {
           if (invErr) { failed = true; failedMsg = invErr.message; return; }
-
-          // Consume CORES (job-worked rods) for plated quantity
-          const platedUnits = Number(entry.plated||0);
-          if (platedUnits > 0){
-            db.get('SELECT cores FROM inventory WHERE product_id=?', [entry.product_id], (e,row)=>{
-              const have = row && Number(row.cores||0) || 0;
-              const use = Math.min(have, platedUnits);
-              if (use > 0) {
-                db.run(`INSERT INTO inventory (product_id, cores, updated_at)
-                        VALUES (?, ?, CURRENT_TIMESTAMP)
-                        ON CONFLICT(product_id) DO UPDATE SET cores = MAX(0, cores - ?), updated_at=CURRENT_TIMESTAMP`,
-                        [entry.product_id, 0, use], (coreErr) => {
-                  if (coreErr) console.warn('Core consumption warning:', coreErr.message);
-                });
-              }
-            });
-          }
 
           // CRITICAL: Consume raw materials based on BOM for packed (finished) quantity
           const packedUnits = Number(entry.packed||0);
@@ -2695,22 +2695,37 @@ app.delete('/api/production/:id', (req, res) => {
     db.serialize(() => {
       db.run('BEGIN');
 
-      // Reverse inventory changes
+      // REVERSE SEQUENTIAL FLOW: Return materials to previous stages
+      // This reverses the sequential flow logic from POST
+      const platedQty = Number(production.plated || 0);
+      const machinedQty = Number(production.machined || 0);
+      const qcQty = Number(production.qc || 0);
+      const stampedQty = Number(production.stamped || 0);
+      const packedQty = Number(production.packed || 0);
+
       db.run(`
         UPDATE inventory
-        SET plated = MAX(0, plated - ?),
-            machined = MAX(0, machined - ?),
-            qc = MAX(0, qc - ?),
-            stamped = MAX(0, stamped - ?),
+        SET cores = cores + ?,
+            plated = MAX(0, plated + ? + ? + ? + ? - ?),
+            machined = MAX(0, machined + ? + ? + ? - ?),
+            qc = MAX(0, qc + ? + ? - ?),
+            stamped = MAX(0, stamped + ? - ?),
             packed = MAX(0, packed - ?),
             updated_at = CURRENT_TIMESTAMP
         WHERE product_id = ?
       `, [
-        production.plated || 0,
-        production.machined || 0,
-        production.qc || 0,
-        production.stamped || 0,
-        production.packed || 0,
+        // cores: add back plated quantity
+        platedQty,
+        // plated: add back what was consumed (machined, qc, stamped, packed), subtract what was added
+        machinedQty, qcQty, stampedQty, packedQty, platedQty,
+        // machined: add back what was consumed (qc, stamped, packed), subtract what was added
+        qcQty, stampedQty, packedQty, machinedQty,
+        // qc: add back what was consumed (stamped, packed), subtract what was added
+        stampedQty, packedQty, qcQty,
+        // stamped: add back what was consumed (packed), subtract what was added
+        packedQty, stampedQty,
+        // packed: subtract what was added
+        packedQty,
         production.product_id
       ], (invErr) => {
         if (invErr) {
