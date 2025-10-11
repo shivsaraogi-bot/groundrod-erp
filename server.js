@@ -1511,8 +1511,11 @@ app.post('/api/purchase-orders', (req, res) => {
 });
 
 app.put('/api/purchase-orders/:id', (req, res) => {
-  const { id } = req.params;
-  let { customer_id, po_date, due_date, currency='INR', delivery_terms, payment_terms, advance_amount=0, payment_days=0, priority='Normal', status='Pending', notes='', advance_percent, balance_payment_terms, mode_of_delivery, expected_delivery_date } = req.body;
+  const oldId = req.params.id;
+  let { id: newId, customer_id, po_date, due_date, currency='INR', delivery_terms, payment_terms, advance_amount=0, payment_days=0, priority='Normal', status='Pending', notes='', advance_percent, balance_payment_terms, mode_of_delivery, expected_delivery_date } = req.body;
+
+  // If no new ID provided in body, keep the old one
+  const finalId = newId || oldId;
 
   // Support both old and new field names
   const finalAdvancePercent = advance_percent !== undefined ? advance_percent : advance_amount;
@@ -1523,11 +1526,69 @@ app.put('/api/purchase-orders/:id', (req, res) => {
   po_date = norm(po_date); due_date = norm(due_date);
   expected_delivery_date = norm(expected_delivery_date);
 
-  db.run(
-    `UPDATE client_purchase_orders SET customer_id=?, po_date=?, due_date=?, currency=?, advance_percent=?, balance_payment_terms=?, mode_of_delivery=?, expected_delivery_date=?, priority=?, status=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-    [customer_id, po_date, due_date, currency, finalAdvancePercent, finalBalancePaymentTerms, finalModeOfDelivery, expected_delivery_date, priority, status, notes, id],
-    function(err){ if (err) return res.status(500).json({ error: err.message }); res.json({ message: 'Client PO updated' }); }
-  );
+  // If ID is changing, check if new ID already exists
+  if (finalId !== oldId) {
+    db.get('SELECT id FROM client_purchase_orders WHERE id = ?', [finalId], (checkErr, existing) => {
+      if (checkErr) return res.status(500).json({ error: checkErr.message });
+      if (existing) return res.status(400).json({ error: `PO ID "${finalId}" already exists. Please choose a different ID.` });
+
+      // ID is changing and new ID is available - update with transaction
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+
+        // Update line items to reference new ID
+        db.run(`UPDATE client_po_line_items SET po_id = ? WHERE po_id = ?`, [finalId, oldId], (lineErr) => {
+          if (lineErr) {
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: `Failed to update line items: ${lineErr.message}` });
+          }
+
+          // Update shipments to reference new ID
+          db.run(`UPDATE shipments SET po_id = ? WHERE po_id = ?`, [finalId, oldId], (shipErr) => {
+            if (shipErr) {
+              db.run('ROLLBACK');
+              return res.status(500).json({ error: `Failed to update shipments: ${shipErr.message}` });
+            }
+
+            // Update invoices to reference new ID
+            db.run(`UPDATE invoices SET po_id = ? WHERE po_id = ?`, [finalId, oldId], (invErr) => {
+              if (invErr) {
+                db.run('ROLLBACK');
+                return res.status(500).json({ error: `Failed to update invoices: ${invErr.message}` });
+              }
+
+              // Update the PO record itself
+              db.run(
+                `UPDATE client_purchase_orders SET id=?, customer_id=?, po_date=?, due_date=?, currency=?, advance_percent=?, balance_payment_terms=?, mode_of_delivery=?, expected_delivery_date=?, priority=?, status=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+                [finalId, customer_id, po_date, due_date, currency, finalAdvancePercent, finalBalancePaymentTerms, finalModeOfDelivery, expected_delivery_date, priority, status, notes, oldId],
+                function(err) {
+                  if (err) {
+                    db.run('ROLLBACK');
+                    return res.status(500).json({ error: err.message });
+                  }
+
+                  db.run('COMMIT', (commitErr) => {
+                    if (commitErr) {
+                      db.run('ROLLBACK');
+                      return res.status(500).json({ error: commitErr.message });
+                    }
+                    res.json({ message: 'Client PO updated successfully', new_id: finalId });
+                  });
+                }
+              );
+            });
+          });
+        });
+      });
+    });
+  } else {
+    // ID not changing - simple update
+    db.run(
+      `UPDATE client_purchase_orders SET customer_id=?, po_date=?, due_date=?, currency=?, advance_percent=?, balance_payment_terms=?, mode_of_delivery=?, expected_delivery_date=?, priority=?, status=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+      [customer_id, po_date, due_date, currency, finalAdvancePercent, finalBalancePaymentTerms, finalModeOfDelivery, expected_delivery_date, priority, status, notes, oldId],
+      function(err){ if (err) return res.status(500).json({ error: err.message }); res.json({ message: 'Client PO updated' }); }
+    );
+  }
 });
 
 app.delete('/api/purchase-orders/:id', (req, res) => {

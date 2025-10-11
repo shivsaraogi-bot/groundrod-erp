@@ -1888,6 +1888,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
           setEditingPO(null);
           setEditPdfFile(null);
         },
+        onSave: saveEdit,
         title: `Edit Client PO: ${editForm.id || ''}`
       },
         editingPO && React.createElement('div', { className: 'space-y-6' },
