@@ -119,7 +119,7 @@ function GroundRodERP() {
         activeTab === 'client-orders' && React.createElement(ClientPurchaseOrders, { purchaseOrders: clientPurchaseOrders, products, customers, onRefresh: fetchAllData }),
         activeTab === 'invoices' && React.createElement(InvoiceManagement, { invoices, payments, clientPurchaseOrders, onRefresh: fetchAllData }),
         activeTab === 'vendor-orders' && React.createElement(VendorPurchaseOrdersEx, { purchaseOrders: vendorPurchaseOrders, vendors, onRefresh: fetchAllData }),
-        activeTab === 'job-work' && React.createElement(JobWorkOrders, { vendors, products, onRefresh: fetchAllData }),
+        activeTab === 'job-work' && React.createElement(JobWorkOrders, { vendors, products, rawMaterials, onRefresh: fetchAllData }),
         activeTab === 'shipments' && React.createElement(Shipments, { shipments, purchaseOrders: clientPurchaseOrders, products, onRefresh: fetchAllData }),
         activeTab === 'inventory' && React.createElement(InventoryViewEx, { inventory, rawMaterials, products, customers, onRefresh: fetchAllData, filter, setFilter, rangeMode, setRangeMode }),
         activeTab === 'products' && React.createElement(ProductMasterEx, { products, calculateWeights, onRefresh: fetchAllData }),
@@ -1862,18 +1862,19 @@ function VendorPurchaseOrders({ purchaseOrders, vendors, onRefresh }){
   );
 }
 
-function JobWorkOrders({ vendors, products, onRefresh }){
+function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
   const [orders, setOrders] = useState([]);
   const [openDetails, setOpenDetails] = useState({});
   const [items, setItems] = useState({});
-  const [form, setForm] = useState({ id:'', vendor_id:'', jw_date:'', due_date:'', job_type:'Rod Making', status:'Open', notes:'' });
+  const [form, setForm] = useState({
+    id:'', vendor_id:'', jw_date:'', due_date:'', job_type:'Steel Core Production', status:'Open', notes:'',
+    raw_steel_material: '', steel_consumed: 0, cores_produced: 0, cores_rejected: 0, core_product_id: ''
+  });
   const [editing, setEditing] = useState(null);
   const listSectionRef = React.useRef(null);
 
   const JOB_TYPES = ['Steel Core Production', 'Custom Machining', 'Other Processing'];
   const STATUSES = ['Open', 'In Progress', 'Completed', 'Cancelled'];
-  // NOTE: Steel Core Production type requires additional fields like in Drawing Operations
-  // TODO: Add conditional UI fields when job_type === 'Steel Core Production'
 
   React.useEffect(() => {
     refreshOrders();
@@ -1896,9 +1897,19 @@ function JobWorkOrders({ vendors, products, onRefresh }){
       alert('Please fill JW ID and Date');
       return;
     }
+    // Validate Steel Core Production fields
+    if (form.job_type === 'Steel Core Production') {
+      if (!form.raw_steel_material || !form.steel_consumed || !form.cores_produced || !form.core_product_id) {
+        alert('Please fill all Steel Core Production fields: Raw Steel Material, Steel Consumed, Cores Produced, and Core Product');
+        return;
+      }
+    }
     const res = await fetch(`${API_URL}/jobwork/orders`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
     if (res.ok) {
-      setForm({ id:'', vendor_id:'', jw_date:'', due_date:'', job_type:'Rod Making', status:'Open', notes:'' });
+      setForm({
+        id:'', vendor_id:'', jw_date:'', due_date:'', job_type:'Steel Core Production', status:'Open', notes:'',
+        raw_steel_material: '', steel_consumed: 0, cores_produced: 0, cores_rejected: 0, core_product_id: ''
+      });
       await refreshOrders();
       if (onRefresh) await onRefresh();
       setTimeout(() => {
@@ -1978,21 +1989,71 @@ function JobWorkOrders({ vendors, products, onRefresh }){
   return (
     React.createElement('div', { className: 'space-y-4' },
       React.createElement(Section, { title: 'Add Job Work Order' },
-        React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-7 gap-3' },
-          React.createElement('input', { className:'border rounded px-3 py-2', placeholder:'JW ID', value: form.id, onChange:e=>setForm({...form,id:e.target.value}) }),
-          React.createElement('select', { className:'border rounded px-3 py-2', value: form.vendor_id, onChange:e=>setForm({...form,vendor_id:e.target.value}) },
-            React.createElement('option', { value:'' }, 'Select Vendor'),
-            vendors.map(v => React.createElement('option', { key:v.id, value:v.id }, `${v.id} - ${v.name}`))
+        React.createElement('div', { className: 'space-y-3' },
+          React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-7 gap-3' },
+            React.createElement('input', { className:'border rounded px-3 py-2', placeholder:'JW ID', value: form.id, onChange:e=>setForm({...form,id:e.target.value}) }),
+            React.createElement('select', { className:'border rounded px-3 py-2', value: form.vendor_id, onChange:e=>setForm({...form,vendor_id:e.target.value}) },
+              React.createElement('option', { value:'' }, 'Select Vendor'),
+              vendors.map(v => React.createElement('option', { key:v.id, value:v.id }, `${v.id} - ${v.name}`))
+            ),
+            React.createElement('input', { className:'border rounded px-3 py-2', type:'date', value: form.jw_date, onChange:e=>setForm({...form,jw_date:e.target.value}) }),
+            React.createElement('input', { className:'border rounded px-3 py-2', type:'date', placeholder:'Due Date', value: form.due_date, onChange:e=>setForm({...form,due_date:e.target.value}) }),
+            React.createElement('select', { className:'border rounded px-3 py-2', value: form.job_type, onChange:e=>setForm({...form,job_type:e.target.value}) },
+              JOB_TYPES.map(t => React.createElement('option', { key:t, value:t }, t))
+            ),
+            React.createElement('select', { className:'border rounded px-3 py-2', value: form.status, onChange:e=>setForm({...form,status:e.target.value}) },
+              STATUSES.map(s => React.createElement('option', { key:s, value:s }, s))
+            ),
+            React.createElement('button', { onClick:add, className:'px-4 py-2 bg-green-600 text-white rounded font-semibold' }, 'Create')
           ),
-          React.createElement('input', { className:'border rounded px-3 py-2', type:'date', value: form.jw_date, onChange:e=>setForm({...form,jw_date:e.target.value}) }),
-          React.createElement('input', { className:'border rounded px-3 py-2', type:'date', placeholder:'Due Date', value: form.due_date, onChange:e=>setForm({...form,due_date:e.target.value}) }),
-          React.createElement('select', { className:'border rounded px-3 py-2', value: form.job_type, onChange:e=>setForm({...form,job_type:e.target.value}) },
-            JOB_TYPES.map(t => React.createElement('option', { key:t, value:t }, t))
-          ),
-          React.createElement('select', { className:'border rounded px-3 py-2', value: form.status, onChange:e=>setForm({...form,status:e.target.value}) },
-            STATUSES.map(s => React.createElement('option', { key:s, value:s }, s))
-          ),
-          React.createElement('button', { onClick:add, className:'px-4 py-2 bg-green-600 text-white rounded font-semibold' }, 'Create')
+
+          // Conditional Steel Core Production fields
+          form.job_type === 'Steel Core Production' && React.createElement('div', { className: 'bg-blue-50 p-4 rounded border border-blue-200' },
+            React.createElement('h4', { className: 'font-semibold text-sm text-blue-800 mb-3' }, 'Steel Core Production Details'),
+            React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-5 gap-3' },
+              React.createElement('select', {
+                className: 'border rounded px-3 py-2',
+                value: form.raw_steel_material,
+                onChange: e => setForm({...form, raw_steel_material: e.target.value})
+              },
+                React.createElement('option', { value: '' }, 'Select Raw Steel'),
+                rawMaterials && rawMaterials.filter(rm => rm.material_type === 'Raw Steel').map(rm =>
+                  React.createElement('option', { key: rm.material, value: rm.material }, rm.material)
+                )
+              ),
+              React.createElement('input', {
+                type: 'number',
+                className: 'border rounded px-3 py-2',
+                placeholder: 'Steel Consumed (kg)',
+                value: form.steel_consumed || '',
+                onChange: e => setForm({...form, steel_consumed: Number(e.target.value)})
+              }),
+              React.createElement('select', {
+                className: 'border rounded px-3 py-2',
+                value: form.core_product_id,
+                onChange: e => setForm({...form, core_product_id: e.target.value})
+              },
+                React.createElement('option', { value: '' }, 'Select Core Product'),
+                products && products.map(p =>
+                  React.createElement('option', { key: p.id, value: p.id }, `${p.id} - ${p.description}`)
+                )
+              ),
+              React.createElement('input', {
+                type: 'number',
+                className: 'border rounded px-3 py-2',
+                placeholder: 'Cores Produced',
+                value: form.cores_produced || '',
+                onChange: e => setForm({...form, cores_produced: Number(e.target.value)})
+              }),
+              React.createElement('input', {
+                type: 'number',
+                className: 'border rounded px-3 py-2',
+                placeholder: 'Cores Rejected',
+                value: form.cores_rejected || '',
+                onChange: e => setForm({...form, cores_rejected: Number(e.target.value)})
+              })
+            )
+          )
         )
       ),
       React.createElement('div', { ref: listSectionRef },
