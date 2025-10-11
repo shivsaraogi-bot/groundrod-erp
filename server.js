@@ -5196,6 +5196,47 @@ app.post('/api/chat/execute', async (req, res) => {
   }
 });
 
+// ============================================================================
+// ADMIN ENDPOINTS (Protected)
+// ============================================================================
+
+// Reset WIP inventory (keeps packed inventory)
+app.post('/api/admin/reset-wip', (req, res) => {
+  const { confirm } = req.body;
+
+  if (confirm !== 'RESET_WIP_INVENTORY') {
+    return res.status(400).json({
+      error: 'Confirmation required',
+      message: 'Send { "confirm": "RESET_WIP_INVENTORY" } to proceed'
+    });
+  }
+
+  db.run(
+    `UPDATE inventory
+     SET steel_rods = 0,
+         plated = 0,
+         machined = 0,
+         qc = 0,
+         stamped = 0,
+         updated_at = CURRENT_TIMESTAMP`,
+    [],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+
+      console.log(`✅ Admin: Reset WIP inventory for ${this.changes} products`);
+
+      res.json({
+        message: 'WIP inventory reset successfully',
+        products_updated: this.changes,
+        reset_fields: ['steel_rods', 'plated', 'machined', 'qc', 'stamped'],
+        preserved_fields: ['packed']
+      });
+    }
+  );
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
