@@ -6,10 +6,11 @@ const API_URL = window.location.origin + '/api';
 // ============================================================================
 
 function ChatWidget() {
-  console.log('ChatWidget component loaded - v14.3');
+  console.log('ChatWidget component loaded - v16.0');
   const [isOpen, setIsOpen] = useState(false);
+  const [aiModel, setAiModel] = useState('gemini'); // 'gemini' or 'claude'
   const [messages, setMessages] = useState([
-    { role: 'bot', content: '👋 Hi! I\'m your ERP assistant. Ask me about inventory, orders, or let me help you add data to the system!' }
+    { role: 'bot', content: '👋 Hi! I\'m your ERP assistant. Ask me about inventory, orders, or let me help you add data to the system!\n\n💡 **Tip:** Toggle between Gemini (fast, free) and Claude (detailed, comprehensive) using the button above!' }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,10 +30,14 @@ function ChatWidget() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_URL}/chat`, {
+      const endpoint = aiModel === 'claude' ? `${API_URL}/chat/claude` : `${API_URL}/chat`;
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage })
+        body: JSON.stringify({
+          message: userMessage,
+          conversationHistory: messages.slice(-10) // Last 10 messages for context
+        })
       });
 
       const data = await res.json();
@@ -119,19 +124,42 @@ function ChatWidget() {
   },
     // Header
     React.createElement('div', {
-      className: 'bg-blue-600 text-white p-4 rounded-t-lg flex justify-between items-center'
+      className: 'bg-blue-600 text-white p-3 rounded-t-lg'
     },
-      React.createElement('div', { className: 'flex items-center gap-2' },
-        React.createElement('span', { className: 'text-2xl' }, '🤖'),
-        React.createElement('div', null,
-          React.createElement('div', { className: 'font-semibold' }, 'ERP Assistant'),
-          React.createElement('div', { className: 'text-xs opacity-90' }, 'Powered by Gemini AI')
-        )
+      React.createElement('div', { className: 'flex justify-between items-center mb-2' },
+        React.createElement('div', { className: 'flex items-center gap-2' },
+          React.createElement('span', { className: 'text-2xl' }, '🤖'),
+          React.createElement('div', null,
+            React.createElement('div', { className: 'font-semibold' }, 'ERP Assistant'),
+            React.createElement('div', { className: 'text-xs opacity-90' },
+              aiModel === 'claude' ? 'Powered by Claude AI' : 'Powered by Gemini AI'
+            )
+          )
+        ),
+        React.createElement('button', {
+          onClick: () => setIsOpen(false),
+          className: 'text-white hover:bg-blue-700 rounded px-2 py-1'
+        }, '✕')
       ),
-      React.createElement('button', {
-        onClick: () => setIsOpen(false),
-        className: 'text-white hover:bg-blue-700 rounded px-2 py-1'
-      }, '✕')
+      // AI Model Toggle
+      React.createElement('div', { className: 'flex gap-2' },
+        React.createElement('button', {
+          onClick: () => setAiModel('gemini'),
+          className: `flex-1 px-3 py-1 rounded text-sm font-medium transition-colors ${
+            aiModel === 'gemini'
+              ? 'bg-white text-blue-600'
+              : 'bg-blue-500 text-white hover:bg-blue-400'
+          }`
+        }, '⚡ Gemini (Fast)'),
+        React.createElement('button', {
+          onClick: () => setAiModel('claude'),
+          className: `flex-1 px-3 py-1 rounded text-sm font-medium transition-colors ${
+            aiModel === 'claude'
+              ? 'bg-white text-blue-600'
+              : 'bg-blue-500 text-white hover:bg-blue-400'
+          }`
+        }, '🧠 Claude (Pro)')
+      )
     ),
 
     // Messages

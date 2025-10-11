@@ -17,12 +17,13 @@ app.use(express.static('public'));
 // Serve uploaded PDFs statically as well
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Optional PDF import deps (guarded)
-let multer = null; let pdfParse = null; let csvParse = null; let AfterShip = null; let GoogleGenAI = null;
+let multer = null; let pdfParse = null; let csvParse = null; let AfterShip = null; let GoogleGenAI = null; let Anthropic = null;
 try { multer = require('multer'); } catch(_) {}
 try { pdfParse = require('pdf-parse'); } catch(_) {}
 try { csvParse = require('csv-parse/sync'); } catch(_) {}
 try { AfterShip = require('aftership').default || require('aftership'); } catch(_) {}
 try { GoogleGenAI = require('@google/genai').GoogleGenAI; } catch(_) {}
+try { Anthropic = require('@anthropic-ai/sdk').Anthropic; } catch(_) {}
 const upload = multer ? multer({ storage: multer.memoryStorage() }) : null;
 
 function normalizeDateInput(d){
@@ -4704,12 +4705,54 @@ app.post('/api/chat', async (req, res) => {
       });
     });
 
-    // Build comprehensive system prompt
-    const systemPrompt = `You are an intelligent ERP assistant for a copper bonded ground rod manufacturing company. Your role is to help users with:
-1. **Querying data** - Answer questions about inventory, orders, production, etc.
-2. **Guided data entry** - Help users create orders, record production, etc. by asking clarifying questions
-3. **Smart suggestions** - Provide recommendations based on patterns and business rules
-4. **Validation** - Warn about potential issues (e.g., low inventory, unusual quantities)
+    // Build comprehensive system prompt with workflow examples
+    const systemPrompt = `You are an intelligent ERP assistant for Nikkon Ferro, a copper bonded ground rod manufacturing company.
+
+# Your Role:
+1. **Answer Questions** - Help users find data, understand workflows, troubleshoot issues
+2. **Guide Users** - Walk through complex tasks step-by-step (production, orders, payments)
+3. **Provide Context** - Explain WHY things work certain ways (business rules, inventory flow)
+4. **Validate Operations** - Warn about low inventory, unusual quantities, or workflow violations
+
+# IMPORTANT - System Navigation:
+The system has these main tabs/sections:
+- **Dashboard** - Overview and quick stats
+- **Daily Production** - Record production (plating, machining, QC, stamping, packing)
+- **Client Purchase Orders** - Customer orders and line items
+- **Invoice Management** - Create invoices, record/edit payments
+- **Vendor Orders** - Purchase orders to suppliers
+- **Job Work** - Send materials to vendors for processing
+- **Shipments** - Track deliveries to customers
+- **Inventory** - View WIP, finished goods, raw materials (with production tracing)
+- **Products** - Product master data
+- **Customers** - Customer management
+- **Vendors** - Vendor management
+- **Drawing Operations** - Convert raw steel to steel cores
+
+When users ask "how do I..." questions, ALWAYS include which tab/section to navigate to.
+
+# Example Good Responses:
+
+User: "How do I record today's production?"
+Good Answer: "Go to the **Daily Production** tab. Select today's date, then for each product:
+• If plating steel cores → Enter quantity in 'Plated' column
+• If continuing from previous stage → Enter quantity in that stage's column
+• Add marking details if stamping
+• Click Submit
+
+The system automatically updates inventory for each stage."
+
+User: "How can I see where my inventory came from?"
+Good Answer: "Go to the **Inventory** tab, then click on any product row. A modal will open showing:
+• Current inventory levels at top (Steel Rods → Packed)
+• Last 50 production entries below
+This helps trace inventory back to specific production dates and quantities."
+
+User: "Can I fix a mistake in yesterday's production?"
+Good Answer: "Yes! Go to **Daily Production** tab → scroll to 'Recent Production' log → click the row you need to edit. You can:
+• Change any quantities, dates, or marking details
+• Delete the entry completely
+The system automatically recalculates inventory when you save/delete."
 
 # Current System Data (as of ${new Date().toISOString().slice(0,10)}):
 
@@ -4779,13 +4822,47 @@ When user wants to create/update data:
 3. Always validate inventory availability before confirming operations
 4. Job Work types: Steel Core Production, Custom Machining, Other Processing
 
+# Common User Questions & How to Answer:
+
+Q: "How do I edit a payment?"
+A: "Go to **Invoice Management** → click the invoice → in the Payment History modal, click **Edit** button next to the payment. You can change date, amount, method, reference #, and notes. The invoice outstanding amount updates automatically."
+
+Q: "How do I trace inventory discrepancies?"
+A: "Go to **Inventory** tab → click the product row with the discrepancy. You'll see:
+• Current inventory at each stage (top)
+• Last 50 production entries (below)
+Review the production entries to find where numbers don't match."
+
+Q: "Why can't I pack items?"
+A: "Production is sequential - you need stamped inventory before you can pack. Check **Inventory** tab to see your stamped quantity. If it's zero, you need to:
+1. Go to **Daily Production**
+2. Record stamping operation first
+3. Then record packing operation"
+
+Q: "How do I process a customer order end-to-end?"
+A: "Here's the full workflow:
+1. **Client Purchase Orders** → Create PO with customer and line items
+2. **Inventory** → Verify you have packed inventory
+3. **Invoice Management** → Generate invoice from PO
+4. **Invoice Management** → Record Payment when received
+5. **Shipments** → Create shipment with carrier/tracking
+6. **Client Purchase Orders** → Mark PO as Completed"
+
+Q: "What's the difference between unmarked, nikkon_brand, and client_brand?"
+A: "Marking types control flexibility:
+• **Unmarked** - No branding, can sell to anyone
+• **Nikkon Brand** - Nikkon Ferro branding, preferred for regular customers
+• **Client Brand** - Custom branding, LOCKED to specific customer only
+Set this in **Daily Production** when recording stamping operations."
+
 # Response Guidelines:
-- Be concise and friendly
-- Use bullet points for lists
-- Include relevant numbers/data
-- Ask ONE clarifying question at a time (not multiple)
-- If ambiguous (e.g., "ABC order" but 3 exist), ask which one
-- For complex operations, break into steps
+- ALWAYS mention which tab/section to navigate to
+- Be specific with step-by-step instructions
+- Use bullet points (•) for lists
+- Include relevant numbers from current data
+- Ask ONE clarifying question at a time if needed
+- For ambiguous requests, ask which specific item they mean
+- Warn about low inventory or workflow violations
 
 User message: ${message}`;
 
@@ -4827,6 +4904,158 @@ User message: ${message}`;
 
   } catch (error) {
     console.error('Gemini API error:', error);
+    res.status(500).json({
+      error: 'Failed to process chat message',
+      details: error.message
+    });
+  }
+});
+
+// ============================================================================
+// CLAUDE AI CHATBOT ENDPOINT (Premium Assistant)
+// ============================================================================
+
+app.post('/api/chat/claude', async (req, res) => {
+  if (!Anthropic) {
+    return res.status(503).json({ error: 'Claude AI not available. Install @anthropic-ai/sdk package.' });
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured in environment variables' });
+  }
+
+  try {
+    const { message, conversationHistory = [] } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    // Load knowledge base
+    const knowledgeBasePath = path.join(__dirname, 'erp-knowledge-base.md');
+    let knowledgeBase = '';
+    try {
+      knowledgeBase = await fsp.readFile(knowledgeBasePath, 'utf-8');
+    } catch (err) {
+      console.warn('Knowledge base file not found, proceeding without it');
+    }
+
+    // Fetch current system data for context (same as Gemini)
+    const products = await new Promise((resolve, reject) => {
+      db.all('SELECT * FROM products WHERE is_deleted = 0 ORDER BY id', [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    const inventory = await new Promise((resolve, reject) => {
+      db.all('SELECT * FROM inventory', [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    const customers = await new Promise((resolve, reject) => {
+      db.all('SELECT * FROM customers WHERE is_deleted = 0 ORDER BY id', [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    const clientPOs = await new Promise((resolve, reject) => {
+      db.all(`SELECT po.*, c.name as customer_name
+              FROM client_purchase_orders po
+              LEFT JOIN customers c ON po.customer_id = c.id
+              WHERE po.is_deleted = 0
+              ORDER BY po.po_date DESC LIMIT 50`, [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    const recentProduction = await new Promise((resolve, reject) => {
+      db.all(`SELECT * FROM production_history
+              ORDER BY production_date DESC LIMIT 20`, [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    // Build system message with knowledge base
+    const systemMessage = `You are an expert ERP assistant for Nikkon Ferro's Ground Rod Manufacturing ERP system. You helped build this system, so you understand it deeply.
+
+# Your Expertise:
+- Complete knowledge of all system features, workflows, and business rules
+- Understanding of manufacturing process: Steel Cores → Plating → Machining → QC → Stamping → Packing
+- Database structure and relationships between tables
+- User interface navigation and features
+
+# Knowledge Base:
+${knowledgeBase}
+
+# Current System Data (as of ${new Date().toISOString().slice(0,10)}):
+
+## Products (${products.length} total):
+${products.slice(0, 15).map(p => `- ${p.id}: ${p.description} (${p.diameter}${p.diameter_unit} × ${p.length}${p.length_unit})`).join('\n')}
+${products.length > 15 ? `... and ${products.length - 15} more` : ''}
+
+## Current Inventory Summary:
+${inventory.slice(0, 15).map(inv => {
+  const prod = products.find(p => p.id === inv.product_id);
+  return `- ${inv.product_id} (${prod?.description || 'Unknown'}): Steel Rods: ${inv.steel_rods || 0}, Plated: ${inv.plated || 0}, Machined: ${inv.machined || 0}, QC: ${inv.qc || 0}, Stamped: ${inv.stamped || 0}, Packed: ${inv.packed || 0}`;
+}).join('\n')}
+
+## Recent Client Orders (${clientPOs.length} shown):
+${clientPOs.slice(0, 10).map(po => `- ${po.id}: ${po.customer_name} - Status: ${po.status} - Total: ${po.total_amount} - Outstanding: ${po.outstanding_amount}`).join('\n')}
+
+## Recent Production:
+${recentProduction.slice(0, 10).map(p => `- ${p.production_date}: ${p.product_id} - Plated: ${p.plated || 0}, Machined: ${p.machined || 0}, QC: ${p.qc || 0}, Stamped: ${p.stamped || 0}, Packed: ${p.packed || 0}`).join('\n')}
+
+# Instructions:
+- Provide comprehensive, step-by-step guidance
+- Always mention which tab/section to navigate to
+- Explain WHY things work the way they do (business logic)
+- Reference specific features you know exist (editable payments, inventory tracing, etc.)
+- Use the knowledge base to provide accurate workflow instructions
+- Be conversational but professional
+- Format responses with clear headings, bullet points, and numbered steps`;
+
+    // Build conversation messages
+    const messages = [
+      // Add conversation history
+      ...conversationHistory.map(msg => ({
+        role: msg.role === 'bot' ? 'assistant' : 'user',
+        content: msg.content
+      })),
+      // Add current user message
+      {
+        role: 'user',
+        content: message
+      }
+    ];
+
+    // Call Claude API
+    const anthropic = new Anthropic({ apiKey });
+
+    const response = await anthropic.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 4096,
+      system: systemMessage,
+      messages: messages
+    });
+
+    const text = response.content[0].text;
+
+    console.log(`✅ Claude response received: ${text.substring(0, 100)}...`);
+
+    res.json({
+      response: text,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Claude API error:', error);
     res.status(500).json({
       error: 'Failed to process chat message',
       details: error.message
