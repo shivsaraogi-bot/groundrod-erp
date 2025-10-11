@@ -6,6 +6,7 @@ const API_URL = window.location.origin + '/api';
 // ============================================================================
 
 function ChatWidget() {
+  console.log('ChatWidget component loaded - v14.3');
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role: 'bot', content: '👋 Hi! I\'m your ERP assistant. Ask me about inventory, orders, or let me help you add data to the system!' }
