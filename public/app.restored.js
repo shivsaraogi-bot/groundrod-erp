@@ -589,6 +589,12 @@ function RiskBox({ title, data }){
           React.createElement('span', { className: 'font-semibold' }, 'Available Stock:'),
           React.createElement('span', { className: 'font-bold text-green-600' }, `${formatQuantity(parseFloat(data.available))} kg`)
         ),
+        data.committed && parseFloat(data.committed) > 0 ? (
+          React.createElement('div', { className: 'flex justify-between' },
+            React.createElement('span', { className: 'font-semibold text-gray-600' }, 'On Order (Not Yet Received):'),
+            React.createElement('span', { className: 'font-bold text-amber-600' }, `${formatQuantity(parseFloat(data.committed))} kg`)
+          )
+        ) : null,
         React.createElement('div', { className: 'flex justify-between pt-2 border-t border-gray-300' },
           React.createElement('span', { className: 'font-bold' }, 'Net Position:'),
           parseFloat(data.shortage) > 0 ? (

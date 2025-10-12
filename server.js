@@ -3899,21 +3899,28 @@ app.get('/api/dashboard/risk-analysis', (req, res) => {
         return res.status(500).json({ error: err.message });
       }
 
-      const steel = materials.find(m => m.material === 'Steel') || { available_stock: 0 };
-      const copper = materials.find(m => m.material === 'Copper Anode' || m.material === 'Copper') || { available_stock: 0 };
+      const steel = materials.find(m => m.material === 'Steel') || { current_stock: 0, committed_stock: 0 };
+      const copper = materials.find(m => m.material === 'Copper Anode' || m.material === 'Copper') || { current_stock: 0, committed_stock: 0 };
+
+      // For risk management, use current_stock (what's actually on hand)
+      // committed_stock represents materials on order but not yet received
+      const steelAvailable = Number(steel.current_stock || 0);
+      const copperAvailable = Number(copper.current_stock || 0);
 
       res.json({
         steel: {
           required: totalSteelNeeded.toFixed(2),
-          available: steel.available_stock,
-          shortage: Math.max(0, totalSteelNeeded - steel.available_stock).toFixed(2),
-          excess: Math.max(0, steel.available_stock - totalSteelNeeded).toFixed(2)
+          available: steelAvailable,
+          committed: Number(steel.committed_stock || 0),
+          shortage: Math.max(0, totalSteelNeeded - steelAvailable).toFixed(2),
+          excess: Math.max(0, steelAvailable - totalSteelNeeded).toFixed(2)
         },
         copper: {
           required: totalCopperNeeded.toFixed(2),
-          available: copper.available_stock,
-          shortage: Math.max(0, totalCopperNeeded - copper.available_stock).toFixed(2),
-          excess: Math.max(0, copper.available_stock - totalCopperNeeded).toFixed(2)
+          available: copperAvailable,
+          committed: Number(copper.committed_stock || 0),
+          shortage: Math.max(0, totalCopperNeeded - copperAvailable).toFixed(2),
+          excess: Math.max(0, copperAvailable - totalCopperNeeded).toFixed(2)
         }
       });
     });
