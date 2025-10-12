@@ -490,10 +490,10 @@ function Dashboard({ stats, riskAnalysis, clientPurchaseOrders, inventory, setAc
         React.createElement('div', { className: 'bg-white rounded-xl shadow-md p-6 border border-gray-200' },
           React.createElement('h3', { className: 'text-lg font-bold mb-4 text-gray-800' }, 'Top Inventory'),
           React.createElement('div', { className: 'space-y-2' },
-            inventory.sort((a,b)=>b.packed-a.packed).slice(0,5).map(item => (
+            inventory.sort((a,b)=>b.stamped-a.stamped).slice(0,5).map(item => (
               React.createElement('div', { key: item.product_id, className: 'flex justify-between items-center p-3 bg-blue-50 rounded-lg' },
                 React.createElement('div', { className: 'font-semibold text-sm' }, item.product_description),
-                React.createElement('div', { className: 'font-bold text-blue-600' }, `${item.packed} units`)
+                React.createElement('div', { className: 'font-bold text-blue-600' }, `${item.stamped} units`)
               )
             ))
           )
@@ -557,8 +557,8 @@ function AnalyticsPanel(){
     // WIP by stage
     const wip = await (await fetch(`${API_URL}/analytics/wip-stages`)).json();
     const wd = {
-      labels: ['Plated','Machined','QC','Stamped','Packed'],
-      datasets:[{ data:[wip.plated,wip.machined,wip.qc,wip.stamped,wip.packed], backgroundColor:['#60a5fa','#34d399','#fbbf24','#f87171','#818cf8'] }]
+      labels: ['Plated','Machined','QC','Stamped'],
+      datasets:[{ data:[wip.plated,wip.machined,wip.qc,wip.stamped], backgroundColor:['#60a5fa','#34d399','#fbbf24','#f87171'] }]
     };
     if (charts.current.wip) charts.current.wip.destroy();
     charts.current.wip = new Chart(wipRef.current.getContext('2d'), { type:'doughnut', data:wd, options:{ responsive:true } });
@@ -580,8 +580,7 @@ function AnalyticsPanel(){
       { label:'Plated', data: mk('plated'), backgroundColor:'#60a5fa' },
       { label:'Machined', data: mk('machined'), backgroundColor:'#34d399' },
       { label:'QC', data: mk('qc'), backgroundColor:'#fbbf24' },
-      { label:'Stamped', data: mk('stamped'), backgroundColor:'#f87171' },
-      { label:'Packed', data: mk('packed'), backgroundColor:'#818cf8' }
+      { label:'Stamped', data: mk('stamped'), backgroundColor:'#f87171' }
     ]};
     if (charts.current.by) charts.current.by.destroy();
     charts.current.by = new Chart(byRef.current.getContext('2d'), { type:'bar', data: byd, options:{ responsive:true, scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true } } } });
@@ -648,7 +647,7 @@ function DailyProduction({ products, onSubmit }){
     try { const r = await fetch(`${API_URL}/production?limit=${encodeURIComponent(l||limit)}`); setRecent(await r.json()); } catch {}
   }
   useEffect(()=>{ loadRecent(limit); },[]);
-  function addEntry(){ setEntries([...entries, { product_id: products[0]?.id || '', plated:0,machined:0,qc:0,stamped:0,packed:0,rejected:0,notes:'', marking_type:'unmarked', marking_text:'' }]); }
+  function addEntry(){ setEntries([...entries, { product_id: products[0]?.id || '', plated:0,machined:0,qc:0,stamped:0,rejected:0,notes:'', marking_type:'unmarked', marking_text:'' }]); }
   function updateEntry(i, field, val){ const e=[...entries]; e[i][field]= (['notes','product_id','marking_type','marking_text'].includes(field))? val : Number(val||0); setEntries(e); }
   async function save(){ await fetch(`${API_URL}/production`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ date, entries }) }); setEntries([]); onSubmit?.(); alert('Production saved'); loadRecent(limit); }
 
@@ -661,7 +660,6 @@ function DailyProduction({ products, onSubmit }){
       machined: row.machined || 0,
       qc: row.qc || 0,
       stamped: row.stamped || 0,
-      packed: row.packed || 0,
       rejected: row.rejected || 0,
       marking_type: row.marking_type || 'unmarked',
       marking_text: row.marking_text || '',
@@ -773,16 +771,6 @@ function DailyProduction({ products, onSubmit }){
             className: 'border rounded px-3 py-2 w-full',
             value: editForm.stamped || 0,
             onChange: e => setEditForm({ ...editForm, stamped: Number(e.target.value || 0) })
-          })
-        ),
-        React.createElement('div', null,
-          React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Packed'),
-          React.createElement('input', {
-            type: 'number',
-            min: 0,
-            className: 'border rounded px-3 py-2 w-full',
-            value: editForm.packed || 0,
-            onChange: e => setEditForm({ ...editForm, packed: Number(e.target.value || 0) })
           })
         ),
         React.createElement('div', null,
@@ -903,7 +891,7 @@ function DailyProduction({ products, onSubmit }){
         React.createElement('table', { className: 'min-w-full border-collapse' },
           React.createElement('thead', null,
             React.createElement('tr', { className: 'bg-gray-100' },
-              ['Product','Plated','Machined','QC','Stamped','Packed','Rejected','Marking Type','Marking Text','Notes'].map(h=> React.createElement('th', { key: h, className: 'p-2 text-xs' }, h))
+              ['Product','Plated','Machined','QC','Stamped','Rejected','Marking Type','Marking Text','Notes'].map(h=> React.createElement('th', { key: h, className: 'p-2 text-xs' }, h))
             )
           ),
           React.createElement('tbody', null,
@@ -914,7 +902,7 @@ function DailyProduction({ products, onSubmit }){
                     products.map(p=> React.createElement('option', { key: p.id, value: p.id }, `${p.id} - ${p.description}`))
                   )
                 ),
-                ['plated','machined','qc','stamped','packed','rejected'].map(f=> (
+                ['plated','machined','qc','stamped','rejected'].map(f=> (
                   React.createElement('td', { key: f, className: 'p-2' },
                     React.createElement('input', { type: 'number', min: 0, value: en[f], onChange: e=>updateEntry(i,f,e.target.value), className: 'w-20 border rounded px-2 py-1 text-right text-sm' })
                   )
@@ -991,7 +979,6 @@ function DailyProduction({ products, onSubmit }){
             { key: 'machined', label: 'Machined', render: (val) => val || 0 },
             { key: 'qc', label: 'QC', render: (val) => val || 0 },
             { key: 'stamped', label: 'Stamped', render: (val) => val || 0 },
-            { key: 'packed', label: 'Packed', render: (val) => val || 0 },
             { key: 'rejected', label: 'Rejected', render: (val) => val || 0 },
             { key: 'notes', label: 'Notes', render: (val) => val || '-' }
           ],
@@ -1002,7 +989,7 @@ function DailyProduction({ products, onSubmit }){
             { key: 'product_description', label: 'Product', values: [...new Set(recent.map(r => r.product_description || r.product_id).filter(Boolean))] },
             { key: 'production_date', label: 'Date', values: [...new Set(recent.map(r => r.production_date).filter(Boolean))] }
           ],
-          defaultVisibleColumns: { id: true, production_date: true, product_description: true, plated: true, machined: true, qc: true, stamped: true, packed: true, rejected: true, notes: true }
+          defaultVisibleColumns: { id: true, production_date: true, product_description: true, plated: true, machined: true, qc: true, stamped: true, rejected: true, notes: true }
         })
       )
     )
@@ -3929,7 +3916,6 @@ function InventoryView({ inventory }){
                 { label: 'Machined', icon: '🔧' },
                 { label: 'QC', icon: '✔️' },
                 { label: 'Stamped', icon: '🏷️' },
-                { label: 'Packed', icon: '📦' },
                 { label: 'Total', icon: '📊' }
               ].map(h => React.createElement('th', { key: h.label, className: 'p-4 font-bold text-center' },
                 h.icon ? React.createElement('span', { className: 'inline-flex items-center gap-1' },
@@ -3941,7 +3927,7 @@ function InventoryView({ inventory }){
           ),
           React.createElement('tbody', null,
             inventory.map((item, idx) => {
-              const total = (item.steel_rods||0) + (item.plated||0) + (item.machined||0) + (item.qc||0) + (item.stamped||0) + (item.packed||0);
+              const total = (item.steel_rods||0) + (item.plated||0) + (item.machined||0) + (item.qc||0) + (item.stamped||0);
               return React.createElement('tr', { key: item.product_id, className: `border-b-2 border-gray-200 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}` },
                 React.createElement('td', { className: 'p-4 font-bold text-left' }, item.product_description),
                 React.createElement('td', { className: 'p-4 font-semibold text-center' }, item.steel_rods || 0),
@@ -3949,7 +3935,6 @@ function InventoryView({ inventory }){
                 React.createElement('td', { className: 'p-4 font-semibold text-center' }, item.machined || 0),
                 React.createElement('td', { className: 'p-4 font-semibold text-center' }, item.qc || 0),
                 React.createElement('td', { className: 'p-4 font-semibold text-center' }, item.stamped || 0),
-                React.createElement('td', { className: 'p-4 font-semibold text-center' }, item.packed || 0),
                 React.createElement('td', { className: 'p-4 font-bold text-center' }, total)
               );
             })
@@ -4558,7 +4543,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
   const [stockAdjustmentForm, setStockAdjustmentForm] = useState({
     adjustment_date: new Date().toISOString().split('T')[0],
     product_id: '',
-    stage: 'packed',
+    stage: 'stamped',
     quantity: 0,
     adjustment_type: 'opening_balance',
     reason: '',
@@ -4823,8 +4808,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
           React.createElement('option', { value: 'plated' }, 'Plated'),
           React.createElement('option', { value: 'machined' }, 'Machined'),
           React.createElement('option', { value: 'qc' }, 'QC'),
-          React.createElement('option', { value: 'stamped' }, 'Stamped'),
-          React.createElement('option', { value: 'packed' }, 'Packed (Finished Goods)')
+          React.createElement('option', { value: 'stamped' }, 'Stamped (Finished Goods)')
         )
       ),
       React.createElement('div', null,
@@ -4942,12 +4926,8 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
             React.createElement('div', { className: 'font-bold text-lg' }, tracingInventory.qc || 0)
           ),
           React.createElement('div', null,
-            React.createElement('div', { className: 'text-blue-700 font-medium' }, 'Stamped'),
+            React.createElement('div', { className: 'text-blue-700 font-medium' }, 'Stamped (Finished Goods)'),
             React.createElement('div', { className: 'font-bold text-lg' }, tracingInventory.stamped || 0)
-          ),
-          React.createElement('div', null,
-            React.createElement('div', { className: 'text-blue-700 font-medium' }, 'Packed'),
-            React.createElement('div', { className: 'font-bold text-lg' }, tracingInventory.packed || 0)
           )
         )
       ),
@@ -4962,7 +4942,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
           React.createElement('table', { className: 'min-w-full border-collapse text-sm' },
             React.createElement('thead', { className: 'bg-gray-100 sticky top-0' },
               React.createElement('tr', null,
-                ['Date', 'Plated', 'Machined', 'QC', 'Stamped', 'Packed', 'Rejected', 'Notes'].map(h =>
+                ['Date', 'Plated', 'Machined', 'QC', 'Stamped', 'Rejected', 'Notes'].map(h =>
                   React.createElement('th', { key: h, className: 'p-2 text-left border-b' }, h)
                 )
               )
@@ -4975,7 +4955,6 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
                   React.createElement('td', { className: 'p-2 text-right' }, entry.machined || 0),
                   React.createElement('td', { className: 'p-2 text-right' }, entry.qc || 0),
                   React.createElement('td', { className: 'p-2 text-right' }, entry.stamped || 0),
-                  React.createElement('td', { className: 'p-2 text-right' }, entry.packed || 0),
                   React.createElement('td', { className: 'p-2 text-right' }, entry.rejected || 0),
                   React.createElement('td', { className: 'p-2 text-xs' }, entry.notes || '-')
                 )
@@ -5102,7 +5081,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
           data: (invData||[])
             .map(r => ({
               ...r,
-              total: (r.steel_rods||0)+(r.plated||0)+(r.machined||0)+(r.qc||0)+(r.stamped||0)+(r.packed||0)
+              total: (r.steel_rods||0)+(r.plated||0)+(r.machined||0)+(r.qc||0)+(r.stamped||0)
             }))
             .filter(r => {
               if (!hideZeroInventory) return true;
@@ -5116,8 +5095,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
             { key: 'plated', label: 'Plated', render: (val) => val || 0 },
             { key: 'machined', label: 'Machined', render: (val) => val || 0 },
             { key: 'qc', label: 'QC', render: (val) => val || 0 },
-            { key: 'stamped', label: 'Stamped', render: (val) => val || 0 },
-            { key: 'packed', label: 'Packed', render: (val) => val || 0 },
+            { key: 'stamped', label: 'Stamped (Finished Goods)', render: (val) => val || 0 },
             { key: 'total', label: 'Total', render: (val) => val || 0 }
           ],
           primaryKey: 'product_id',
@@ -5127,7 +5105,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
           filterOptions: [
             { key: 'product_description', label: 'Product', values: [...new Set((invData||[]).map(r => r.product_description).filter(Boolean))] }
           ],
-          defaultVisibleColumns: { product_id: true, product_description: true, steel_rods: true, plated: true, machined: true, qc: true, stamped: true, packed: true, total: true },
+          defaultVisibleColumns: { product_id: true, product_description: true, steel_rods: true, plated: true, machined: true, qc: true, stamped: true, total: true },
           actions: (row) => {
             const isExpanded = expandedRows[row.product_id];
             const isLoading = loadingMarkings[row.product_id];

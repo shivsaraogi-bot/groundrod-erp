@@ -2242,7 +2242,7 @@ app.get('/api/shipments', (req, res) => {
 
 app.post('/api/shipments', (req, res) => {
   const { id, po_id, shipment_date, container_number, bl_number, bl_date, notes, items, carrier, destination, tracking_number } = req.body;
-  // Record shipment, update delivered counts, and decrement inventory.packed
+  // Record shipment, update delivered counts, and decrement inventory.stamped
 
   // First, validate marking requirements
   db.get('SELECT marking FROM client_purchase_orders WHERE id = ?', [po_id], (poErr, po) => {
@@ -2268,7 +2268,7 @@ app.post('/api/shipments', (req, res) => {
             SELECT SUM(quantity) as available_quantity
             FROM inventory_allocations
             WHERE product_id = ?
-              AND stage = 'packed'
+              AND stage = 'stamped'
               AND marking_text = ?
               AND (allocated_po_id = ? OR allocated_po_id IS NULL)
           `;
@@ -2323,7 +2323,7 @@ app.post('/api/shipments', (req, res) => {
                 (e)=>{ if(e){ failed = true; }}
               );
               db.run(
-                `UPDATE inventory SET packed = MAX(packed - ?, 0), updated_at = CURRENT_TIMESTAMP WHERE product_id = ?`,
+                `UPDATE inventory SET stamped = MAX(stamped - ?, 0), updated_at = CURRENT_TIMESTAMP WHERE product_id = ?`,
                 [qty, item.product_id],
                 (e)=>{ if(e){ failed = true; }}
               );
@@ -2370,7 +2370,7 @@ app.delete('/api/shipments/:id', (req, res) => {
         (items||[]).forEach(it => {
           const qty = Number(it.quantity||0);
           db.run(`UPDATE client_po_line_items SET delivered = MAX(delivered - ?, 0) WHERE po_id = ? AND product_id = ?`, [qty, ship.po_id, it.product_id], (e)=>{ if(e){ failed=true; }});
-          db.run(`UPDATE inventory SET packed = packed + ?, updated_at=CURRENT_TIMESTAMP WHERE product_id = ?`, [qty, it.product_id], (e)=>{ if(e){ failed=true; }});
+          db.run(`UPDATE inventory SET stamped = stamped + ?, updated_at=CURRENT_TIMESTAMP WHERE product_id = ?`, [qty, it.product_id], (e)=>{ if(e){ failed=true; }});
         });
         db.run(`DELETE FROM shipment_items WHERE shipment_id = ?`, [id], (e3) => {
           if (e3) { failed = true; }
@@ -2416,7 +2416,7 @@ app.post('/api/shipments/bulk-delete', (req, res) => {
           (items||[]).forEach(it => {
             const qty = Number(it.quantity||0);
             db.run(`UPDATE client_po_line_items SET delivered = MAX(delivered - ?, 0) WHERE po_id = ? AND product_id = ?`, [qty, ship.po_id, it.product_id], (e)=>{ if(e){ failed=true; }});
-            db.run(`UPDATE inventory SET packed = packed + ?, updated_at=CURRENT_TIMESTAMP WHERE product_id = ?`, [qty, it.product_id], (e)=>{ if(e){ failed=true; }});
+            db.run(`UPDATE inventory SET stamped = stamped + ?, updated_at=CURRENT_TIMESTAMP WHERE product_id = ?`, [qty, it.product_id], (e)=>{ if(e){ failed=true; }});
           });
           db.run(`DELETE FROM shipment_items WHERE shipment_id = ?`, [id], (e3)=>{
             if (e3) { failed = true; }
@@ -2452,7 +2452,7 @@ app.post('/api/shipments/:id/items', (req, res) => {
         if (err) { try{ db.run('ROLLBACK'); }catch(_){}; return res.status(500).json({ error: err.message }); }
         db.run(`UPDATE client_po_line_items SET delivered = delivered + ? WHERE po_id = ? AND product_id = ?`, [qty, ship.po_id, product_id], (e2)=>{
           if (e2) { try{ db.run('ROLLBACK'); }catch(_){}; return res.status(500).json({ error: e2.message }); }
-          db.run(`UPDATE inventory SET packed = MAX(packed - ?, 0), updated_at=CURRENT_TIMESTAMP WHERE product_id = ?`, [qty, product_id], (e3)=>{
+          db.run(`UPDATE inventory SET stamped = MAX(stamped - ?, 0), updated_at=CURRENT_TIMESTAMP WHERE product_id = ?`, [qty, product_id], (e3)=>{
             if (e3) { try{ db.run('ROLLBACK'); }catch(_){}; return res.status(500).json({ error: e3.message }); }
             db.run('COMMIT', (cerr)=>{ if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message:'Item added', id: this.lastID }); });
           });
@@ -2474,10 +2474,10 @@ app.put('/api/shipments/:id/items/:itemId', (req, res) => {
         db.run('BEGIN');
         // rollback old
         db.run(`UPDATE client_po_line_items SET delivered = MAX(delivered + ?, 0) WHERE po_id=? AND product_id=?`, [deltaOld, ship.po_id, oldPid]);
-        db.run(`UPDATE inventory SET packed = packed - ?, updated_at=CURRENT_TIMESTAMP WHERE product_id=?`, [deltaOld, oldPid]);
+        db.run(`UPDATE inventory SET stamped = stamped - ?, updated_at=CURRENT_TIMESTAMP WHERE product_id=?`, [deltaOld, oldPid]);
         // apply new
         db.run(`UPDATE client_po_line_items SET delivered = delivered + ? WHERE po_id=? AND product_id=?`, [deltaNew, ship.po_id, newPid]);
-        db.run(`UPDATE inventory SET packed = MAX(packed - ?, 0), updated_at=CURRENT_TIMESTAMP WHERE product_id=?`, [deltaNew, newPid]);
+        db.run(`UPDATE inventory SET stamped = MAX(stamped - ?, 0), updated_at=CURRENT_TIMESTAMP WHERE product_id=?`, [deltaNew, newPid]);
         db.run(`UPDATE shipment_items SET product_id=?, quantity=? WHERE id=? AND shipment_id=?`, [newPid, newQty, itemId, id], (e3)=>{
           if (e3) { try{ db.run('ROLLBACK'); }catch(_){}; return res.status(500).json({ error:e3.message }); }
           db.run('COMMIT', (cerr)=>{ if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message:'Item updated' }); });
@@ -2497,7 +2497,7 @@ app.delete('/api/shipments/:id/items/:itemId', (req, res) => {
       db.serialize(()=>{
         db.run('BEGIN');
         db.run(`UPDATE client_po_line_items SET delivered = MAX(delivered - ?, 0) WHERE po_id=? AND product_id=?`, [qty, ship.po_id, pid]);
-        db.run(`UPDATE inventory SET packed = packed + ?, updated_at=CURRENT_TIMESTAMP WHERE product_id=?`, [qty, pid]);
+        db.run(`UPDATE inventory SET stamped = stamped + ?, updated_at=CURRENT_TIMESTAMP WHERE product_id=?`, [qty, pid]);
         db.run(`DELETE FROM shipment_items WHERE id=? AND shipment_id=?`, [itemId, id], (e3)=>{
           if (e3) { try{ db.run('ROLLBACK'); }catch(_){}; return res.status(500).json({ error:e3.message }); }
           db.run('COMMIT', (cerr)=>{ if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message:'Item deleted' }); });
@@ -2602,7 +2602,7 @@ app.get('/api/inventory', (req, res) => {
     SELECT
       i.*,
       p.description as product_description,
-      (i.packed - COALESCE(i.committed, 0)) as available
+      (i.stamped - COALESCE(i.committed, 0)) as available
     FROM inventory i
     LEFT JOIN products p ON i.product_id = p.id
     ORDER BY p.description
@@ -2613,10 +2613,10 @@ app.get('/api/inventory', (req, res) => {
       // Add computed fields
       const enrichedRows = (rows || []).map(row => ({
         ...row,
-        total_wip: (row.plated || 0) + (row.machined || 0) + (row.qc || 0) + (row.stamped || 0),
-        total_stock: (row.plated || 0) + (row.machined || 0) + (row.qc || 0) + (row.stamped || 0) + (row.packed || 0) + (row.cores || 0),
+        total_wip: (row.plated || 0) + (row.machined || 0) + (row.qc || 0),
+        total_stock: (row.plated || 0) + (row.machined || 0) + (row.qc || 0) + (row.stamped || 0) + (row.steel_rods || 0),
         committed: row.committed || 0,
-        available: Math.max(0, (row.packed || 0) - (row.committed || 0))
+        available: Math.max(0, (row.stamped || 0) - (row.committed || 0))
       }));
       res.json(enrichedRows);
     }
@@ -2998,7 +2998,7 @@ app.post('/api/shipments/validate-markings', (req, res) => {
             SUM(quantity) as available_marked_qty
           FROM inventory_allocations
           WHERE product_id = ?
-            AND stage = 'packed'
+            AND stage = 'stamped'
             AND (marking_text = ? OR (allocated_po_id = ? AND allocated_po_id IS NOT NULL))
         `, [product_id, poMarking, po_id], (itemErr, markingData) => {
           itemsChecked++;
@@ -3070,8 +3070,8 @@ app.post('/api/production', (req, res) => {
 
     const stmt = db.prepare(`
       INSERT INTO production_history
-      (production_date, product_id, plated, machined, qc, stamped, packed, rejected, notes, marking_type, marking_text, allocated_po_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (production_date, product_id, plated, machined, qc, stamped, rejected, notes, marking_type, marking_text, allocated_po_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     let processedCount = 0;
@@ -3085,7 +3085,6 @@ app.post('/api/production', (req, res) => {
         entry.machined || 0,
         entry.qc || 0,
         entry.stamped || 0,
-        entry.packed || 0,
         entry.rejected || 0,
         entry.notes || '',
         entry.marking_type || 'unmarked',
@@ -3110,24 +3109,22 @@ app.post('/api/production', (req, res) => {
 
         // SEQUENTIAL FLOW: Update inventory stages
         // Each stage consumes from previous stage and adds to current stage
-        // Flow: cores -> plated -> machined -> qc -> stamped -> packed
+        // Flow: steel_rods -> plated -> machined -> qc -> stamped (final finished goods)
 
         const platedQty = Number(entry.plated || 0);
         const machinedQty = Number(entry.machined || 0);
         const qcQty = Number(entry.qc || 0);
         const stampedQty = Number(entry.stamped || 0);
-        const packedQty = Number(entry.packed || 0);
 
         db.run(`
-          INSERT INTO inventory (product_id, steel_rods, plated, machined, qc, stamped, packed, updated_at)
-          VALUES (?, 0, 0, 0, 0, 0, 0, CURRENT_TIMESTAMP)
+          INSERT INTO inventory (product_id, steel_rods, plated, machined, qc, stamped, updated_at)
+          VALUES (?, 0, 0, 0, 0, 0, CURRENT_TIMESTAMP)
           ON CONFLICT(product_id) DO UPDATE SET
             steel_rods = MAX(0, steel_rods - ?),
             plated = MAX(0, plated - ? - ? - ? + ?),
             machined = MAX(0, machined - ? - ? + ?),
             qc = MAX(0, qc - ? + ?),
             stamped = stamped + ?,
-            packed = packed + ?,
             updated_at = CURRENT_TIMESTAMP
         `, [
           entry.product_id,
@@ -3139,10 +3136,8 @@ app.post('/api/production', (req, res) => {
           qcQty, stampedQty, machinedQty,
           // qc: subtract what moves to stamped, add what passed qc
           stampedQty, qcQty,
-          // stamped: add what was stamped (no subtraction - packed is separate)
-          stampedQty,
-          // packed: add what was packed
-          packedQty
+          // stamped: add what was stamped (finished goods ready to ship)
+          stampedQty
         ], (invErr) => {
           if (invErr) {
             failed = true;
@@ -3159,10 +3154,8 @@ app.post('/api/production', (req, res) => {
 
           console.log(`✅ Inventory updated for ${entry.product_id}`);
 
-          // MARKING/ALLOCATION TRACKING: Record marked inventory for stamped stage only
-          // Note: We only track markings at the "stamped" stage since stamping and packing
-          // are essentially one operation. The inventory table still tracks both stamped
-          // and packed quantities separately for production workflow purposes.
+          // MARKING/ALLOCATION TRACKING: Record marked inventory for stamped stage
+          // Stamped is now the final finished goods stage ready to ship
           const markingType = entry.marking_type || 'unmarked';
           const markingText = entry.marking_text || null;
           const allocatedPOId = entry.allocated_po_id || null;
@@ -3178,15 +3171,15 @@ app.post('/api/production', (req, res) => {
             });
           }
 
-          // CRITICAL: Consume raw materials based on BOM for packed (finished) quantity
-          const packedUnits = Number(entry.packed||0);
-          if (packedUnits > 0){
+          // CRITICAL: Consume raw materials based on BOM for stamped (finished) quantity
+          const stampedUnits = Number(entry.stamped||0);
+          if (stampedUnits > 0){
             db.all('SELECT material, qty_per_unit FROM bom WHERE product_id = ?', [entry.product_id], (bomErr, bomRows) => {
               if (bomErr) {
                 console.warn('BOM fetch warning:', bomErr.message);
               } else if (bomRows && bomRows.length > 0) {
                 bomRows.forEach(bom => {
-                  const totalRequired = packedUnits * Number(bom.qty_per_unit || 0);
+                  const totalRequired = stampedUnits * Number(bom.qty_per_unit || 0);
                   if (totalRequired > 0) {
                     db.run(`UPDATE raw_materials_inventory
                             SET current_stock = MAX(0, current_stock - ?),
@@ -3270,10 +3263,10 @@ app.put('/api/production/:id', (req, res) => {
       // Update production_history
       db.run(`
         UPDATE production_history
-        SET production_date = ?, plated = ?, machined = ?, qc = ?, stamped = ?, packed = ?, rejected = ?,
+        SET production_date = ?, plated = ?, machined = ?, qc = ?, stamped = ?, rejected = ?,
             marking_type = ?, marking_text = ?, notes = ?
         WHERE id = ?
-      `, [production_date, plated || 0, machined || 0, qc || 0, stamped || 0, packed || 0, rejected || 0,
+      `, [production_date, plated || 0, machined || 0, qc || 0, stamped || 0, rejected || 0,
           marking_type || 'unmarked', marking_text || '', notes || '', id], function(updateErr) {
         if (updateErr) {
           db.run('ROLLBACK');
@@ -3285,42 +3278,37 @@ app.put('/api/production/:id', (req, res) => {
         const oldMachined = Number(oldEntry.machined || 0);
         const oldQC = Number(oldEntry.qc || 0);
         const oldStamped = Number(oldEntry.stamped || 0);
-        const oldPacked = Number(oldEntry.packed || 0);
 
         const newPlated = Number(plated || 0);
         const newMachined = Number(machined || 0);
         const newQC = Number(qc || 0);
         const newStamped = Number(stamped || 0);
-        const newPacked = Number(packed || 0);
 
         // Calculate net inventory delta (new - old)
         const deltaPlated = newPlated - oldPlated;
         const deltaMachined = newMachined - oldMachined;
         const deltaQC = newQC - oldQC;
         const deltaStamped = newStamped - oldStamped;
-        const deltaPacked = newPacked - oldPacked;
 
         // Update inventory with net delta
         // Same sequential flow logic as original production POST
         db.run(`
-          INSERT INTO inventory (product_id, cores, plated, machined, qc, stamped, packed, updated_at)
-          VALUES (?, 0, 0, 0, 0, 0, 0, CURRENT_TIMESTAMP)
+          INSERT INTO inventory (product_id, steel_rods, plated, machined, qc, stamped, updated_at)
+          VALUES (?, 0, 0, 0, 0, 0, CURRENT_TIMESTAMP)
           ON CONFLICT(product_id) DO UPDATE SET
-            cores = MAX(0, cores - ?),
-            plated = MAX(0, plated - ? - ? - ? - ? + ?),
-            machined = MAX(0, machined - ? - ? - ? + ?),
-            qc = MAX(0, qc - ? - ? + ?),
-            stamped = MAX(0, stamped - ? + ?),
-            packed = packed + ?,
+            steel_rods = MAX(0, steel_rods - ?),
+            plated = MAX(0, plated - ? - ? - ? + ?),
+            machined = MAX(0, machined - ? - ? + ?),
+            qc = MAX(0, qc - ? + ?),
+            stamped = stamped + ?,
             updated_at = CURRENT_TIMESTAMP
         `, [
           oldEntry.product_id,
-          deltaPlated + deltaMachined + deltaQC + deltaStamped + deltaPacked,
-          deltaMachined, deltaQC, deltaStamped, deltaPacked, deltaPlated,
-          deltaQC, deltaStamped, deltaPacked, deltaMachined,
-          deltaStamped, deltaPacked, deltaQC,
-          deltaPacked, deltaStamped,
-          deltaPacked
+          deltaPlated,
+          deltaMachined, deltaQC, deltaStamped, deltaPlated,
+          deltaQC, deltaStamped, deltaMachined,
+          deltaStamped, deltaQC,
+          deltaStamped
         ], (invErr) => {
           if (invErr) {
             db.run('ROLLBACK');
@@ -3364,27 +3352,24 @@ app.delete('/api/production/:id', (req, res) => {
         const machined = Number(entry.machined || 0);
         const qcQty = Number(entry.qc || 0);
         const stamped = Number(entry.stamped || 0);
-        const packed = Number(entry.packed || 0);
 
         db.run(`
-          INSERT INTO inventory (product_id, cores, plated, machined, qc, stamped, packed, updated_at)
-          VALUES (?, 0, 0, 0, 0, 0, 0, CURRENT_TIMESTAMP)
+          INSERT INTO inventory (product_id, steel_rods, plated, machined, qc, stamped, updated_at)
+          VALUES (?, 0, 0, 0, 0, 0, CURRENT_TIMESTAMP)
           ON CONFLICT(product_id) DO UPDATE SET
-            cores = cores + ?,
-            plated = plated + ? + ? + ? + ? - ?,
-            machined = machined + ? + ? + ? - ?,
-            qc = qc + ? + ? - ?,
-            stamped = stamped + ? - ?,
-            packed = packed - ?,
+            steel_rods = steel_rods + ?,
+            plated = plated + ? + ? + ? - ?,
+            machined = machined + ? + ? - ?,
+            qc = qc + ? - ?,
+            stamped = stamped - ?,
             updated_at = CURRENT_TIMESTAMP
         `, [
           entry.product_id,
-          plated + machined + qcQty + stamped + packed,
-          machined, qcQty, stamped, packed, plated,
-          qcQty, stamped, packed, machined,
-          stamped, packed, qcQty,
-          packed, stamped,
-          packed
+          plated,
+          machined, qcQty, stamped, plated,
+          qcQty, stamped, machined,
+          stamped, qcQty,
+          stamped
         ], (invErr) => {
           if (invErr) {
             db.run('ROLLBACK');
@@ -3815,7 +3800,7 @@ app.get('/api/dashboard/stats', (req, res) => {
   db.get("SELECT SUM(plated + machined + qc + stamped) as total_wip FROM inventory", (err, row) => {
     stats.total_wip = row ? row.total_wip || 0 : 0;
     
-    db.get("SELECT SUM(packed) as total_finished FROM inventory", (err, row) => {
+    db.get("SELECT SUM(stamped) as total_finished FROM inventory", (err, row) => {
       stats.total_finished = row ? row.total_finished || 0 : 0;
       
       db.get(`
@@ -5151,7 +5136,7 @@ app.post('/api/inventory/check-availability', (req, res) => {
   const placeholders = productIds.map(() => '?').join(',');
 
   db.all(
-    `SELECT product_id, packed, committed FROM inventory WHERE product_id IN (${placeholders})`,
+    `SELECT product_id, stamped, committed FROM inventory WHERE product_id IN (${placeholders})`,
     productIds,
     (err, inventoryRows) => {
       if (err) return res.status(500).json({ error: err.message });
@@ -5159,14 +5144,14 @@ app.post('/api/inventory/check-availability', (req, res) => {
       const inventoryMap = {};
       (inventoryRows || []).forEach(row => {
         inventoryMap[row.product_id] = {
-          packed: Number(row.packed || 0),
+          stamped: Number(row.stamped || 0),
           committed: Number(row.committed || 0),
-          available: Number(row.packed || 0) - Number(row.committed || 0)
+          available: Number(row.stamped || 0) - Number(row.committed || 0)
         };
       });
 
       const details = line_items.map(item => {
-        const inv = inventoryMap[item.product_id] || { packed: 0, committed: 0, available: 0 };
+        const inv = inventoryMap[item.product_id] || { stamped: 0, committed: 0, available: 0 };
         const requested = Number(item.quantity || 0);
         const shortfall = Math.max(0, requested - inv.available);
 
@@ -5174,7 +5159,7 @@ app.post('/api/inventory/check-availability', (req, res) => {
           product_id: item.product_id,
           requested: requested,
           available: inv.available,
-          packed: inv.packed,
+          stamped: inv.stamped,
           committed: inv.committed,
           sufficient: requested <= inv.available,
           shortfall: shortfall
@@ -5354,14 +5339,14 @@ ${vendors.length > 10 ? `... and ${vendors.length - 10} more` : ''}
 ${clientPOs.slice(0, 5).map(po => `- ${po.id}: ${po.customer_name} - Status: ${po.status} - Date: ${po.po_date}`).join('\n')}
 
 ## Recent Production Activity:
-${recentProduction.slice(0, 5).map(p => `- ${p.production_date}: ${p.product_id} - Plated: ${p.plated || 0}, Machined: ${p.machined || 0}, QC: ${p.qc || 0}, Stamped: ${p.stamped || 0}, Packed: ${p.packed || 0}`).join('\n')}
+${recentProduction.slice(0, 5).map(p => `- ${p.production_date}: ${p.product_id} - Plated: ${p.plated || 0}, Machined: ${p.machined || 0}, QC: ${p.qc || 0}, Stamped: ${p.stamped || 0}`).join('\n')}
 
 ## Raw Materials Inventory:
 ${rawMaterials.map(rm => `- ${rm.material}: ${rm.current_stock} ${rm.unit} (Committed: ${rm.committed_stock || 0})`).join('\n')}
 
 # Production Workflow:
-Steel Cores → Plating → Machining → QC → Stamping/Marking → Packing
-(Each stage consumes from previous stage - sequential flow)
+Steel Rods → Plating → Machining → QC → Stamping/Marking (Final Finished Goods)
+(Each stage consumes from previous stage - sequential flow. Stamped = ready to ship)
 
 # Your Capabilities:
 
@@ -5393,7 +5378,7 @@ When user wants to create/update data:
 - Remind about sequential production flow
 
 # Important Business Rules:
-1. Production is SEQUENTIAL: Can't pack without stamping, can't stamp without QC, etc.
+1. Production is SEQUENTIAL: Can't stamp without QC, can't QC without machining, etc. Stamped = final finished goods ready to ship.
 2. Marking types: unmarked (flexible), nikkon_brand (semi-flexible), client_brand (locked to customer)
 3. Always validate inventory availability before confirming operations
 4. Job Work types: Steel Core Production, Custom Machining, Other Processing
@@ -5409,19 +5394,19 @@ A: "Go to **Inventory** tab → click the product row with the discrepancy. You'
 • Last 50 production entries (below)
 Review the production entries to find where numbers don't match."
 
-Q: "Why can't I pack items?"
-A: "Production is sequential - you need stamped inventory before you can pack. Check **Inventory** tab to see your stamped quantity. If it's zero, you need to:
+Q: "Why don't I have enough finished goods?"
+A: "Stamped inventory is your finished goods ready to ship. Check **Inventory** tab to see your stamped quantity. If it's low, you need to:
 1. Go to **Daily Production**
-2. Record stamping operation first
-3. Then record packing operation"
+2. Record stamping operation to move QC items to finished goods
+3. Stamped items are immediately ready for shipment"
 
 Q: "How do I process a customer order end-to-end?"
 A: "Here's the full workflow:
 1. **Client Purchase Orders** → Create PO with customer and line items
-2. **Inventory** → Verify you have packed inventory
+2. **Inventory** → Verify you have stamped (finished goods) inventory
 3. **Invoice Management** → Generate invoice from PO
 4. **Invoice Management** → Record Payment when received
-5. **Shipments** → Create shipment with carrier/tracking
+5. **Shipments** → Create shipment with carrier/tracking (reduces stamped inventory)
 6. **Client Purchase Orders** → Mark PO as Completed"
 
 Q: "What's the difference between unmarked, nikkon_brand, and client_brand?"
@@ -5582,7 +5567,7 @@ app.post('/api/chat/claude', async (req, res) => {
 
 # Your Expertise:
 - Complete knowledge of all system features, workflows, and business rules
-- Understanding of manufacturing process: Steel Cores → Plating → Machining → QC → Stamping → Packing
+- Understanding of manufacturing process: Steel Rods → Plating → Machining → QC → Stamping (Final Finished Goods)
 - Database structure and relationships between tables
 - User interface navigation and features
 
@@ -5598,14 +5583,14 @@ ${products.length > 15 ? `... and ${products.length - 15} more` : ''}
 ## Current Inventory Summary:
 ${inventory.slice(0, 15).map(inv => {
   const prod = products.find(p => p.id === inv.product_id);
-  return `- ${inv.product_id} (${prod?.description || 'Unknown'}): Steel Rods: ${inv.steel_rods || 0}, Plated: ${inv.plated || 0}, Machined: ${inv.machined || 0}, QC: ${inv.qc || 0}, Stamped: ${inv.stamped || 0}, Packed: ${inv.packed || 0}`;
+  return `- ${inv.product_id} (${prod?.description || 'Unknown'}): Steel Rods: ${inv.steel_rods || 0}, Plated: ${inv.plated || 0}, Machined: ${inv.machined || 0}, QC: ${inv.qc || 0}, Stamped: ${inv.stamped || 0}`;
 }).join('\n')}
 
 ## Recent Client Orders (${clientPOs.length} shown):
 ${clientPOs.slice(0, 10).map(po => `- ${po.id}: ${po.customer_name} - Status: ${po.status} - Total: ${po.total_amount} - Outstanding: ${po.outstanding_amount}`).join('\n')}
 
 ## Recent Production:
-${recentProduction.slice(0, 10).map(p => `- ${p.production_date}: ${p.product_id} - Plated: ${p.plated || 0}, Machined: ${p.machined || 0}, QC: ${p.qc || 0}, Stamped: ${p.stamped || 0}, Packed: ${p.packed || 0}`).join('\n')}
+${recentProduction.slice(0, 10).map(p => `- ${p.production_date}: ${p.product_id} - Plated: ${p.plated || 0}, Machined: ${p.machined || 0}, QC: ${p.qc || 0}, Stamped: ${p.stamped || 0}`).join('\n')}
 
 # Instructions:
 - Provide comprehensive, step-by-step guidance
