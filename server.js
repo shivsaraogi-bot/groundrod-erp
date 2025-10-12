@@ -1815,7 +1815,24 @@ app.put('/api/vendor-purchase-orders/:id', (req, res) => {
 
             res.json({ message: 'Vendor PO updated and inventory received' });
           });
-        } else {
+        }
+        // If status changed to "Cancelled", release committed stock
+        else if (oldStatus !== 'Cancelled' && newStatus === 'Cancelled') {
+          db.all('SELECT material_type, quantity FROM vendor_po_line_items WHERE po_id = ?', [id], (err, items) => {
+            if (err) return res.status(500).json({ error: err.message });
+
+            items.forEach(item => {
+              // Reduce committed_stock for raw materials
+              db.run(
+                `UPDATE raw_materials_inventory SET committed_stock = MAX(committed_stock - ?, 0) WHERE material = ?`,
+                [Number(item.quantity || 0), item.material_type]
+              );
+            });
+
+            res.json({ message: 'Vendor PO cancelled and committed stock released' });
+          });
+        }
+        else {
           res.json({ message: 'Vendor PO updated' });
         }
       }
@@ -1828,17 +1845,60 @@ app.delete('/api/vendor-purchase-orders/:id', (req, res) => {
   const { id } = req.params;
   db.all(`SELECT material_type, quantity FROM vendor_po_line_items WHERE po_id = ?`, [id], (e, rows) => {
     if (e) return res.status(500).json({ error: e.message });
-    db.serialize(()=>{
-      db.run('BEGIN');
-      (rows||[]).forEach(r => {
-        db.run(`UPDATE raw_materials_inventory SET committed_stock = MAX(committed_stock - ?, 0) WHERE material = ?`, [Number(r.quantity||0), r.material_type]);
-      });
-      db.run(`DELETE FROM vendor_po_line_items WHERE po_id = ?`, [id], (e1)=>{
-        if (e1) { try { db.run('ROLLBACK'); } catch(_){} return res.status(500).json({ error: e1.message }); }
-        db.run(`DELETE FROM vendor_purchase_orders WHERE id = ?`, [id], (e2)=>{
-          if (e2) { try { db.run('ROLLBACK'); } catch(_){} return res.status(500).json({ error: e2.message }); }
-          db.run('COMMIT', (cerr)=>{ if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message: 'Vendor PO deleted' }); });
-        });
+
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION', (beginErr) => {
+        if (beginErr) {
+          return res.status(500).json({ error: 'Failed to start transaction: ' + beginErr.message });
+        }
+
+        // Update committed stock for all materials sequentially
+        let updateIndex = 0;
+        const updateNext = () => {
+          if (updateIndex >= (rows || []).length) {
+            // All updates done, proceed to delete line items
+            db.run(`DELETE FROM vendor_po_line_items WHERE po_id = ?`, [id], (e1) => {
+              if (e1) {
+                db.run('ROLLBACK');
+                return res.status(500).json({ error: 'Failed to delete line items: ' + e1.message });
+              }
+
+              // Delete the PO itself
+              db.run(`DELETE FROM vendor_purchase_orders WHERE id = ?`, [id], (e2) => {
+                if (e2) {
+                  db.run('ROLLBACK');
+                  return res.status(500).json({ error: 'Failed to delete PO: ' + e2.message });
+                }
+
+                // Commit transaction
+                db.run('COMMIT', (cerr) => {
+                  if (cerr) {
+                    db.run('ROLLBACK');
+                    return res.status(500).json({ error: 'Commit failed: ' + cerr.message });
+                  }
+                  res.json({ message: 'Vendor PO deleted' });
+                });
+              });
+            });
+            return;
+          }
+
+          const r = rows[updateIndex];
+          db.run(
+            `UPDATE raw_materials_inventory SET committed_stock = MAX(committed_stock - ?, 0) WHERE material = ?`,
+            [Number(r.quantity || 0), r.material_type],
+            (updateErr) => {
+              if (updateErr) {
+                db.run('ROLLBACK');
+                return res.status(500).json({ error: 'Failed to update inventory: ' + updateErr.message });
+              }
+              updateIndex++;
+              updateNext();
+            }
+          );
+        };
+
+        updateNext();
       });
     });
   });
