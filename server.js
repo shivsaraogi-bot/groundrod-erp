@@ -280,6 +280,20 @@ function initializeDatabase() {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
+    // Customer contacts table (for multiple contacts per customer)
+    db.run(`CREATE TABLE IF NOT EXISTS customer_contacts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      title TEXT,
+      phone TEXT,
+      email TEXT,
+      is_primary BOOLEAN DEFAULT 0,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+    )`);
+
     // Vendors table (NEW)
     db.run(`CREATE TABLE IF NOT EXISTS vendors (
       id TEXT PRIMARY KEY,
@@ -925,7 +939,7 @@ app.put('/api/customers/:id', (req, res) => {
 
 app.delete('/api/customers/:id', (req, res) => {
   const { id } = req.params;
-  
+
   db.run("DELETE FROM customers WHERE id=?", [id], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
@@ -933,6 +947,117 @@ app.delete('/api/customers/:id', (req, res) => {
       res.json({ message: 'Customer deleted successfully' });
     }
   });
+});
+
+// ============= CUSTOMER CONTACTS APIs =============
+
+// Get all contacts for a customer
+app.get('/api/customers/:customerId/contacts', (req, res) => {
+  const { customerId } = req.params;
+  db.all(
+    "SELECT * FROM customer_contacts WHERE customer_id = ? ORDER BY is_primary DESC, name",
+    [customerId],
+    (err, rows) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+      } else {
+        res.json(rows || []);
+      }
+    }
+  );
+});
+
+// Add a contact to a customer
+app.post('/api/customers/:customerId/contacts', (req, res) => {
+  const { customerId } = req.params;
+  const { name, title, phone, email, is_primary, notes } = req.body;
+
+  // If this is being set as primary, unset other primary contacts first
+  if (is_primary) {
+    db.run(
+      "UPDATE customer_contacts SET is_primary = 0 WHERE customer_id = ?",
+      [customerId],
+      (err) => {
+        if (err) console.error('Error unsetting primary:', err);
+      }
+    );
+  }
+
+  db.run(
+    "INSERT INTO customer_contacts (customer_id, name, title, phone, email, is_primary, notes) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    [customerId, name, title || '', phone || '', email || '', is_primary ? 1 : 0, notes || ''],
+    function(err) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+      } else {
+        res.json({ message: 'Contact added successfully', id: this.lastID });
+      }
+    }
+  );
+});
+
+// Update a contact
+app.put('/api/customers/:customerId/contacts/:contactId', (req, res) => {
+  const { customerId, contactId } = req.params;
+  const { name, title, phone, email, is_primary, notes } = req.body;
+
+  // If this is being set as primary, unset other primary contacts first
+  if (is_primary) {
+    db.run(
+      "UPDATE customer_contacts SET is_primary = 0 WHERE customer_id = ? AND id != ?",
+      [customerId, contactId],
+      (err) => {
+        if (err) console.error('Error unsetting primary:', err);
+      }
+    );
+  }
+
+  db.run(
+    "UPDATE customer_contacts SET name=?, title=?, phone=?, email=?, is_primary=?, notes=? WHERE id=? AND customer_id=?",
+    [name, title || '', phone || '', email || '', is_primary ? 1 : 0, notes || '', contactId, customerId],
+    function(err) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+      } else {
+        res.json({ message: 'Contact updated successfully' });
+      }
+    }
+  );
+});
+
+// Delete a contact
+app.delete('/api/customers/:customerId/contacts/:contactId', (req, res) => {
+  const { customerId, contactId } = req.params;
+
+  db.run(
+    "DELETE FROM customer_contacts WHERE id=? AND customer_id=?",
+    [contactId, customerId],
+    function(err) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+      } else {
+        res.json({ message: 'Contact deleted successfully' });
+      }
+    }
+  );
+});
+
+// Get all contacts across all customers (for email blast)
+app.get('/api/customer-contacts/all', (_req, res) => {
+  db.all(
+    `SELECT cc.*, c.name as customer_name
+     FROM customer_contacts cc
+     LEFT JOIN customers c ON cc.customer_id = c.id
+     ORDER BY c.name, cc.is_primary DESC, cc.name`,
+    [],
+    (err, rows) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+      } else {
+        res.json(rows || []);
+      }
+    }
+  );
 });
 
 // ============= VENDOR APIs (NEW) =============

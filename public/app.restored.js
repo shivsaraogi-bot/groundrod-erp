@@ -5492,6 +5492,9 @@ function CustomerManagementEx({ customers, onRefresh }){
   const [editForm, setEditForm] = useState({});
   const [bulkImportStatus, setBulkImportStatus] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [contacts, setContacts] = useState([]);
+  const [contactForm, setContactForm] = useState({ name: '', title: '', phone: '', email: '', is_primary: false, notes: '' });
+  const [editingContactId, setEditingContactId] = useState(null);
 
   async function add(){
     await fetch(`${API_URL}/customers`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
@@ -5549,9 +5552,59 @@ function CustomerManagementEx({ customers, onRefresh }){
     { key: 'warehouse_address', label: 'Warehouse Address' }
   ];
 
-  function handleRowClick(customer){
+  async function handleRowClick(customer){
     setEditForm({ ...customer });
     setEditingCustomer(customer);
+    // Load contacts for this customer
+    const res = await fetch(`${API_URL}/customers/${customer.id}/contacts`);
+    const contactsData = await res.json();
+    setContacts(contactsData || []);
+    setContactForm({ name: '', title: '', phone: '', email: '', is_primary: false, notes: '' });
+    setEditingContactId(null);
+  }
+
+  async function addContact(){
+    if (!contactForm.name || !editingCustomer) return;
+    await fetch(`${API_URL}/customers/${editingCustomer.id}/contacts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(contactForm)
+    });
+    // Reload contacts
+    const res = await fetch(`${API_URL}/customers/${editingCustomer.id}/contacts`);
+    const contactsData = await res.json();
+    setContacts(contactsData || []);
+    setContactForm({ name: '', title: '', phone: '', email: '', is_primary: false, notes: '' });
+  }
+
+  async function saveContactEdit(contactId){
+    const contact = contacts.find(c => c.id === contactId);
+    if (!contact) return;
+    await fetch(`${API_URL}/customers/${editingCustomer.id}/contacts/${contactId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(contact)
+    });
+    setEditingContactId(null);
+    // Reload contacts
+    const res = await fetch(`${API_URL}/customers/${editingCustomer.id}/contacts`);
+    const contactsData = await res.json();
+    setContacts(contactsData || []);
+  }
+
+  async function deleteContact(contactId){
+    if (!confirm('Delete this contact?')) return;
+    await fetch(`${API_URL}/customers/${editingCustomer.id}/contacts/${contactId}`, {
+      method: 'DELETE'
+    });
+    // Reload contacts
+    const res = await fetch(`${API_URL}/customers/${editingCustomer.id}/contacts`);
+    const contactsData = await res.json();
+    setContacts(contactsData || []);
+  }
+
+  function updateContact(contactId, field, value){
+    setContacts(contacts.map(c => c.id === contactId ? { ...c, [field]: value } : c));
   }
 
   return React.createElement('div', { className:'space-y-4' },
@@ -5604,6 +5657,75 @@ function CustomerManagementEx({ customers, onRefresh }){
           React.createElement('div', { className:'md:col-span-2' }, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Email'), React.createElement('input', { type:'email', className:'border rounded px-3 py-2 w-full', value:editForm.email || '', onChange:e=>setEditForm({...editForm, email:e.target.value}) })),
           React.createElement('div', { className:'md:col-span-2' }, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Office Address'), React.createElement('textarea', { className:'border rounded px-3 py-2 w-full', rows:2, value:editForm.office_address || '', onChange:e=>setEditForm({...editForm, office_address:e.target.value}) })),
           React.createElement('div', { className:'md:col-span-2' }, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Warehouse Address'), React.createElement('textarea', { className:'border rounded px-3 py-2 w-full', rows:2, value:editForm.warehouse_address || '', onChange:e=>setEditForm({...editForm, warehouse_address:e.target.value}) }))
+        ),
+        React.createElement('div', { className:'mt-8 pt-6 border-t border-gray-300' },
+          React.createElement('h3', { className:'text-lg font-bold mb-4 flex items-center gap-2' },
+            React.createElement('span', null, '👥'),
+            'Contact Persons'
+          ),
+          React.createElement('div', { className:'bg-gray-50 p-4 rounded-lg mb-4' },
+            React.createElement('h4', { className:'font-semibold text-sm mb-3' }, 'Add New Contact'),
+            React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-2 gap-3' },
+              React.createElement('input', { className:'border rounded px-3 py-2', placeholder:'Name *', value:contactForm.name, onChange:e=>setContactForm({...contactForm, name:e.target.value}) }),
+              React.createElement('input', { className:'border rounded px-3 py-2', placeholder:'Title/Position', value:contactForm.title, onChange:e=>setContactForm({...contactForm, title:e.target.value}) }),
+              React.createElement('input', { className:'border rounded px-3 py-2', placeholder:'Phone', value:contactForm.phone, onChange:e=>setContactForm({...contactForm, phone:e.target.value}) }),
+              React.createElement('input', { className:'border rounded px-3 py-2', placeholder:'Email', value:contactForm.email, onChange:e=>setContactForm({...contactForm, email:e.target.value}) }),
+              React.createElement('label', { className:'flex items-center gap-2 col-span-full' },
+                React.createElement('input', { type:'checkbox', checked:contactForm.is_primary, onChange:e=>setContactForm({...contactForm, is_primary:e.target.checked}) }),
+                React.createElement('span', { className:'text-sm' }, 'Primary Contact')
+              ),
+              React.createElement('textarea', { className:'border rounded px-3 py-2 col-span-full', rows:2, placeholder:'Notes', value:contactForm.notes, onChange:e=>setContactForm({...contactForm, notes:e.target.value}) }),
+              React.createElement('button', { onClick:addContact, disabled:!contactForm.name, className:'px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 flex items-center gap-2' },
+                React.createElement('span', null, '➕'),
+                'Add Contact'
+              )
+            )
+          ),
+          React.createElement('div', { className:'space-y-2' },
+            contacts.length === 0 ? (
+              React.createElement('p', { className:'text-sm text-gray-500 italic text-center py-4' }, 'No contacts added yet')
+            ) : (
+              contacts.map(contact => (
+                React.createElement('div', { key:contact.id, className:'bg-white border rounded-lg p-3' },
+                  editingContactId === contact.id ? (
+                    React.createElement('div', { className:'grid grid-cols-2 gap-2' },
+                      React.createElement('input', { className:'border rounded px-2 py-1 text-sm', value:contact.name, onChange:e=>updateContact(contact.id, 'name', e.target.value) }),
+                      React.createElement('input', { className:'border rounded px-2 py-1 text-sm', value:contact.title || '', onChange:e=>updateContact(contact.id, 'title', e.target.value) }),
+                      React.createElement('input', { className:'border rounded px-2 py-1 text-sm', value:contact.phone || '', onChange:e=>updateContact(contact.id, 'phone', e.target.value) }),
+                      React.createElement('input', { className:'border rounded px-2 py-1 text-sm', value:contact.email || '', onChange:e=>updateContact(contact.id, 'email', e.target.value) }),
+                      React.createElement('label', { className:'flex items-center gap-1 col-span-2 text-sm' },
+                        React.createElement('input', { type:'checkbox', checked:!!contact.is_primary, onChange:e=>updateContact(contact.id, 'is_primary', e.target.checked?1:0) }),
+                        'Primary'
+                      ),
+                      React.createElement('div', { className:'col-span-2 flex gap-2' },
+                        React.createElement('button', { onClick:()=>saveContactEdit(contact.id), className:'px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700' }, '💾 Save'),
+                        React.createElement('button', { onClick:()=>setEditingContactId(null), className:'px-3 py-1 bg-gray-300 text-sm rounded hover:bg-gray-400' }, 'Cancel')
+                      )
+                    )
+                  ) : (
+                    React.createElement('div', { className:'flex justify-between items-start' },
+                      React.createElement('div', { className:'flex-1' },
+                        React.createElement('div', { className:'font-semibold flex items-center gap-2' },
+                          contact.name,
+                          contact.is_primary && React.createElement('span', { className:'text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded' }, '⭐ Primary')
+                        ),
+                        contact.title && React.createElement('div', { className:'text-sm text-gray-600' }, contact.title),
+                        React.createElement('div', { className:'text-sm text-gray-700 mt-1' },
+                          contact.phone && React.createElement('span', { className:'mr-3' }, '📞 ', contact.phone),
+                          contact.email && React.createElement('span', null, '✉️ ', contact.email)
+                        ),
+                        contact.notes && React.createElement('div', { className:'text-xs text-gray-500 mt-1' }, contact.notes)
+                      ),
+                      React.createElement('div', { className:'flex gap-2 ml-2' },
+                        React.createElement('button', { onClick:()=>setEditingContactId(contact.id), className:'text-blue-600 hover:text-blue-800 text-sm' }, '✏️'),
+                        React.createElement('button', { onClick:()=>deleteContact(contact.id), className:'text-red-600 hover:text-red-800 text-sm' }, '🗑️')
+                      )
+                    )
+                  )
+                )
+              ))
+            )
+          )
         ),
         React.createElement('div', { className:'flex justify-end gap-3 mt-6' },
           React.createElement('button', { onClick:()=>setEditingCustomer(null), className:'px-4 py-2 border rounded text-gray-700 hover:bg-gray-100 flex items-center gap-2' },
