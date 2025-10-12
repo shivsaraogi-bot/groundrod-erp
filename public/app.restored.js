@@ -1194,9 +1194,25 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
   const [prodForm, setProdForm] = useState({
     product_id: '',
     production_date: new Date().toISOString().split('T')[0],
-    quantity: '',
+    plated: '',
+    machined: '',
+    qc: '',
+    stamped: '',
+    rejected: '',
+    marking_type: 'unmarked',
+    marking_text: '',
     notes: ''
   });
+
+  const [suggestedMarkings, setSuggestedMarkings] = useState([]);
+
+  React.useEffect(() => {
+    // Fetch suggested markings for branding
+    fetch(`${API_URL}/production/suggested-markings`)
+      .then(res => res.json())
+      .then(data => setSuggestedMarkings(data))
+      .catch(err => console.error('Error fetching suggested markings:', err));
+  }, []);
 
   // Quick stats
   const lowStockCount = inventory.filter(i => i.current_stock < i.reorder_level).length;
@@ -1208,20 +1224,34 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
   }).length;
 
   async function handleProductionSubmit() {
-    if (!prodForm.product_id || !prodForm.quantity) {
-      alert('⚠️ Please select product and enter quantity');
+    if (!prodForm.product_id) {
+      alert('⚠️ Please select a product');
+      return;
+    }
+
+    const hasQuantity = prodForm.plated || prodForm.machined || prodForm.qc || prodForm.stamped || prodForm.rejected;
+    if (!hasQuantity) {
+      alert('⚠️ Please enter at least one stage quantity');
       return;
     }
 
     try {
-      const response = await fetch(`${API_URL}/inventory`, {
+      const response = await fetch(`${API_URL}/production`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          product_id: prodForm.product_id,
-          production_date: prodForm.production_date,
-          quantity: Number(prodForm.quantity),
-          notes: prodForm.notes || ''
+          date: prodForm.production_date,
+          entries: [{
+            product_id: prodForm.product_id,
+            plated: Number(prodForm.plated || 0),
+            machined: Number(prodForm.machined || 0),
+            qc: Number(prodForm.qc || 0),
+            stamped: Number(prodForm.stamped || 0),
+            rejected: Number(prodForm.rejected || 0),
+            marking_type: prodForm.marking_type || 'unmarked',
+            marking_text: prodForm.marking_text || '',
+            notes: prodForm.notes || ''
+          }]
         })
       });
 
@@ -1233,7 +1263,13 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
         setProdForm({
           product_id: prodForm.product_id, // Keep same product selected
           production_date: new Date().toISOString().split('T')[0],
-          quantity: '',
+          plated: '',
+          machined: '',
+          qc: '',
+          stamped: '',
+          rejected: '',
+          marking_type: prodForm.marking_type, // Keep marking type
+          marking_text: prodForm.marking_text, // Keep marking text for same customer
           notes: ''
         });
 
@@ -1413,22 +1449,122 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
           })
         ),
 
-        // Quantity - BIG INPUT
+        // Production Stages Card
         React.createElement('div', { className: 'bg-white rounded-lg shadow-md p-4' },
-          React.createElement('label', { className: 'block text-sm font-bold text-gray-700 mb-2' },
-            '🔢 Quantity (pieces) *'
-          ),
-          React.createElement('input', {
-            type: 'number',
-            inputMode: 'numeric',
-            pattern: '[0-9]*',
-            className: 'w-full border-2 border-gray-300 rounded-lg px-4 py-4 text-3xl font-bold text-center focus:border-blue-500 focus:ring-2 focus:ring-blue-200',
-            placeholder: '0',
-            value: prodForm.quantity,
-            onChange: e => setProdForm({...prodForm, quantity: e.target.value})
-          }),
-          React.createElement('div', { className: 'mt-2 text-center text-xs text-gray-500' },
-            'Enter number of pieces produced'
+          React.createElement('div', { className: 'text-sm font-bold text-gray-700 mb-3' }, '⚙️ Production Stages'),
+          React.createElement('div', { className: 'grid grid-cols-2 gap-3' },
+            // Plated
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-xs font-semibold text-gray-600 mb-1' }, 'Plated'),
+              React.createElement('input', {
+                type: 'number',
+                inputMode: 'numeric',
+                min: 0,
+                className: 'w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-xl font-bold text-center focus:border-blue-500',
+                placeholder: '0',
+                value: prodForm.plated,
+                onChange: e => setProdForm({...prodForm, plated: e.target.value})
+              })
+            ),
+            // Machined
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-xs font-semibold text-gray-600 mb-1' }, 'Machined'),
+              React.createElement('input', {
+                type: 'number',
+                inputMode: 'numeric',
+                min: 0,
+                className: 'w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-xl font-bold text-center focus:border-blue-500',
+                placeholder: '0',
+                value: prodForm.machined,
+                onChange: e => setProdForm({...prodForm, machined: e.target.value})
+              })
+            ),
+            // QC
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-xs font-semibold text-gray-600 mb-1' }, 'QC'),
+              React.createElement('input', {
+                type: 'number',
+                inputMode: 'numeric',
+                min: 0,
+                className: 'w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-xl font-bold text-center focus:border-blue-500',
+                placeholder: '0',
+                value: prodForm.qc,
+                onChange: e => setProdForm({...prodForm, qc: e.target.value})
+              })
+            ),
+            // Stamped (Finished)
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-xs font-semibold text-green-700 mb-1' }, '✓ Stamped (Finished)'),
+              React.createElement('input', {
+                type: 'number',
+                inputMode: 'numeric',
+                min: 0,
+                className: 'w-full border-2 border-green-400 rounded-lg px-3 py-2 text-xl font-bold text-center focus:border-green-500 bg-green-50',
+                placeholder: '0',
+                value: prodForm.stamped,
+                onChange: e => setProdForm({...prodForm, stamped: e.target.value})
+              })
+            ),
+            // Rejected
+            React.createElement('div', { className: 'col-span-2' },
+              React.createElement('label', { className: 'block text-xs font-semibold text-red-700 mb-1' }, '✗ Rejected'),
+              React.createElement('input', {
+                type: 'number',
+                inputMode: 'numeric',
+                min: 0,
+                className: 'w-full border-2 border-red-300 rounded-lg px-3 py-2 text-xl font-bold text-center focus:border-red-500 bg-red-50',
+                placeholder: '0',
+                value: prodForm.rejected,
+                onChange: e => setProdForm({...prodForm, rejected: e.target.value})
+              })
+            )
+          )
+        ),
+
+        // Marking/Branding Card
+        React.createElement('div', { className: 'bg-white rounded-lg shadow-md p-4' },
+          React.createElement('div', { className: 'text-sm font-bold text-gray-700 mb-3' }, '🏷️ Marking/Branding'),
+          React.createElement('div', { className: 'space-y-3' },
+            // Marking Type
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-xs font-semibold text-gray-600 mb-1' }, 'Marking Type'),
+              React.createElement('select', {
+                className: 'w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-base focus:border-blue-500',
+                value: prodForm.marking_type,
+                onChange: e => setProdForm({...prodForm, marking_type: e.target.value})
+              },
+                React.createElement('option', { value: 'unmarked' }, 'Unmarked'),
+                React.createElement('option', { value: 'nikkon_brand' }, 'Nikkon Brand'),
+                React.createElement('option', { value: 'client_brand' }, 'Client Brand')
+              )
+            ),
+            // Marking Text (with suggestions)
+            prodForm.marking_type !== 'unmarked' && React.createElement('div', { className: 'relative' },
+              React.createElement('label', { className: 'block text-xs font-semibold text-gray-600 mb-1' }, 'Marking Text'),
+              React.createElement('input', {
+                type: 'text',
+                className: 'w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-base focus:border-blue-500',
+                placeholder: 'Enter marking text or select below...',
+                value: prodForm.marking_text,
+                onChange: e => setProdForm({...prodForm, marking_text: e.target.value})
+              }),
+              suggestedMarkings.length > 0 && React.createElement('div', { className: 'mt-2 space-y-1' },
+                React.createElement('div', { className: 'text-xs font-semibold text-gray-500' }, 'Recent Markings:'),
+                suggestedMarkings.slice(0, 3).map((suggestion, idx) =>
+                  React.createElement('button', {
+                    key: idx,
+                    type: 'button',
+                    className: 'w-full text-left px-3 py-2 bg-gray-50 rounded text-sm hover:bg-blue-50 border border-gray-200',
+                    onClick: () => setProdForm({...prodForm, marking_text: suggestion.marking_text})
+                  },
+                    React.createElement('div', { className: 'font-semibold' }, suggestion.marking_text),
+                    React.createElement('div', { className: 'text-xs text-gray-600' },
+                      `${suggestion.customer_name || 'N/A'} • PO #${suggestion.po_id}`
+                    )
+                  )
+                )
+              )
+            )
           )
         ),
 
@@ -1438,7 +1574,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
             '📝 Notes (Optional)'
           ),
           React.createElement('textarea', {
-            className: 'w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200',
+            className: 'w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-200',
             rows: 3,
             placeholder: 'Any remarks...',
             value: prodForm.notes,
@@ -1450,7 +1586,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
         React.createElement('button', {
           className: 'w-full bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl shadow-lg py-5 text-xl font-bold active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed',
           onClick: handleProductionSubmit,
-          disabled: !prodForm.product_id || !prodForm.quantity
+          disabled: !prodForm.product_id
         }, '✅ Record Production')
       )
     );
