@@ -5564,43 +5564,89 @@ function CustomerManagementEx({ customers, onRefresh }){
   }
 
   async function addContact(){
-    if (!contactForm.name || !editingCustomer) return;
-    await fetch(`${API_URL}/customers/${editingCustomer.id}/contacts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(contactForm)
-    });
-    // Reload contacts
-    const res = await fetch(`${API_URL}/customers/${editingCustomer.id}/contacts`);
-    const contactsData = await res.json();
-    setContacts(contactsData || []);
-    setContactForm({ name: '', title: '', phone: '', email: '', is_primary: false, notes: '' });
+    if (!contactForm.name || !editingCustomer) {
+      alert('Please enter a contact name');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/customers/${editingCustomer.id}/contacts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contactForm)
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert('Failed to add contact: ' + (error.error || 'Unknown error'));
+        return;
+      }
+
+      // Reload contacts
+      const res = await fetch(`${API_URL}/customers/${editingCustomer.id}/contacts`);
+      const contactsData = await res.json();
+      setContacts(contactsData || []);
+      setContactForm({ name: '', title: '', phone: '', email: '', is_primary: false, notes: '' });
+
+      alert('✓ Contact added successfully!');
+    } catch (err) {
+      alert('Error adding contact: ' + err.message);
+      console.error('Add contact error:', err);
+    }
   }
 
   async function saveContactEdit(contactId){
     const contact = contacts.find(c => c.id === contactId);
     if (!contact) return;
-    await fetch(`${API_URL}/customers/${editingCustomer.id}/contacts/${contactId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(contact)
-    });
-    setEditingContactId(null);
-    // Reload contacts
-    const res = await fetch(`${API_URL}/customers/${editingCustomer.id}/contacts`);
-    const contactsData = await res.json();
-    setContacts(contactsData || []);
+
+    try {
+      const response = await fetch(`${API_URL}/customers/${editingCustomer.id}/contacts/${contactId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contact)
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert('Failed to update contact: ' + (error.error || 'Unknown error'));
+        return;
+      }
+
+      setEditingContactId(null);
+      // Reload contacts
+      const res = await fetch(`${API_URL}/customers/${editingCustomer.id}/contacts`);
+      const contactsData = await res.json();
+      setContacts(contactsData || []);
+      alert('✓ Contact updated successfully!');
+    } catch (err) {
+      alert('Error updating contact: ' + err.message);
+      console.error('Update contact error:', err);
+    }
   }
 
   async function deleteContact(contactId){
     if (!confirm('Delete this contact?')) return;
-    await fetch(`${API_URL}/customers/${editingCustomer.id}/contacts/${contactId}`, {
-      method: 'DELETE'
-    });
-    // Reload contacts
-    const res = await fetch(`${API_URL}/customers/${editingCustomer.id}/contacts`);
-    const contactsData = await res.json();
-    setContacts(contactsData || []);
+
+    try {
+      const response = await fetch(`${API_URL}/customers/${editingCustomer.id}/contacts/${contactId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert('Failed to delete contact: ' + (error.error || 'Unknown error'));
+        return;
+      }
+
+      // Reload contacts
+      const res = await fetch(`${API_URL}/customers/${editingCustomer.id}/contacts`);
+      const contactsData = await res.json();
+      setContacts(contactsData || []);
+      alert('✓ Contact deleted successfully!');
+    } catch (err) {
+      alert('Error deleting contact: ' + err.message);
+      console.error('Delete contact error:', err);
+    }
   }
 
   function updateContact(contactId, field, value){
