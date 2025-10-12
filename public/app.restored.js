@@ -4335,13 +4335,16 @@ function MarkingBreakdownRow({ productId, markings, loading, onRefresh }) {
     );
   }
 
-  // Group markings by stage
+  // Group markings by stage (only show stamped stage - finished goods)
   const stageGroups = {};
   markings.forEach(m => {
-    if (!stageGroups[m.stage]) {
-      stageGroups[m.stage] = [];
+    // Only show stamped stage since stamping and packing are one operation
+    if (m.stage === 'stamped') {
+      if (!stageGroups[m.stage]) {
+        stageGroups[m.stage] = [];
+      }
+      stageGroups[m.stage].push(m);
     }
-    stageGroups[m.stage].push(m);
   });
 
   const stageLabels = {
@@ -4349,8 +4352,7 @@ function MarkingBreakdownRow({ productId, markings, loading, onRefresh }) {
     plated: 'Plated',
     machined: 'Machined',
     qc: 'QC',
-    stamped: 'Stamped',
-    packed: 'Packed'
+    stamped: 'Stamped (Finished Goods)'
   };
 
   return React.createElement('tr', { className: 'bg-blue-50 border-l-4 border-l-blue-600' },

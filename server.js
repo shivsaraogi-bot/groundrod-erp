@@ -777,6 +777,12 @@ function initializeDatabase() {
       FOREIGN KEY (allocated_po_id) REFERENCES client_purchase_orders(id)
     )`);
 
+    // MIGRATION NOTE (v20.2): Clean up old packed allocations if needed
+    // The system now only tracks markings at the "stamped" stage since stamping
+    // and packing are essentially one operation. To clean up historical data, run:
+    // DELETE FROM inventory_allocations WHERE stage = 'packed';
+    // This is optional and can be done during a maintenance window.
+
     insertSampleData();
   });
 }
@@ -2634,6 +2640,7 @@ app.get('/api/inventory/markings', (_req, res) => {
     LEFT JOIN products p ON ia.product_id = p.id
     LEFT JOIN client_purchase_orders cpo ON ia.allocated_po_id = cpo.id
     LEFT JOIN customers c ON cpo.customer_id = c.id
+    WHERE ia.stage = 'stamped'
     GROUP BY ia.product_id, ia.stage, ia.marking_type, ia.marking_text, ia.allocated_po_id
     HAVING SUM(ia.quantity) > 0
     ORDER BY p.description, ia.stage, ia.marking_type, ia.marking_text
@@ -3152,7 +3159,10 @@ app.post('/api/production', (req, res) => {
 
           console.log(`✅ Inventory updated for ${entry.product_id}`);
 
-          // MARKING/ALLOCATION TRACKING: Record marked inventory for stamped and packed stages
+          // MARKING/ALLOCATION TRACKING: Record marked inventory for stamped stage only
+          // Note: We only track markings at the "stamped" stage since stamping and packing
+          // are essentially one operation. The inventory table still tracks both stamped
+          // and packed quantities separately for production workflow purposes.
           const markingType = entry.marking_type || 'unmarked';
           const markingText = entry.marking_text || null;
           const allocatedPOId = entry.allocated_po_id || null;
@@ -3165,17 +3175,6 @@ app.post('/api/production', (req, res) => {
               VALUES (?, 'stamped', ?, ?, ?, ?, ?)
             `, [entry.product_id, markingType, markingText, stampedQty, allocatedPOId, date], (allocErr) => {
               if (allocErr) console.warn('Stamped allocation tracking warning:', allocErr.message);
-            });
-          }
-
-          // Record packed inventory allocation if packed quantity > 0
-          if (packedQty > 0) {
-            db.run(`
-              INSERT INTO inventory_allocations
-              (product_id, stage, marking_type, marking_text, quantity, allocated_po_id, allocated_date)
-              VALUES (?, 'packed', ?, ?, ?, ?, ?)
-            `, [entry.product_id, markingType, markingText, packedQty, allocatedPOId, date], (allocErr) => {
-              if (allocErr) console.warn('Packed allocation tracking warning:', allocErr.message);
             });
           }
 
