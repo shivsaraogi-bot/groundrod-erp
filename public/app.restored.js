@@ -1321,7 +1321,7 @@ function MaterialVariance({ onRefresh }) {
 // ============================================================================
 
 function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrders, customers, vendors, shipments, invoices, onRefresh, setActiveTab }) {
-  const [mobileView, setMobileView] = useState('home');
+  const [mobileView, setMobileView] = useState('menu');
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
@@ -2432,6 +2432,13 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
         ]
       },
       {
+        title: 'Monitoring',
+        icon: '⚠️',
+        items: [
+          { id: 'alerts', label: 'Alerts & Low Stock', icon: '⚠️', color: 'red', badge: lowStockCount + rawMaterialAlerts + urgentOrders }
+        ]
+      },
+      {
         title: 'System',
         icon: '⚙️',
         items: [
@@ -2440,8 +2447,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
       }
     ];
 
-    return React.createElement('div', { className: 'relative' },
-      React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-16' },
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100' },
       // Header
       React.createElement('div', { className: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 shadow-lg' },
         React.createElement('h1', { className: 'text-2xl font-bold' }, '⚡ GroundRod ERP'),
@@ -2449,7 +2455,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
       ),
 
       // Menu Sections
-      React.createElement('div', { className: 'p-4 space-y-4' },
+      React.createElement('div', { className: 'p-4 space-y-4 pb-6' },
         menuSections.map((section, idx) =>
           React.createElement('div', { key: idx },
             React.createElement('h3', { className: 'font-bold text-gray-700 mb-2 flex items-center gap-2' },
@@ -2460,7 +2466,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
               section.items.map(item =>
                 React.createElement('button', {
                   key: item.id,
-                  className: 'w-full bg-white rounded-lg shadow p-4 flex items-center gap-3 active:bg-gray-50 transition',
+                  className: 'w-full bg-white rounded-lg shadow p-4 flex items-center gap-3 active:bg-gray-50 transition relative',
                   onClick: () => {
                     if (item.action) {
                       item.action();
@@ -2471,6 +2477,9 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
                 },
                   React.createElement('div', { className: 'text-2xl' }, item.icon),
                   React.createElement('div', { className: 'flex-1 text-left font-semibold text-gray-800' }, item.label),
+                  item.badge && item.badge > 0 && React.createElement('div', {
+                    className: 'bg-red-600 text-white text-sm rounded-full px-2 py-1 font-bold mr-2'
+                  }, item.badge),
                   React.createElement('div', { className: 'text-xl text-gray-400' }, '→')
                 )
               )
@@ -2478,61 +2487,8 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
           )
         )
       )
-      ),
-      BottomNav
     );
   }
-
-  // Bottom Navigation Bar
-  return React.createElement('div', { className: 'fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg' },
-    React.createElement('div', { className: 'grid grid-cols-6 gap-1' },
-      React.createElement('button', {
-        className: `p-3 text-center ${mobileView === 'home' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`,
-        onClick: () => setMobileView('home')
-      },
-        React.createElement('div', { className: 'text-2xl' }, '🏠'),
-        React.createElement('div', { className: 'text-xs font-semibold mt-1' }, 'Home')
-      ),
-      React.createElement('button', {
-        className: `p-3 text-center ${mobileView === 'production' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`,
-        onClick: () => setMobileView('production')
-      },
-        React.createElement('div', { className: 'text-2xl' }, '⚙️'),
-        React.createElement('div', { className: 'text-xs font-semibold mt-1' }, 'Produce')
-      ),
-      React.createElement('button', {
-        className: `p-3 text-center ${mobileView === 'orders' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`,
-        onClick: () => setMobileView('orders')
-      },
-        React.createElement('div', { className: 'text-2xl' }, '📋'),
-        React.createElement('div', { className: 'text-xs font-semibold mt-1' }, 'Orders')
-      ),
-      React.createElement('button', {
-        className: `p-3 text-center ${mobileView === 'inventory' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`,
-        onClick: () => setMobileView('inventory')
-      },
-        React.createElement('div', { className: 'text-2xl' }, '📦'),
-        React.createElement('div', { className: 'text-xs font-semibold mt-1' }, 'Stock')
-      ),
-      React.createElement('button', {
-        className: `p-3 text-center ${mobileView === 'alerts' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'} relative`,
-        onClick: () => setMobileView('alerts')
-      },
-        React.createElement('div', { className: 'text-2xl' }, '⚠️'),
-        React.createElement('div', { className: 'text-xs font-semibold mt-1' }, 'Alerts'),
-        (lowStockCount + rawMaterialAlerts + urgentOrders) > 0 && React.createElement('div', {
-          className: 'absolute top-2 right-2 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold'
-        }, Math.min(lowStockCount + rawMaterialAlerts + urgentOrders, 9))
-      ),
-      React.createElement('button', {
-        className: `p-3 text-center ${mobileView === 'menu' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`,
-        onClick: () => setMobileView('menu')
-      },
-        React.createElement('div', { className: 'text-2xl' }, '☰'),
-        React.createElement('div', { className: 'text-xs font-semibold mt-1' }, 'Menu')
-      )
-    )
-  );
 }
 
 function Dashboard({ stats, riskAnalysis, clientPurchaseOrders, inventory, setActiveTab }){
