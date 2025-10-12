@@ -5808,6 +5808,123 @@ app.post('/api/admin/reset-wip', (req, res) => {
   );
 });
 
+// ============= DATABASE RESET ENDPOINT =============
+// Reset inventory and production data while preserving master data
+app.post('/api/admin/reset-inventory-production', (req, res) => {
+  const { confirmPassword } = req.body;
+
+  // Simple password protection - change this to your preferred password
+  if (confirmPassword !== 'RESET2025') {
+    return res.status(403).json({ error: 'Invalid password' });
+  }
+
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION');
+
+    try {
+      // Clear all inventory data
+      db.run('DELETE FROM inventory', (err) => {
+        if (err) throw err;
+      });
+
+      // Clear all inventory allocations (marking/branding data)
+      db.run('DELETE FROM inventory_allocations', (err) => {
+        if (err) throw err;
+      });
+
+      // Clear production history
+      db.run('DELETE FROM production_history', (err) => {
+        if (err) throw err;
+      });
+
+      // Clear job work orders
+      db.run('DELETE FROM job_work_orders', (err) => {
+        if (err) throw err;
+      });
+
+      // Clear job work receipts
+      db.run('DELETE FROM job_work_receipts', (err) => {
+        if (err) throw err;
+      });
+
+      // Clear drawing operations
+      db.run('DELETE FROM drawing_operations', (err) => {
+        if (err) throw err;
+      });
+
+      // Reset raw materials inventory to zero
+      db.run('UPDATE raw_materials_inventory SET current_stock = 0, committed_stock = 0, updated_at = CURRENT_TIMESTAMP', (err) => {
+        if (err) throw err;
+      });
+
+      // Clear vendor PO line items first (foreign key constraint)
+      db.run('DELETE FROM vendor_po_line_items', (err) => {
+        if (err) throw err;
+      });
+
+      // Clear vendor purchase orders
+      db.run('DELETE FROM vendor_purchase_orders', (err) => {
+        if (err) throw err;
+      });
+
+      // Clear shipments
+      db.run('DELETE FROM shipments', (err) => {
+        if (err) throw err;
+      });
+
+      // Clear shipment items
+      db.run('DELETE FROM shipment_items', (err) => {
+        if (err) throw err;
+      });
+
+      // PRESERVED DATA:
+      // - customers (kept)
+      // - client_purchase_orders (kept)
+      // - client_po_line_items (kept)
+      // - products (kept)
+      // - vendors (kept)
+      // - bom (kept)
+      // - raw_materials_inventory structure (kept, but stock reset to 0)
+
+      db.run('COMMIT', (err) => {
+        if (err) {
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: 'Reset failed: ' + err.message });
+        }
+
+        res.json({
+          success: true,
+          message: 'Database reset successfully',
+          cleared: [
+            'inventory',
+            'inventory_allocations',
+            'production_history',
+            'job_work_orders',
+            'job_work_receipts',
+            'drawing_operations',
+            'raw_materials_inventory (stock reset to 0)',
+            'vendor_purchase_orders',
+            'vendor_po_line_items',
+            'shipments',
+            'shipment_items'
+          ],
+          preserved: [
+            'customers',
+            'client_purchase_orders',
+            'client_po_line_items',
+            'products',
+            'vendors',
+            'bom (Bill of Materials)'
+          ]
+        });
+      });
+    } catch (err) {
+      db.run('ROLLBACK');
+      return res.status(500).json({ error: 'Reset failed: ' + err.message });
+    }
+  });
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
