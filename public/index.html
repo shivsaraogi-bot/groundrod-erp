@@ -9,15 +9,25 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    * { 
-      margin: 0; 
-      padding: 0; 
-      box-sizing: border-box; 
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
-    body { 
+    html, body {
+      max-width: 100vw;
+      overflow-x: hidden; /* CRITICAL: Prevents horizontal scroll */
+    }
+    body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+      position: relative;
+      width: 100%;
+    }
+    #root {
+      max-width: 100vw;
+      overflow-x: hidden;
     }
     table {
       border-collapse: collapse;
@@ -58,29 +68,60 @@
         padding: 10px 12px !important;
       }
 
-      /* Tables - Horizontal scroll with better UX */
-      table {
-        display: block;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        white-space: nowrap;
+      /* Tables - Convert to CARDS on mobile (NO horizontal scroll) */
+      table, thead, tbody, th, td, tr {
+        display: block !important;
       }
 
       thead tr {
-        display: table;
-        width: 100%;
-        table-layout: fixed;
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
       }
 
-      tbody {
-        display: table;
-        width: 100%;
+      tr {
+        background: white;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        padding: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid #e5e7eb;
       }
 
-      th, td {
-        padding: 8px 6px !important;
+      td {
+        border: none !important;
+        position: relative;
+        padding: 8px 8px 8px 45% !important;
+        text-align: right !important;
+        font-size: 14px !important;
+        min-height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+      }
+
+      td:before {
+        content: attr(data-label);
+        position: absolute;
+        left: 8px;
+        width: 40%;
+        padding-right: 10px;
+        white-space: nowrap;
+        font-weight: 600;
+        text-align: left;
+        color: #374151;
+      }
+
+      td:empty {
+        display: none !important;
+      }
+
+      /* Table action buttons on mobile */
+      td button {
+        width: auto !important;
+        padding: 6px 12px !important;
         font-size: 12px !important;
-        min-width: 80px;
+        margin: 2px !important;
       }
 
       /* Forms - Stack vertically on mobile */
@@ -251,7 +292,7 @@
   <meta name="apple-mobile-web-app-title" content="GroundRod ERP">
   <link rel="apple-touch-icon" href="/icon.svg">
 
-  <script type="text/babel" src="app.restored.js?v=30.1"></script>
+  <script type="text/babel" src="app.restored.js?v=31.0"></script>
 
   <!-- PWA Service Worker Registration -->
   <script>

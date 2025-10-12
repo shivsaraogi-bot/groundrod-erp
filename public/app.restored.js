@@ -2,6 +2,25 @@ const { useState, useEffect, useRef } = React;
 const API_URL = window.location.origin + '/api';
 
 // ============================================================================
+// MOBILE DETECTION HOOK
+// ============================================================================
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  return isMobile;
+}
+
+// ============================================================================
 // NUMBER FORMATTING UTILITIES
 // ============================================================================
 
@@ -430,11 +449,10 @@ function GroundRodERP() {
 
   return (
     React.createElement('div', { className: 'min-h-screen bg-gradient-to-br from-gray-50 to-blue-50' },
-      activeTab !== 'mobile' && React.createElement(Header, { onRefresh: fetchAllData }),
-      activeTab !== 'mobile' && React.createElement(NavTabs, { activeTab, setActiveTab }),
-      React.createElement('main', { className: activeTab === 'mobile' ? '' : 'max-w-7xl mx-auto px-6 py-6' },
+      React.createElement(Header, { onRefresh: fetchAllData }),
+      React.createElement(NavTabs, { activeTab, setActiveTab }),
+      React.createElement('main', { className: 'max-w-7xl mx-auto px-6 py-6' },
         activeTab === 'dashboard' && React.createElement(Dashboard, { stats: dashboardStats, riskAnalysis, clientPurchaseOrders, inventory, setActiveTab }),
-        activeTab === 'mobile' && React.createElement(MobileInterface, { products, inventory, rawMaterials, clientPurchaseOrders, onRefresh: fetchAllData }),
         activeTab === 'mrp' && React.createElement(PurchasePlanningMRP, { onRefresh: fetchAllData }),
         activeTab === 'production-schedule' && React.createElement(ProductionSchedule, { onRefresh: fetchAllData }),
         activeTab === 'material-variance' && React.createElement(MaterialVariance, { onRefresh: fetchAllData }),
@@ -454,8 +472,8 @@ function GroundRodERP() {
         activeTab === 'customers' && React.createElement(CustomerManagementEx, { customers, onRefresh: fetchAllData }),
         activeTab === 'vendors' && React.createElement(VendorManagement, { vendors, onRefresh: fetchAllData }),
       ),
-      // AI Chatbot Widget - floating button in bottom-right corner (hidden in mobile view)
-      activeTab !== 'mobile' && React.createElement(ChatWidget)
+      // AI Chatbot Widget - floating button in bottom-right corner
+      React.createElement(ChatWidget)
     )
   );
 }
@@ -487,8 +505,7 @@ function NavTabs({ activeTab, setActiveTab }){
     {
       id: 'main',
       items: [
-        { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-        { id: 'mobile', label: 'Mobile View', icon: '📱' }
+        { id: 'dashboard', label: 'Dashboard', icon: '📊' }
       ]
     },
     {
