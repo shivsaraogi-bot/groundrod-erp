@@ -3797,7 +3797,8 @@ app.get('/api/production', (req, res) => {
 app.get('/api/dashboard/stats', (req, res) => {
   const stats = {};
   
-  db.get("SELECT SUM(plated + machined + qc + stamped) as total_wip FROM inventory", (err, row) => {
+  // Fixed: stamped is finished goods, not WIP (removed from WIP calculation)
+  db.get("SELECT SUM(plated + machined + qc) as total_wip FROM inventory", (_err, row) => {
     stats.total_wip = row ? row.total_wip || 0 : 0;
     
     db.get("SELECT SUM(stamped) as total_finished FROM inventory", (err, row) => {
