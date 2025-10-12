@@ -6214,6 +6214,10 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
   const [newItem, setNewItem] = useState({ item_type:'Raw Material', item:'', product_id:'', product_stage:'', description:'', qty:0, unit_price:0, unit:'kg' });
   const [cols, setCols] = useState({ id:true, vendor:true, po_date:true, due_date:true, status:true, notes:true });
 
+  // New state for inline item creation
+  const [formItems, setFormItems] = useState([]);
+  const [tempItem, setTempItem] = useState({ item_type:'Raw Material', material_type:'', quantity:0, unit_price:0, unit:'kg' });
+
   // Fetch raw materials and products list
   React.useEffect(() => {
     fetch(`${API_URL}/raw-materials`).then(r => r.json()).then(data => {
@@ -6224,7 +6228,67 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
       setProducts(data || []);
     }).catch(() => setProducts([]));
   }, []);
-  async function add(){ await fetch(`${API_URL}/vendor-purchase-orders`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) }); setForm({ id:'', vendor_id:'', po_date:'', due_date:'', status:'Pending', notes:'' }); onRefresh?.(); }
+  async function add(){
+    if (!form.id || !form.vendor_id || !form.po_date) {
+      alert('Please fill in VPO ID, Vendor, and PO Date');
+      return;
+    }
+
+    try {
+      // Create the PO first
+      const poRes = await fetch(`${API_URL}/vendor-purchase-orders`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(form)
+      });
+
+      if (!poRes.ok) {
+        alert('Failed to create Vendor PO');
+        return;
+      }
+
+      // Then add all items
+      if (formItems.length > 0) {
+        for (const item of formItems) {
+          await fetch(`${API_URL}/vendor-purchase-orders/${form.id}/items`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              item_type: 'Raw Material',
+              material_type: item.material_type,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              line_total: item.quantity * item.unit_price,
+              unit: item.unit || 'kg'
+            })
+          });
+        }
+      }
+
+      // Reset form
+      setForm({ id:'', vendor_id:'', po_date:'', due_date:'', status:'Pending', notes:'' });
+      setFormItems([]);
+      setTempItem({ item_type:'Raw Material', material_type:'', quantity:0, unit_price:0, unit:'kg' });
+      onRefresh?.();
+      alert('✓ Vendor PO created successfully with ' + formItems.length + ' item(s)');
+    } catch (err) {
+      alert('Error creating Vendor PO: ' + err.message);
+    }
+  }
+
+  function addItemToForm() {
+    if (!tempItem.material_type || tempItem.quantity <= 0 || tempItem.unit_price <= 0) {
+      alert('Please fill in material, quantity, and unit price');
+      return;
+    }
+
+    setFormItems([...formItems, {...tempItem, line_total: tempItem.quantity * tempItem.unit_price}]);
+    setTempItem({ item_type:'Raw Material', material_type:'', quantity:0, unit_price:0, unit:'kg' });
+  }
+
+  function removeItemFromForm(index) {
+    setFormItems(formItems.filter((_, i) => i !== index));
+  }
   async function save(v){ await fetch(`${API_URL}/vendor-purchase-orders/${v.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(v) }); setEditing(null); onRefresh?.(); }
   async function del(id){ if(!confirm('Delete Vendor PO?')) return; await fetch(`${API_URL}/vendor-purchase-orders/${id}`, { method:'DELETE' }); onRefresh?.(); }
   async function toggleItems(vpo){
@@ -6304,18 +6368,94 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
   return (
     React.createElement('div', { className: 'space-y-4' },
       React.createElement(Section, { title: 'Add Vendor PO' },
-        React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-6 gap-3' },
-          React.createElement('input', { className:'border rounded px-2 py-1', placeholder:'VPO ID', value: form.id, onChange:e=>setForm({...form,id:e.target.value}) }),
-          React.createElement('select', { className:'border rounded px-2 py-1', value: form.vendor_id, onChange:e=>setForm({...form,vendor_id:e.target.value}) },
-            React.createElement('option', { value:'' }, 'Select Vendor'),
-            vendors.map(v => React.createElement('option', { key:v.id, value:v.id }, `${v.id} - ${v.name}`))
+        React.createElement('div', { className:'space-y-4' },
+          React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-6 gap-3' },
+            React.createElement('input', { className:'border rounded px-2 py-1', placeholder:'VPO ID *', value: form.id, onChange:e=>setForm({...form,id:e.target.value}) }),
+            React.createElement('select', { className:'border rounded px-2 py-1', value: form.vendor_id, onChange:e=>setForm({...form,vendor_id:e.target.value}) },
+              React.createElement('option', { value:'' }, 'Select Vendor *'),
+              vendors.map(v => React.createElement('option', { key:v.id, value:v.id }, `${v.id} - ${v.name}`))
+            ),
+            React.createElement('input', { className:'border rounded px-2 py-1', type:'date', placeholder:'PO Date *', value: form.po_date, onChange:e=>setForm({...form,po_date:e.target.value}) }),
+            React.createElement('input', { className:'border rounded px-2 py-1', type:'date', placeholder:'Due Date', value: form.due_date, onChange:e=>setForm({...form,due_date:e.target.value}) }),
+            React.createElement('select', { className:'border rounded px-2 py-1', value: form.status, onChange:e=>setForm({...form,status:e.target.value}) },
+              ['Pending','Ordered','In Transit','Completed','Cancelled'].map(s=> React.createElement('option', { key:s, value:s }, s))
+            ),
+            React.createElement('input', { className:'border rounded px-2 py-1 md:col-span-6', placeholder:'Notes', value: form.notes, onChange:e=>setForm({...form,notes:e.target.value}) })
           ),
-          React.createElement('input', { className:'border rounded px-2 py-1', type:'date', value: form.po_date, onChange:e=>setForm({...form,po_date:e.target.value}) }),
-          React.createElement('input', { className:'border rounded px-2 py-1', type:'date', value: form.due_date, onChange:e=>setForm({...form,due_date:e.target.value}) }),
-          React.createElement('select', { className:'border rounded px-2 py-1', value: form.status, onChange:e=>setForm({...form,status:e.target.value}) },
-            ['Pending','Ordered','In Transit','Completed','Cancelled'].map(s=> React.createElement('option', { key:s, value:s }, s))
+
+          React.createElement('div', { className:'border-t pt-4' },
+            React.createElement('h4', { className:'font-semibold mb-2 text-gray-700' }, '📦 Add Items to PO'),
+            React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-5 gap-2 items-end' },
+              React.createElement('div', null,
+                React.createElement('label', { className:'text-xs text-gray-600' }, 'Material'),
+                React.createElement('select', { className:'border rounded px-2 py-1 w-full', value: tempItem.material_type, onChange:e=>setTempItem({...tempItem, material_type:e.target.value}) },
+                  React.createElement('option', { value:'' }, 'Select Material'),
+                  React.createElement('option', { value:'Steel' }, 'Steel'),
+                  React.createElement('option', { value:'Copper' }, 'Copper'),
+                  React.createElement('option', { value:'Copper Anode' }, 'Copper Anode'),
+                  rawMaterials.map(m => React.createElement('option', { key:m.material, value:m.material }, m.material))
+                )
+              ),
+              React.createElement('div', null,
+                React.createElement('label', { className:'text-xs text-gray-600' }, 'Quantity'),
+                React.createElement('input', { type:'number', className:'border rounded px-2 py-1 w-full', value: tempItem.quantity, onChange:e=>setTempItem({...tempItem, quantity:Number(e.target.value)}) })
+              ),
+              React.createElement('div', null,
+                React.createElement('label', { className:'text-xs text-gray-600' }, 'Unit Price'),
+                React.createElement('input', { type:'number', step:'0.01', className:'border rounded px-2 py-1 w-full', value: tempItem.unit_price, onChange:e=>setTempItem({...tempItem, unit_price:Number(e.target.value)}) })
+              ),
+              React.createElement('div', null,
+                React.createElement('label', { className:'text-xs text-gray-600' }, 'Unit'),
+                React.createElement('select', { className:'border rounded px-2 py-1 w-full', value: tempItem.unit, onChange:e=>setTempItem({...tempItem, unit:e.target.value}) },
+                  React.createElement('option', { value:'kg' }, 'kg'),
+                  React.createElement('option', { value:'pcs' }, 'pcs'),
+                  React.createElement('option', { value:'ton' }, 'ton')
+                )
+              ),
+              React.createElement('button', { onClick:addItemToForm, className:'px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700' }, '➕ Add Item')
+            ),
+
+            formItems.length > 0 && React.createElement('div', { className:'mt-3' },
+              React.createElement('table', { className:'min-w-full border text-sm' },
+                React.createElement('thead', { className:'bg-gray-50' },
+                  React.createElement('tr', null,
+                    React.createElement('th', { className:'p-2 text-left' }, 'Material'),
+                    React.createElement('th', { className:'p-2 text-right' }, 'Quantity'),
+                    React.createElement('th', { className:'p-2 text-right' }, 'Unit Price'),
+                    React.createElement('th', { className:'p-2 text-left' }, 'Unit'),
+                    React.createElement('th', { className:'p-2 text-right' }, 'Line Total'),
+                    React.createElement('th', { className:'p-2' }, 'Action')
+                  )
+                ),
+                React.createElement('tbody', null,
+                  formItems.map((item, idx) => (
+                    React.createElement('tr', { key:idx, className:'border-t' },
+                      React.createElement('td', { className:'p-2' }, item.material_type),
+                      React.createElement('td', { className:'p-2 text-right' }, formatQuantity(item.quantity)),
+                      React.createElement('td', { className:'p-2 text-right' }, formatCurrency(item.unit_price)),
+                      React.createElement('td', { className:'p-2' }, item.unit),
+                      React.createElement('td', { className:'p-2 text-right font-semibold' }, formatCurrency(item.line_total)),
+                      React.createElement('td', { className:'p-2 text-center' },
+                        React.createElement('button', { onClick:()=>removeItemFromForm(idx), className:'text-red-600 hover:text-red-800' }, '🗑️')
+                      )
+                    )
+                  )),
+                  React.createElement('tr', { className:'border-t bg-gray-50 font-bold' },
+                    React.createElement('td', { colSpan:4, className:'p-2 text-right' }, 'Total:'),
+                    React.createElement('td', { className:'p-2 text-right' }, formatCurrency(formItems.reduce((sum, item) => sum + item.line_total, 0))),
+                    React.createElement('td', null)
+                  )
+                )
+              )
+            )
           ),
-          React.createElement('button', { onClick:add, className:'px-3 py-2 bg-green-600 text-white rounded' }, 'Add')
+
+          React.createElement('div', { className:'flex justify-end' },
+            React.createElement('button', { onClick:add, disabled:!form.id || !form.vendor_id || !form.po_date, className:'px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold flex items-center gap-2' },
+              React.createElement('span', null, '✓'),
+              'Create Vendor PO' + (formItems.length > 0 ? ` with ${formItems.length} item(s)` : '')
+            )
+          )
         )
       ),
       React.createElement(Section, { title: 'Vendor Purchase Orders' },
