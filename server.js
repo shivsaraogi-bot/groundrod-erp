@@ -3119,28 +3119,28 @@ app.post('/api/production', (req, res) => {
         const packedQty = Number(entry.packed || 0);
 
         db.run(`
-          INSERT INTO inventory (product_id, cores, plated, machined, qc, stamped, packed, updated_at)
+          INSERT INTO inventory (product_id, steel_rods, plated, machined, qc, stamped, packed, updated_at)
           VALUES (?, 0, 0, 0, 0, 0, 0, CURRENT_TIMESTAMP)
           ON CONFLICT(product_id) DO UPDATE SET
-            cores = MAX(0, cores - ?),
-            plated = MAX(0, plated - ? - ? - ? - ? + ?),
-            machined = MAX(0, machined - ? - ? - ? + ?),
-            qc = MAX(0, qc - ? - ? + ?),
-            stamped = MAX(0, stamped - ? + ?),
+            steel_rods = MAX(0, steel_rods - ?),
+            plated = MAX(0, plated - ? - ? - ? + ?),
+            machined = MAX(0, machined - ? - ? + ?),
+            qc = MAX(0, qc - ? + ?),
+            stamped = stamped + ?,
             packed = packed + ?,
             updated_at = CURRENT_TIMESTAMP
         `, [
           entry.product_id,
-          // cores: subtract plated quantity (plating consumes cores)
+          // steel_rods: subtract plated quantity (plating consumes steel_rods)
           platedQty,
-          // plated: subtract what moves to machined, qc, stamped, packed, add what was plated
-          machinedQty, qcQty, stampedQty, packedQty, platedQty,
-          // machined: subtract what moves to qc, stamped, packed, add what was machined
-          qcQty, stampedQty, packedQty, machinedQty,
-          // qc: subtract what moves to stamped, packed, add what passed qc
-          stampedQty, packedQty, qcQty,
-          // stamped: subtract what moves to packed, add what was stamped
-          packedQty, stampedQty,
+          // plated: subtract what moves to machined, qc, stamped, add what was plated
+          machinedQty, qcQty, stampedQty, platedQty,
+          // machined: subtract what moves to qc, stamped, add what was machined
+          qcQty, stampedQty, machinedQty,
+          // qc: subtract what moves to stamped, add what passed qc
+          stampedQty, qcQty,
+          // stamped: add what was stamped (no subtraction - packed is separate)
+          stampedQty,
           // packed: add what was packed
           packedQty
         ], (invErr) => {
