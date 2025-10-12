@@ -5110,6 +5110,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
               return r.total > 0;
             }),
           columns: [
+            { key: 'product_id', label: 'Product ID' },
             { key: 'product_description', label: 'Product' },
             { key: 'steel_rods', label: 'Steel Rods', render: (val) => val || 0 },
             { key: 'plated', label: 'Plated', render: (val) => val || 0 },
@@ -5126,7 +5127,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
           filterOptions: [
             { key: 'product_description', label: 'Product', values: [...new Set((invData||[]).map(r => r.product_description).filter(Boolean))] }
           ],
-          defaultVisibleColumns: { product_description: true, steel_rods: true, plated: true, machined: true, qc: true, stamped: true, packed: true, total: true },
+          defaultVisibleColumns: { product_id: true, product_description: true, steel_rods: true, plated: true, machined: true, qc: true, stamped: true, packed: true, total: true },
           actions: (row) => {
             const isExpanded = expandedRows[row.product_id];
             const isLoading = loadingMarkings[row.product_id];
