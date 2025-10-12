@@ -2056,6 +2056,346 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
     );
   }
 
+  // Customers View
+  if (mobileView === 'customers') {
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-20' },
+      // Header
+      React.createElement('div', { className: 'bg-blue-600 text-white p-4 shadow-lg flex items-center gap-3' },
+        React.createElement('button', {
+          className: 'text-2xl',
+          onClick: () => setMobileView('home')
+        }, '←'),
+        React.createElement('div', { className: 'flex-1' },
+          React.createElement('h1', { className: 'text-xl font-bold' }, '👥 Customers'),
+          React.createElement('p', { className: 'text-xs text-blue-100' }, `${customers.length} customers`)
+        )
+      ),
+
+      // Customers List
+      React.createElement('div', { className: 'p-4 space-y-3' },
+        customers.map(customer =>
+          React.createElement('div', {
+            key: customer.id,
+            className: 'bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500'
+          },
+            // Company Name
+            React.createElement('div', { className: 'font-bold text-gray-800 text-lg mb-2' }, customer.name),
+
+            // Contact Info
+            customer.contact_person && React.createElement('div', { className: 'flex items-center gap-2 mb-1' },
+              React.createElement('span', { className: 'text-sm' }, '👤'),
+              React.createElement('span', { className: 'text-sm text-gray-600' }, customer.contact_person)
+            ),
+
+            customer.email && React.createElement('div', { className: 'flex items-center gap-2 mb-1' },
+              React.createElement('span', { className: 'text-sm' }, '📧'),
+              React.createElement('a', {
+                href: `mailto:${customer.email}`,
+                className: 'text-sm text-blue-600'
+              }, customer.email)
+            ),
+
+            customer.phone && React.createElement('div', { className: 'flex items-center gap-2 mb-1' },
+              React.createElement('span', { className: 'text-sm' }, '📞'),
+              React.createElement('a', {
+                href: `tel:${customer.phone}`,
+                className: 'text-sm text-blue-600'
+              }, customer.phone)
+            ),
+
+            customer.address && React.createElement('div', { className: 'flex items-start gap-2 mt-2 pt-2 border-t' },
+              React.createElement('span', { className: 'text-sm' }, '📍'),
+              React.createElement('span', { className: 'text-xs text-gray-600' }, customer.address)
+            )
+          )
+        )
+      )
+    );
+  }
+
+  // Vendors View
+  if (mobileView === 'vendors') {
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-20' },
+      // Header
+      React.createElement('div', { className: 'bg-purple-600 text-white p-4 shadow-lg flex items-center gap-3' },
+        React.createElement('button', {
+          className: 'text-2xl',
+          onClick: () => setMobileView('home')
+        }, '←'),
+        React.createElement('div', { className: 'flex-1' },
+          React.createElement('h1', { className: 'text-xl font-bold' }, '🏢 Vendors'),
+          React.createElement('p', { className: 'text-xs text-purple-100' }, `${vendors.length} vendors`)
+        )
+      ),
+
+      // Vendors List
+      React.createElement('div', { className: 'p-4 space-y-3' },
+        vendors.map(vendor =>
+          React.createElement('div', {
+            key: vendor.id,
+            className: 'bg-white rounded-lg shadow-md p-4 border-l-4 border-purple-500'
+          },
+            // Vendor Name
+            React.createElement('div', { className: 'font-bold text-gray-800 text-lg mb-2' }, vendor.name),
+
+            // Contact Info
+            vendor.contact_person && React.createElement('div', { className: 'flex items-center gap-2 mb-1' },
+              React.createElement('span', { className: 'text-sm' }, '👤'),
+              React.createElement('span', { className: 'text-sm text-gray-600' }, vendor.contact_person)
+            ),
+
+            vendor.email && React.createElement('div', { className: 'flex items-center gap-2 mb-1' },
+              React.createElement('span', { className: 'text-sm' }, '📧'),
+              React.createElement('a', {
+                href: `mailto:${vendor.email}`,
+                className: 'text-sm text-purple-600'
+              }, vendor.email)
+            ),
+
+            vendor.phone && React.createElement('div', { className: 'flex items-center gap-2 mb-1' },
+              React.createElement('span', { className: 'text-sm' }, '📞'),
+              React.createElement('a', {
+                href: `tel:${vendor.phone}`,
+                className: 'text-sm text-purple-600'
+              }, vendor.phone)
+            ),
+
+            vendor.address && React.createElement('div', { className: 'flex items-start gap-2 mt-2 pt-2 border-t' },
+              React.createElement('span', { className: 'text-sm' }, '📍'),
+              React.createElement('span', { className: 'text-xs text-gray-600' }, vendor.address)
+            )
+          )
+        )
+      )
+    );
+  }
+
+  // Shipments View
+  if (mobileView === 'shipments') {
+    const sortedShipments = [...shipments].sort((a, b) =>
+      new Date(b.shipment_date || b.created_at) - new Date(a.shipment_date || a.created_at)
+    );
+
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-20' },
+      // Header
+      React.createElement('div', { className: 'bg-green-600 text-white p-4 shadow-lg flex items-center gap-3' },
+        React.createElement('button', {
+          className: 'text-2xl',
+          onClick: () => setMobileView('home')
+        }, '←'),
+        React.createElement('div', { className: 'flex-1' },
+          React.createElement('h1', { className: 'text-xl font-bold' }, '🚚 Shipments'),
+          React.createElement('p', { className: 'text-xs text-green-100' }, `${shipments.length} shipments`)
+        )
+      ),
+
+      // Shipments Timeline
+      React.createElement('div', { className: 'p-4 space-y-3' },
+        sortedShipments.length === 0 && React.createElement('div', { className: 'text-center py-12' },
+          React.createElement('div', { className: 'text-6xl mb-4' }, '📦'),
+          React.createElement('div', { className: 'text-gray-600 font-semibold' }, 'No shipments yet'),
+          React.createElement('div', { className: 'text-sm text-gray-500 mt-2' }, 'Shipments will appear here')
+        ),
+
+        sortedShipments.map(ship => {
+          const statusColors = {
+            'Pending': 'bg-yellow-100 text-yellow-800 border-yellow-500',
+            'In Transit': 'bg-blue-100 text-blue-800 border-blue-500',
+            'Delivered': 'bg-green-100 text-green-800 border-green-500',
+            'Cancelled': 'bg-red-100 text-red-800 border-red-500'
+          };
+
+          return React.createElement('div', {
+            key: ship.id,
+            className: `bg-white rounded-lg shadow-md p-4 border-l-4 ${statusColors[ship.status]?.split(' ')[2] || 'border-gray-500'}`
+          },
+            // Shipment Header
+            React.createElement('div', { className: 'flex justify-between items-start mb-2' },
+              React.createElement('div', null,
+                React.createElement('div', { className: 'font-bold text-gray-800' }, `Shipment #${ship.id}`),
+                React.createElement('div', { className: 'text-xs text-gray-500 mt-1' },
+                  new Date(ship.shipment_date || ship.created_at).toLocaleDateString('en-IN')
+                )
+              ),
+              React.createElement('div', {
+                className: `px-2 py-1 rounded text-xs font-bold ${statusColors[ship.status] || 'bg-gray-100 text-gray-800'}`
+              }, ship.status || 'Pending')
+            ),
+
+            // Customer
+            ship.customer_name && React.createElement('div', { className: 'flex items-center gap-2 mb-2' },
+              React.createElement('span', { className: 'text-base' }, '👤'),
+              React.createElement('span', { className: 'text-sm text-gray-700 font-semibold' }, ship.customer_name)
+            ),
+
+            // Tracking Info
+            ship.tracking_number && React.createElement('div', { className: 'flex items-center gap-2 mb-2' },
+              React.createElement('span', { className: 'text-base' }, '📦'),
+              React.createElement('span', { className: 'text-sm text-gray-600' }, `Tracking: ${ship.tracking_number}`)
+            ),
+
+            ship.courier && React.createElement('div', { className: 'flex items-center gap-2' },
+              React.createElement('span', { className: 'text-base' }, '🚛'),
+              React.createElement('span', { className: 'text-sm text-gray-600' }, ship.courier)
+            )
+          );
+        })
+      )
+    );
+  }
+
+  // Invoices View
+  if (mobileView === 'invoices') {
+    const sortedInvoices = [...invoices].sort((a, b) => new Date(b.invoice_date) - new Date(a.invoice_date));
+
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-20' },
+      // Header
+      React.createElement('div', { className: 'bg-indigo-600 text-white p-4 shadow-lg flex items-center gap-3' },
+        React.createElement('button', {
+          className: 'text-2xl',
+          onClick: () => setMobileView('home')
+        }, '←'),
+        React.createElement('div', { className: 'flex-1' },
+          React.createElement('h1', { className: 'text-xl font-bold' }, '💰 Invoices'),
+          React.createElement('p', { className: 'text-xs text-indigo-100' }, `${invoices.length} invoices`)
+        )
+      ),
+
+      // Invoices List
+      React.createElement('div', { className: 'p-4 space-y-3' },
+        sortedInvoices.length === 0 && React.createElement('div', { className: 'text-center py-12' },
+          React.createElement('div', { className: 'text-6xl mb-4' }, '💳'),
+          React.createElement('div', { className: 'text-gray-600 font-semibold' }, 'No invoices yet'),
+          React.createElement('div', { className: 'text-sm text-gray-500 mt-2' }, 'Invoices will appear here')
+        ),
+
+        sortedInvoices.map(inv => {
+          const isPaid = inv.payment_status === 'Paid';
+          const isPartial = inv.payment_status === 'Partial';
+
+          return React.createElement('div', {
+            key: inv.id,
+            className: `bg-white rounded-lg shadow-md p-4 border-l-4 ${isPaid ? 'border-green-500' : isPartial ? 'border-yellow-500' : 'border-red-500'}`
+          },
+            // Invoice Header
+            React.createElement('div', { className: 'flex justify-between items-start mb-3' },
+              React.createElement('div', null,
+                React.createElement('div', { className: 'font-bold text-gray-800' }, `Invoice #${inv.invoice_number || inv.id}`),
+                React.createElement('div', { className: 'text-xs text-gray-500 mt-1' },
+                  new Date(inv.invoice_date).toLocaleDateString('en-IN')
+                )
+              ),
+              React.createElement('div', {
+                className: `px-2 py-1 rounded text-xs font-bold ${
+                  isPaid ? 'bg-green-100 text-green-800' :
+                  isPartial ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-red-100 text-red-800'
+                }`
+              }, inv.payment_status || 'Unpaid')
+            ),
+
+            // Customer
+            inv.customer_name && React.createElement('div', { className: 'flex items-center gap-2 mb-2' },
+              React.createElement('span', { className: 'text-base' }, '👤'),
+              React.createElement('span', { className: 'text-sm text-gray-700 font-semibold' }, inv.customer_name)
+            ),
+
+            // Amount
+            React.createElement('div', { className: 'flex items-center gap-2 mb-2' },
+              React.createElement('span', { className: 'text-base' }, '💵'),
+              React.createElement('span', { className: 'text-lg font-bold text-gray-800' },
+                `₹${formatQuantity(inv.total_amount || 0)}`
+              )
+            ),
+
+            // Payment Info
+            inv.paid_amount > 0 && React.createElement('div', { className: 'text-xs text-gray-600 mt-2 pt-2 border-t' },
+              `Paid: ₹${formatQuantity(inv.paid_amount)} | Balance: ₹${formatQuantity((inv.total_amount || 0) - (inv.paid_amount || 0))}`
+            )
+          );
+        })
+      )
+    );
+  }
+
+  // Menu View
+  if (mobileView === 'menu') {
+    const menuSections = [
+      {
+        title: 'Operations',
+        icon: '⚙️',
+        items: [
+          { id: 'production', label: 'Production Entry', icon: '⚙️', color: 'blue' },
+          { id: 'inventory', label: 'Inventory', icon: '📦', color: 'green' },
+          { id: 'materials', label: 'Raw Materials', icon: '🔩', color: 'purple' }
+        ]
+      },
+      {
+        title: 'Sales & Orders',
+        icon: '📋',
+        items: [
+          { id: 'orders', label: 'Customer Orders', icon: '📋', color: 'blue' },
+          { id: 'invoices', label: 'Invoices', icon: '💰', color: 'indigo' },
+          { id: 'shipments', label: 'Shipments', icon: '🚚', color: 'green' }
+        ]
+      },
+      {
+        title: 'Contacts',
+        icon: '👥',
+        items: [
+          { id: 'customers', label: 'Customers', icon: '👥', color: 'blue' },
+          { id: 'vendors', label: 'Vendors', icon: '🏢', color: 'purple' }
+        ]
+      },
+      {
+        title: 'System',
+        icon: '⚙️',
+        items: [
+          { id: 'desktop', label: 'Switch to Desktop', icon: '💻', color: 'gray', action: () => setActiveTab('dashboard') }
+        ]
+      }
+    ];
+
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-20' },
+      // Header
+      React.createElement('div', { className: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 shadow-lg' },
+        React.createElement('h1', { className: 'text-2xl font-bold' }, '⚡ GroundRod ERP'),
+        React.createElement('p', { className: 'text-sm text-blue-100 mt-1' }, 'Mobile App Menu')
+      ),
+
+      // Menu Sections
+      React.createElement('div', { className: 'p-4 space-y-4' },
+        menuSections.map((section, idx) =>
+          React.createElement('div', { key: idx },
+            React.createElement('h3', { className: 'font-bold text-gray-700 mb-2 flex items-center gap-2' },
+              React.createElement('span', { className: 'text-lg' }, section.icon),
+              section.title
+            ),
+            React.createElement('div', { className: 'space-y-2' },
+              section.items.map(item =>
+                React.createElement('button', {
+                  key: item.id,
+                  className: 'w-full bg-white rounded-lg shadow p-4 flex items-center gap-3 active:bg-gray-50 transition',
+                  onClick: () => {
+                    if (item.action) {
+                      item.action();
+                    } else {
+                      setMobileView(item.id);
+                    }
+                  }
+                },
+                  React.createElement('div', { className: 'text-2xl' }, item.icon),
+                  React.createElement('div', { className: 'flex-1 text-left font-semibold text-gray-800' }, item.label),
+                  React.createElement('div', { className: 'text-xl text-gray-400' }, '→')
+                )
+              )
+            )
+          )
+        )
+      )
+    );
+  }
+
   // Bottom Navigation Bar
   return React.createElement('div', { className: 'fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg' },
     React.createElement('div', { className: 'grid grid-cols-5 gap-1' },
