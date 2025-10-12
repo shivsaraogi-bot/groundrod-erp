@@ -1420,64 +1420,9 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
 
   const selectedProduct = products.find(p => p.id === prodForm.product_id);
 
-  // Bottom Navigation Bar Component - Compact Design
-  const BottomNav = React.createElement('div', {
-    className: 'fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50',
-    style: { paddingBottom: 'env(safe-area-inset-bottom)' }
-  },
-    React.createElement('div', { className: 'grid grid-cols-6' },
-      React.createElement('button', {
-        className: `py-2 px-1 text-center flex flex-col items-center justify-center ${mobileView === 'home' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`,
-        onClick: () => setMobileView('home')
-      },
-        React.createElement('div', { className: 'text-xl leading-none' }, '🏠'),
-        React.createElement('div', { className: 'text-[10px] font-semibold mt-0.5' }, 'Home')
-      ),
-      React.createElement('button', {
-        className: `py-2 px-1 text-center flex flex-col items-center justify-center ${mobileView === 'production' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`,
-        onClick: () => setMobileView('production')
-      },
-        React.createElement('div', { className: 'text-xl leading-none' }, '⚙️'),
-        React.createElement('div', { className: 'text-[10px] font-semibold mt-0.5' }, 'Produce')
-      ),
-      React.createElement('button', {
-        className: `py-2 px-1 text-center flex flex-col items-center justify-center ${mobileView === 'orders' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`,
-        onClick: () => setMobileView('orders')
-      },
-        React.createElement('div', { className: 'text-xl leading-none' }, '📋'),
-        React.createElement('div', { className: 'text-[10px] font-semibold mt-0.5' }, 'Orders')
-      ),
-      React.createElement('button', {
-        className: `py-2 px-1 text-center flex flex-col items-center justify-center ${mobileView === 'inventory' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`,
-        onClick: () => setMobileView('inventory')
-      },
-        React.createElement('div', { className: 'text-xl leading-none' }, '📦'),
-        React.createElement('div', { className: 'text-[10px] font-semibold mt-0.5' }, 'Stock')
-      ),
-      React.createElement('button', {
-        className: `py-2 px-1 text-center flex flex-col items-center justify-center relative ${mobileView === 'alerts' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`,
-        onClick: () => setMobileView('alerts')
-      },
-        React.createElement('div', { className: 'text-xl leading-none' }, '⚠️'),
-        React.createElement('div', { className: 'text-[10px] font-semibold mt-0.5' }, 'Alerts'),
-        (lowStockCount + rawMaterialAlerts + urgentOrders) > 0 && React.createElement('div', {
-          className: 'absolute top-1 right-1 bg-red-600 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center font-bold'
-        }, Math.min(lowStockCount + rawMaterialAlerts + urgentOrders, 9))
-      ),
-      React.createElement('button', {
-        className: `py-2 px-1 text-center flex flex-col items-center justify-center ${mobileView === 'menu' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`,
-        onClick: () => setMobileView('menu')
-      },
-        React.createElement('div', { className: 'text-xl leading-none' }, '☰'),
-        React.createElement('div', { className: 'text-[10px] font-semibold mt-0.5' }, 'Menu')
-      )
-    )
-  );
-
   // Home Dashboard View
   if (mobileView === 'home') {
-    return React.createElement('div', { className: 'relative' },
-      React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-16' },
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100' },
       // Header
       React.createElement('div', { className: 'bg-blue-600 text-white p-4 shadow-lg' },
         React.createElement('h1', { className: 'text-2xl font-bold' }, '⚡ GroundRod ERP'),
@@ -1576,15 +1521,12 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
           )
         )
       )
-      ),
-      BottomNav
     );
   }
 
   // Production Entry View
   if (mobileView === 'production') {
-    return React.createElement('div', { className: 'relative' },
-      React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-16' },
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100' },
       // Header
       React.createElement('div', { className: 'bg-blue-600 text-white p-4 shadow-lg flex items-center gap-3' },
         React.createElement('button', {
@@ -1782,8 +1724,6 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
           disabled: !prodForm.product_id
         }, '✅ Record Production')
       )
-      ),
-      BottomNav
     );
   }
 
@@ -1793,8 +1733,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
       .filter(po => po.status !== 'Completed')
       .sort((a, b) => new Date(a.expected_delivery_date) - new Date(b.expected_delivery_date));
 
-    return React.createElement('div', { className: 'relative' },
-      React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-16' },
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100' },
       // Header
       React.createElement('div', { className: 'bg-blue-600 text-white p-4 shadow-lg flex items-center gap-3' },
         React.createElement('button', {
@@ -1870,8 +1809,6 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
           );
         })
       )
-      ),
-      BottomNav
     );
   }
 
@@ -1885,8 +1822,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
       return 0;
     });
 
-    return React.createElement('div', { className: 'relative' },
-      React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-16' },
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100' },
       // Header
       React.createElement('div', { className: 'bg-blue-600 text-white p-4 shadow-lg flex items-center gap-3' },
         React.createElement('button', {
@@ -1938,8 +1874,6 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
           );
         })
       )
-      ),
-      BottomNav
     );
   }
 
@@ -1953,8 +1887,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
       return 0;
     });
 
-    return React.createElement('div', { className: 'relative' },
-      React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-16' },
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100' },
       // Header
       React.createElement('div', { className: 'bg-blue-600 text-white p-4 shadow-lg flex items-center gap-3' },
         React.createElement('button', {
@@ -2008,8 +1941,6 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
           );
         })
       )
-      ),
-      BottomNav
     );
   }
 
@@ -2022,8 +1953,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
       return po.status !== 'Completed' && daysUntilDue <= 7;
     });
 
-    return React.createElement('div', { className: 'relative' },
-      React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-16' },
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100' },
       // Header
       React.createElement('div', { className: 'bg-red-600 text-white p-4 shadow-lg flex items-center gap-3' },
         React.createElement('button', {
@@ -2123,15 +2053,12 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
           React.createElement('div', { className: 'text-sm text-gray-500 mt-2' }, 'No alerts at this time')
         )
       )
-      ),
-      BottomNav
     );
   }
 
   // Customers View
   if (mobileView === 'customers') {
-    return React.createElement('div', { className: 'relative' },
-      React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-16' },
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100' },
       // Header
       React.createElement('div', { className: 'bg-blue-600 text-white p-4 shadow-lg flex items-center gap-3' },
         React.createElement('button', {
@@ -2183,15 +2110,12 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
           )
         )
       )
-      ),
-      BottomNav
     );
   }
 
   // Vendors View
   if (mobileView === 'vendors') {
-    return React.createElement('div', { className: 'relative' },
-      React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-16' },
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100' },
       // Header
       React.createElement('div', { className: 'bg-purple-600 text-white p-4 shadow-lg flex items-center gap-3' },
         React.createElement('button', {
@@ -2243,8 +2167,6 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
           )
         )
       )
-      ),
-      BottomNav
     );
   }
 
@@ -2254,8 +2176,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
       new Date(b.shipment_date || b.created_at) - new Date(a.shipment_date || a.created_at)
     );
 
-    return React.createElement('div', { className: 'relative' },
-      React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-16' },
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100' },
       // Header
       React.createElement('div', { className: 'bg-green-600 text-white p-4 shadow-lg flex items-center gap-3' },
         React.createElement('button', {
@@ -2320,8 +2241,6 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
           );
         })
       )
-      ),
-      BottomNav
     );
   }
 
@@ -2329,8 +2248,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
   if (mobileView === 'invoices') {
     const sortedInvoices = [...invoices].sort((a, b) => new Date(b.invoice_date) - new Date(a.invoice_date));
 
-    return React.createElement('div', { className: 'relative' },
-      React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-16' },
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100' },
       // Header
       React.createElement('div', { className: 'bg-indigo-600 text-white p-4 shadow-lg flex items-center gap-3' },
         React.createElement('button', {
@@ -2397,8 +2315,6 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
           );
         })
       )
-      ),
-      BottomNav
     );
   }
 
