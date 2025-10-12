@@ -385,6 +385,7 @@ function GroundRodERP() {
         activeTab === 'job-work' && React.createElement(JobWorkOrders, { vendors, products, rawMaterials, onRefresh: fetchAllData }),
         activeTab === 'shipments' && React.createElement(Shipments, { shipments, purchaseOrders: clientPurchaseOrders, products, onRefresh: fetchAllData }),
         activeTab === 'inventory' && React.createElement(InventoryViewEx, { inventory, rawMaterials, products, customers, onRefresh: fetchAllData, filter, setFilter, rangeMode, setRangeMode }),
+        activeTab === 'marking-dashboard' && React.createElement(MarkingDashboard, { onRefresh: fetchAllData }),
         activeTab === 'products' && React.createElement(ProductMasterEx, { products, calculateWeights, onRefresh: fetchAllData }),
         activeTab === 'customers' && React.createElement(CustomerManagementEx, { customers, onRefresh: fetchAllData }),
         activeTab === 'vendors' && React.createElement(VendorManagement, { vendors, onRefresh: fetchAllData }),
@@ -424,6 +425,7 @@ function NavTabs({ activeTab, setActiveTab }){
     { id: 'job-work', label: 'Job Work', icon: '🔧' },
     { id: 'shipments', label: 'Shipments', icon: '🚚' },
     { id: 'inventory', label: 'Inventory', icon: '📦' },
+    { id: 'marking-dashboard', label: 'Marking Dashboard', icon: '🏷️' },
     { id: 'products', label: 'Products', icon: '🏭' },
     { id: 'customers', label: 'Customers', icon: '👥' },
     { id: 'vendors', label: 'Vendors', icon: '🏢' },
@@ -620,6 +622,16 @@ function DailyProduction({ products, onSubmit }){
   const [limit, setLimit] = useState(20);
   const [editingProduction, setEditingProduction] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [suggestedMarkings, setSuggestedMarkings] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState({});
+
+  useEffect(() => {
+    // Fetch suggested markings on component mount
+    fetch(`${API_URL}/production/suggested-markings`)
+      .then(res => res.json())
+      .then(data => setSuggestedMarkings(data))
+      .catch(err => console.error('Error fetching suggested markings:', err));
+  }, []);
 
   async function loadRecent(l){
     try { const r = await fetch(`${API_URL}/production?limit=${encodeURIComponent(l||limit)}`); setRecent(await r.json()); } catch {}
@@ -784,14 +796,41 @@ function DailyProduction({ products, onSubmit }){
             React.createElement('option', { value: 'client_brand' }, 'Client Brand')
           )
         ),
-        React.createElement('div', null,
+        React.createElement('div', { className: 'relative' },
           React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Marking Text'),
           React.createElement('input', {
             className: 'border rounded px-3 py-2 w-full',
             value: editForm.marking_text || '',
             onChange: e => setEditForm({ ...editForm, marking_text: e.target.value }),
-            disabled: editForm.marking_type === 'unmarked'
-          })
+            onFocus: () => setShowSuggestions({ ...showSuggestions, editModal: true }),
+            onBlur: () => setTimeout(() => setShowSuggestions({ ...showSuggestions, editModal: false }), 200),
+            disabled: editForm.marking_type === 'unmarked',
+            placeholder: 'Start typing or select from suggestions'
+          }),
+          showSuggestions.editModal && suggestedMarkings.length > 0 && editForm.marking_type !== 'unmarked' &&
+          React.createElement('div', {
+            className: 'absolute z-50 bg-white border border-gray-300 rounded shadow-lg mt-1 max-h-48 overflow-y-auto w-full'
+          },
+            suggestedMarkings.map((suggestion, idx) =>
+              React.createElement('div', {
+                key: idx,
+                className: 'px-3 py-2 hover:bg-blue-50 cursor-pointer border-b last:border-b-0 text-sm',
+                onMouseDown: (e) => {
+                  e.preventDefault();
+                  setEditForm({ ...editForm, marking_text: suggestion.marking_text });
+                  setShowSuggestions({ ...showSuggestions, editModal: false });
+                }
+              },
+                React.createElement('div', { className: 'font-semibold' }, suggestion.marking_text),
+                React.createElement('div', { className: 'text-gray-600 text-xs' },
+                  `PO: ${suggestion.po_id} - ${suggestion.customer_name || 'N/A'}`
+                ),
+                suggestion.due_date && React.createElement('div', { className: 'text-gray-500 text-xs' },
+                  `Due: ${suggestion.due_date}`
+                )
+              )
+            )
+          )
         )
       ),
       React.createElement('div', null,
@@ -876,14 +915,42 @@ function DailyProduction({ products, onSubmit }){
                     React.createElement('option', { value: 'client_brand' }, 'Client Brand')
                   )
                 ),
-                React.createElement('td', { className: 'p-2' },
-                  React.createElement('input', {
-                    value: en.marking_text||'',
-                    onChange: e=>updateEntry(i,'marking_text',e.target.value),
-                    className: 'w-32 border rounded px-2 py-1 text-sm',
-                    placeholder: en.marking_type==='client_brand' ? 'e.g., ABC Corp' : en.marking_type==='nikkon_brand' ? 'Nikkon Ferro' : 'N/A',
-                    disabled: en.marking_type==='unmarked'
-                  })
+                React.createElement('td', { className: 'p-2 relative' },
+                  React.createElement('div', { className: 'relative' },
+                    React.createElement('input', {
+                      value: en.marking_text||'',
+                      onChange: e=>updateEntry(i,'marking_text',e.target.value),
+                      onFocus: () => setShowSuggestions({ ...showSuggestions, [i]: true }),
+                      onBlur: () => setTimeout(() => setShowSuggestions({ ...showSuggestions, [i]: false }), 200),
+                      className: 'w-32 border rounded px-2 py-1 text-sm',
+                      placeholder: en.marking_type==='client_brand' ? 'e.g., ABC Corp' : en.marking_type==='nikkon_brand' ? 'Nikkon Ferro' : 'N/A',
+                      disabled: en.marking_type==='unmarked'
+                    }),
+                    showSuggestions[i] && suggestedMarkings.length > 0 && en.marking_type!=='unmarked' &&
+                    React.createElement('div', {
+                      className: 'absolute z-50 bg-white border border-gray-300 rounded shadow-lg mt-1 max-h-48 overflow-y-auto w-64'
+                    },
+                      suggestedMarkings.map((suggestion, idx) =>
+                        React.createElement('div', {
+                          key: idx,
+                          className: 'px-3 py-2 hover:bg-blue-50 cursor-pointer border-b last:border-b-0 text-xs',
+                          onMouseDown: (e) => {
+                            e.preventDefault();
+                            updateEntry(i, 'marking_text', suggestion.marking_text);
+                            setShowSuggestions({ ...showSuggestions, [i]: false });
+                          }
+                        },
+                          React.createElement('div', { className: 'font-semibold' }, suggestion.marking_text),
+                          React.createElement('div', { className: 'text-gray-600' },
+                            `PO: ${suggestion.po_id} - ${suggestion.customer_name || 'N/A'}`
+                          ),
+                          suggestion.due_date && React.createElement('div', { className: 'text-gray-500 text-xs' },
+                            `Due: ${suggestion.due_date}`
+                          )
+                        )
+                      )
+                    )
+                  )
                 ),
                 React.createElement('td', { className: 'p-2' },
                   React.createElement('input', { value: en.notes||'', onChange: e=>updateEntry(i,'notes',e.target.value), className: 'border rounded px-2 py-1 text-sm' })
@@ -2720,6 +2787,8 @@ function Shipments({ shipments }){
   const [editingShipment, setEditingShipment] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [clientPOs, setClientPOs] = useState([]);
+  const [warnings, setWarnings] = useState([]);
+  const [validationModal, setValidationModal] = useState(null);
   const [newShipmentForm, setNewShipmentForm] = useState({
     id: '',
     po_id: '',
@@ -2777,11 +2846,70 @@ function Shipments({ shipments }){
     }
   }
 
+  async function validateShipmentMarkings() {
+    if (!newShipmentForm.po_id) {
+      return null;
+    }
+
+    try {
+      // First get PO line items
+      const itemsRes = await fetch(`${API_URL}/client-purchase-orders/${newShipmentForm.po_id}/items`);
+      if (!itemsRes.ok) {
+        console.error('Failed to fetch PO items');
+        return null;
+      }
+      const items = await itemsRes.json();
+
+      // Then validate markings
+      const validationRes = await fetch(`${API_URL}/shipments/validate-markings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          po_id: newShipmentForm.po_id,
+          items: items.map(item => ({
+            product_id: item.product_id,
+            quantity: item.quantity - (item.delivered || 0)
+          }))
+        })
+      });
+
+      if (validationRes.ok) {
+        const validationData = await validationRes.json();
+        return validationData;
+      } else {
+        console.error('Validation request failed');
+        return null;
+      }
+    } catch (err) {
+      console.error('Error validating markings:', err);
+      return null;
+    }
+  }
+
   async function createShipment(){
     if (!newShipmentForm.id || !newShipmentForm.po_id) {
       alert('Please enter Shipment ID and select a Client PO');
       return;
     }
+
+    // Validate markings before creating shipment
+    const validation = await validateShipmentMarkings();
+
+    if (validation && validation.hasWarnings) {
+      // Show validation modal with warnings
+      setValidationModal({
+        warnings: validation.warnings,
+        errors: validation.errors,
+        message: validation.message
+      });
+      return; // Don't proceed with shipment creation
+    }
+
+    // Proceed with shipment creation
+    await proceedWithShipmentCreation();
+  }
+
+  async function proceedWithShipmentCreation() {
     try {
       const res = await fetch(`${API_URL}/shipments`, {
         method: 'POST',
@@ -2800,6 +2928,7 @@ function Shipments({ shipments }){
           destination: '',
           tracking_number: ''
         });
+        setValidationModal(null);
         window.location.reload();
       } else {
         const error = await res.json();
@@ -2867,6 +2996,81 @@ function Shipments({ shipments }){
 
   return (
     React.createElement('div', { className: 'space-y-6' },
+      // Validation Modal
+      validationModal && React.createElement(EditModal, {
+        isOpen: true,
+        onClose: () => setValidationModal(null),
+        title: 'Shipment Marking Validation Warning'
+      },
+        React.createElement('div', { className: 'space-y-4' },
+          React.createElement('div', { className: 'bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4' },
+            React.createElement('div', { className: 'flex items-center gap-2 mb-2' },
+              React.createElement('span', { className: 'text-2xl' }, '⚠️'),
+              React.createElement('h3', { className: 'text-lg font-bold text-yellow-800' }, 'Marking Requirements Not Met')
+            ),
+            React.createElement('p', { className: 'text-sm text-yellow-700' }, validationModal.message)
+          ),
+
+          validationModal.warnings.length > 0 && React.createElement('div', { className: 'space-y-3' },
+            React.createElement('h4', { className: 'font-semibold text-gray-800' }, 'Issues Found:'),
+            validationModal.warnings.map((warning, idx) =>
+              React.createElement('div', { key: idx, className: 'bg-red-50 border border-red-200 rounded p-3' },
+                React.createElement('div', { className: 'flex items-start gap-2' },
+                  React.createElement('span', { className: 'text-xl' }, '❌'),
+                  React.createElement('div', { className: 'flex-1' },
+                    React.createElement('div', { className: 'font-semibold text-red-800' }, warning.product_id),
+                    React.createElement('div', { className: 'text-sm text-red-700 mt-1' },
+                      `Required: ${warning.required_quantity} units with "${warning.marking}" marking`
+                    ),
+                    React.createElement('div', { className: 'text-sm text-red-700' },
+                      `Available: ${warning.available_marked_quantity} units`
+                    ),
+                    React.createElement('div', { className: 'text-sm font-semibold text-red-800 mt-1' },
+                      `Shortage: ${warning.shortage} units`
+                    )
+                  )
+                )
+              )
+            )
+          ),
+
+          React.createElement('div', { className: 'bg-blue-50 border border-blue-200 rounded p-3' },
+            React.createElement('div', { className: 'flex items-start gap-2' },
+              React.createElement('span', { className: 'text-xl' }, '💡'),
+              React.createElement('div', { className: 'text-sm text-blue-800' },
+                React.createElement('p', { className: 'font-semibold mb-1' }, 'Recommended Actions:'),
+                React.createElement('ul', { className: 'list-disc list-inside space-y-1' },
+                  React.createElement('li', null, 'Produce more units with the required marking'),
+                  React.createElement('li', null, 'Allocate existing marked inventory to this PO'),
+                  React.createElement('li', null, 'Update the PO marking requirement if incorrect')
+                )
+              )
+            )
+          ),
+
+          React.createElement('div', { className: 'flex gap-3 pt-4 border-t' },
+            React.createElement('button', {
+              onClick: () => setValidationModal(null),
+              className: 'flex-1 px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 flex items-center justify-center gap-2'
+            },
+              React.createElement('span', { className: 'text-base' }, '❌'),
+              'Cancel Shipment'
+            ),
+            React.createElement('button', {
+              onClick: () => {
+                if (confirm('Are you sure you want to proceed without sufficient marked inventory? This may result in shipping incorrect products.')) {
+                  proceedWithShipmentCreation();
+                }
+              },
+              className: 'flex-1 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 flex items-center justify-center gap-2'
+            },
+              React.createElement('span', { className: 'text-base' }, '⚠️'),
+              'Proceed Anyway'
+            )
+          )
+        )
+      ),
+
       React.createElement(Section, { title: 'Create Shipment' },
         React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-4 gap-3 mb-3' },
           React.createElement('div', null,
@@ -3745,8 +3949,323 @@ function InventoryView({ inventory }){
   );
 }
 
+// Marking Dashboard Component
+function MarkingDashboard({ onRefresh }) {
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [filterType, setFilterType] = useState('all');
+  const [filterCustomer, setFilterCustomer] = useState('all');
+
+  async function fetchDashboardData() {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/marking-dashboard`);
+      const data = await res.json();
+      setDashboardData(data);
+    } catch (err) {
+      console.error('Error fetching marking dashboard:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  if (loading) {
+    return React.createElement('div', { className: 'flex items-center justify-center h-64' },
+      React.createElement('div', { className: 'text-center' },
+        React.createElement('div', { className: 'text-4xl mb-4' }, '⏳'),
+        React.createElement('div', { className: 'text-xl text-gray-600' }, 'Loading marking dashboard...')
+      )
+    );
+  }
+
+  if (!dashboardData) {
+    return React.createElement('div', { className: 'text-center text-gray-600 p-8' },
+      'No marking data available'
+    );
+  }
+
+  // Filter PO allocations
+  let filteredAllocations = dashboardData.poAllocations || [];
+  if (filterType !== 'all') {
+    filteredAllocations = filteredAllocations.filter(a => a.marking_type === filterType);
+  }
+  if (filterCustomer !== 'all') {
+    filteredAllocations = filteredAllocations.filter(a => a.customer_id === filterCustomer);
+  }
+
+  const uniqueCustomers = [...new Set(dashboardData.poAllocations.map(a => a.customer_id).filter(Boolean))];
+
+  return React.createElement('div', { className: 'space-y-6' },
+    React.createElement('div', { className: 'flex items-center justify-between' },
+      React.createElement('h2', { className: 'text-2xl font-bold text-gray-800' }, 'Marking Dashboard'),
+      React.createElement('button', {
+        onClick: () => {
+          fetchDashboardData();
+          if (onRefresh) onRefresh();
+        },
+        className: 'px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2'
+      },
+        React.createElement('span', null, '🔄'),
+        'Refresh'
+      )
+    ),
+
+    // Summary Cards
+    React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-4' },
+      // Total Marked Inventory
+      React.createElement('div', { className: 'bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl shadow-lg p-6' },
+        React.createElement('div', { className: 'flex items-center justify-between mb-2' },
+          React.createElement('span', { className: 'text-3xl' }, '🏷️'),
+          React.createElement('span', { className: 'text-sm opacity-80' }, 'Total Marked')
+        ),
+        React.createElement('div', { className: 'text-3xl font-bold' },
+          Object.values(dashboardData.totalMarkedInventory).reduce((sum, val) => sum + val, 0).toLocaleString()
+        ),
+        React.createElement('div', { className: 'text-sm opacity-90 mt-2' }, 'All marking types combined')
+      ),
+
+      // Allocated Inventory
+      React.createElement('div', { className: 'bg-gradient-to-br from-yellow-500 to-yellow-600 text-white rounded-xl shadow-lg p-6' },
+        React.createElement('div', { className: 'flex items-center justify-between mb-2' },
+          React.createElement('span', { className: 'text-3xl' }, '✅'),
+          React.createElement('span', { className: 'text-sm opacity-80' }, 'Allocated')
+        ),
+        React.createElement('div', { className: 'text-3xl font-bold' },
+          (dashboardData.allocatedVsAvailable.allocated || 0).toLocaleString()
+        ),
+        React.createElement('div', { className: 'text-sm opacity-90 mt-2' }, 'Assigned to POs')
+      ),
+
+      // Available Inventory
+      React.createElement('div', { className: 'bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl shadow-lg p-6' },
+        React.createElement('div', { className: 'flex items-center justify-between mb-2' },
+          React.createElement('span', { className: 'text-3xl' }, '📦'),
+          React.createElement('span', { className: 'text-sm opacity-80' }, 'Available')
+        ),
+        React.createElement('div', { className: 'text-3xl font-bold' },
+          (dashboardData.allocatedVsAvailable.available || 0).toLocaleString()
+        ),
+        React.createElement('div', { className: 'text-sm opacity-90 mt-2' }, 'Unallocated inventory')
+      )
+    ),
+
+    // Allocated vs Available Bar Chart
+    React.createElement('div', { className: 'bg-white rounded-xl shadow-md p-6 border border-gray-200' },
+      React.createElement('h3', { className: 'text-lg font-bold mb-4 text-gray-800' }, 'Allocated vs Available'),
+      React.createElement('div', { className: 'space-y-3' },
+        React.createElement('div', null,
+          React.createElement('div', { className: 'flex justify-between text-sm mb-1' },
+            React.createElement('span', { className: 'font-semibold' }, 'Allocated'),
+            React.createElement('span', null, (dashboardData.allocatedVsAvailable.allocated || 0).toLocaleString())
+          ),
+          React.createElement('div', { className: 'w-full bg-gray-200 rounded-full h-4' },
+            React.createElement('div', {
+              className: 'bg-yellow-500 h-4 rounded-full',
+              style: {
+                width: `${(dashboardData.allocatedVsAvailable.allocated /
+                  (dashboardData.allocatedVsAvailable.allocated + dashboardData.allocatedVsAvailable.available) * 100) || 0}%`
+              }
+            })
+          )
+        ),
+        React.createElement('div', null,
+          React.createElement('div', { className: 'flex justify-between text-sm mb-1' },
+            React.createElement('span', { className: 'font-semibold' }, 'Available'),
+            React.createElement('span', null, (dashboardData.allocatedVsAvailable.available || 0).toLocaleString())
+          ),
+          React.createElement('div', { className: 'w-full bg-gray-200 rounded-full h-4' },
+            React.createElement('div', {
+              className: 'bg-green-500 h-4 rounded-full',
+              style: {
+                width: `${(dashboardData.allocatedVsAvailable.available /
+                  (dashboardData.allocatedVsAvailable.allocated + dashboardData.allocatedVsAvailable.available) * 100) || 0}%`
+              }
+            })
+          )
+        )
+      )
+    ),
+
+    // Top 5 Markings
+    React.createElement('div', { className: 'bg-white rounded-xl shadow-md p-6 border border-gray-200' },
+      React.createElement('h3', { className: 'text-lg font-bold mb-4 text-gray-800' }, 'Top 5 Markings by Quantity'),
+      dashboardData.topMarkings.length === 0 ?
+        React.createElement('div', { className: 'text-center text-gray-500 py-8' }, 'No marking data available') :
+        React.createElement('div', { className: 'space-y-3' },
+          dashboardData.topMarkings.map((marking, idx) =>
+            React.createElement('div', { key: idx, className: 'flex items-center gap-3' },
+              React.createElement('div', { className: 'flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold' },
+                idx + 1
+              ),
+              React.createElement('div', { className: 'flex-1' },
+                React.createElement('div', { className: 'font-semibold' }, marking.marking_text),
+                React.createElement('div', { className: 'text-sm text-gray-600' },
+                  `${marking.marking_type} - ${marking.po_count || 0} PO(s)`
+                )
+              ),
+              React.createElement('div', { className: 'flex-shrink-0 font-bold text-lg text-blue-600' },
+                (marking.total_quantity || 0).toLocaleString()
+              )
+            )
+          )
+        )
+    ),
+
+    // PO Allocations Table
+    React.createElement('div', { className: 'bg-white rounded-xl shadow-md p-6 border border-gray-200' },
+      React.createElement('div', { className: 'flex items-center justify-between mb-4' },
+        React.createElement('h3', { className: 'text-lg font-bold text-gray-800' }, 'Active PO Allocations'),
+        React.createElement('div', { className: 'flex gap-2' },
+          React.createElement('select', {
+            value: filterType,
+            onChange: e => setFilterType(e.target.value),
+            className: 'border rounded px-2 py-1 text-sm'
+          },
+            React.createElement('option', { value: 'all' }, 'All Types'),
+            React.createElement('option', { value: 'customer_branded' }, 'Customer Branded'),
+            React.createElement('option', { value: 'custom' }, 'Custom'),
+            React.createElement('option', { value: 'nikkon_brand' }, 'Nikkon Brand')
+          ),
+          React.createElement('select', {
+            value: filterCustomer,
+            onChange: e => setFilterCustomer(e.target.value),
+            className: 'border rounded px-2 py-1 text-sm'
+          },
+            React.createElement('option', { value: 'all' }, 'All Customers'),
+            uniqueCustomers.map(cust =>
+              React.createElement('option', { key: cust, value: cust }, cust)
+            )
+          )
+        )
+      ),
+      filteredAllocations.length === 0 ?
+        React.createElement('div', { className: 'text-center text-gray-500 py-8' }, 'No active allocations found') :
+        React.createElement('div', { className: 'overflow-x-auto' },
+          React.createElement('table', { className: 'min-w-full border-collapse' },
+            React.createElement('thead', null,
+              React.createElement('tr', { className: 'bg-gray-100' },
+                ['PO ID', 'Product', 'Marking', 'Quantity', 'Customer', 'Due Date', 'Status'].map(h =>
+                  React.createElement('th', { key: h, className: 'p-2 text-left text-sm font-semibold border-b' }, h)
+                )
+              )
+            ),
+            React.createElement('tbody', null,
+              filteredAllocations.map((alloc, idx) =>
+                React.createElement('tr', { key: idx, className: 'border-b hover:bg-gray-50' },
+                  React.createElement('td', { className: 'p-2 text-sm font-semibold' }, alloc.po_id),
+                  React.createElement('td', { className: 'p-2 text-sm' }, alloc.product_id),
+                  React.createElement('td', { className: 'p-2 text-sm' },
+                    React.createElement('div', null,
+                      React.createElement('div', { className: 'font-semibold' }, alloc.marking_text),
+                      React.createElement('div', { className: 'text-xs text-gray-600' }, alloc.marking_type)
+                    )
+                  ),
+                  React.createElement('td', { className: 'p-2 text-sm font-bold' }, (alloc.allocated_quantity || 0).toLocaleString()),
+                  React.createElement('td', { className: 'p-2 text-sm' }, alloc.customer_name || 'N/A'),
+                  React.createElement('td', { className: 'p-2 text-sm' }, alloc.due_date || 'N/A'),
+                  React.createElement('td', { className: 'p-2 text-sm' },
+                    React.createElement('span', {
+                      className: `px-2 py-1 rounded text-xs font-semibold ${
+                        alloc.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                        alloc.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`
+                    }, alloc.status || 'Pending')
+                  )
+                )
+              )
+            )
+          )
+        )
+    )
+  );
+}
+
 // Marking Breakdown Display Component
-function MarkingBreakdownRow({ productId, markings, loading }) {
+function MarkingBreakdownRow({ productId, markings, loading, onRefresh }) {
+  const [allocatingMarking, setAllocatingMarking] = useState(null);
+  const [selectedPO, setSelectedPO] = useState('');
+  const [availablePOs, setAvailablePOs] = useState([]);
+
+  useEffect(() => {
+    // Fetch available POs for allocation
+    fetch(`${API_URL}/client-purchase-orders`)
+      .then(res => res.json())
+      .then(data => {
+        const activePOs = data.filter(po => po.status !== 'Completed' && po.status !== 'Cancelled');
+        setAvailablePOs(activePOs);
+      })
+      .catch(err => console.error('Error fetching POs:', err));
+  }, []);
+
+  async function handleAllocate(marking) {
+    if (!selectedPO) {
+      alert('Please select a PO');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/inventory/allocations/assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: productId,
+          stage: marking.stage,
+          marking_type: marking.marking_type,
+          marking_text: marking.marking_text,
+          quantity: marking.quantity,
+          po_id: selectedPO
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        alert('Allocation successful!');
+        setAllocatingMarking(null);
+        setSelectedPO('');
+        if (onRefresh) onRefresh();
+      } else {
+        alert(`Error: ${data.error}`);
+      }
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
+  }
+
+  async function handleDeallocate(marking) {
+    if (!confirm(`Remove allocation from PO ${marking.allocated_po_id}?`)) return;
+
+    try {
+      const res = await fetch(`${API_URL}/inventory/allocations/deallocate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: productId,
+          stage: marking.stage,
+          marking_type: marking.marking_type,
+          marking_text: marking.marking_text,
+          po_id: marking.allocated_po_id
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        alert('Deallocation successful!');
+        if (onRefresh) onRefresh();
+      } else {
+        alert(`Error: ${data.error}`);
+      }
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
+  }
+
   if (loading) {
     return React.createElement('tr', { className: 'bg-blue-50' },
       React.createElement('td', { colSpan: 9, className: 'p-4 text-center' },
@@ -3813,6 +4332,10 @@ function MarkingBreakdownRow({ productId, markings, loading }) {
               stageMarkings.map((marking, idx) => {
                 const isAllocated = marking.allocated_po_id;
                 const isUnmarked = !marking.marking_type || marking.marking_type === 'none';
+                const isAllocating = allocatingMarking &&
+                  allocatingMarking.stage === marking.stage &&
+                  allocatingMarking.marking_type === marking.marking_type &&
+                  allocatingMarking.marking_text === marking.marking_text;
 
                 let badgeColor = 'bg-green-100 text-green-800 border-green-300';
                 let icon = '📦';
@@ -3828,29 +4351,72 @@ function MarkingBreakdownRow({ productId, markings, loading }) {
                   status = 'Unmarked';
                 }
 
-                return React.createElement('div', {
-                  key: `${stage}-${idx}`,
-                  className: `flex items-center justify-between p-3 rounded border ${badgeColor}`
-                },
-                  React.createElement('div', { className: 'flex items-center gap-3 flex-1' },
-                    React.createElement('span', { className: 'text-xl' }, icon),
-                    React.createElement('div', { className: 'flex-1' },
-                      React.createElement('div', { className: 'flex items-center gap-2' },
-                        React.createElement('span', { className: 'font-semibold' },
-                          marking.marking_type === 'customer_branded' ? 'Customer Branded' :
-                          marking.marking_type === 'custom' ? 'Custom' :
-                          marking.marking_type === 'none' ? 'Unmarked' :
-                          marking.marking_type || 'Unknown'
+                return React.createElement('div', { key: `${stage}-${idx}` },
+                  React.createElement('div', {
+                    className: `flex items-center justify-between p-3 rounded border ${badgeColor}`
+                  },
+                    React.createElement('div', { className: 'flex items-center gap-3 flex-1' },
+                      React.createElement('span', { className: 'text-xl' }, icon),
+                      React.createElement('div', { className: 'flex-1' },
+                        React.createElement('div', { className: 'flex items-center gap-2' },
+                          React.createElement('span', { className: 'font-semibold' },
+                            marking.marking_type === 'customer_branded' ? 'Customer Branded' :
+                            marking.marking_type === 'custom' ? 'Custom' :
+                            marking.marking_type === 'none' ? 'Unmarked' :
+                            marking.marking_type || 'Unknown'
+                          ),
+                          marking.marking_text && React.createElement('span', { className: 'text-sm' },
+                            `- "${marking.marking_text}"`
+                          )
                         ),
-                        marking.marking_text && React.createElement('span', { className: 'text-sm' },
-                          `- "${marking.marking_text}"`
-                        )
+                        React.createElement('div', { className: 'text-sm text-gray-600' }, status)
+                      )
+                    ),
+                    React.createElement('div', { className: 'flex items-center gap-3' },
+                      React.createElement('div', { className: 'font-bold text-lg' },
+                        `${marking.quantity || 0} pcs`
                       ),
-                      React.createElement('div', { className: 'text-sm text-gray-600' }, status)
+                      // Action buttons
+                      !isAllocated && React.createElement('button', {
+                        onClick: () => setAllocatingMarking(marking),
+                        className: 'px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-semibold'
+                      }, 'Allocate to PO'),
+                      isAllocated && React.createElement('button', {
+                        onClick: () => handleDeallocate(marking),
+                        className: 'px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm font-semibold'
+                      }, 'Deallocate')
                     )
                   ),
-                  React.createElement('div', { className: 'font-bold text-lg' },
-                    `${marking.quantity || 0} pcs`
+                  // Allocation dropdown
+                  isAllocating && React.createElement('div', {
+                    className: 'mt-2 p-3 bg-white border border-blue-300 rounded-lg'
+                  },
+                    React.createElement('div', { className: 'flex items-center gap-2' },
+                      React.createElement('label', { className: 'font-semibold text-sm' }, 'Select PO:'),
+                      React.createElement('select', {
+                        value: selectedPO,
+                        onChange: e => setSelectedPO(e.target.value),
+                        className: 'border rounded px-2 py-1 flex-1'
+                      },
+                        React.createElement('option', { value: '' }, '-- Select PO --'),
+                        availablePOs.map(po =>
+                          React.createElement('option', { key: po.id, value: po.id },
+                            `${po.id} - ${po.customer_id || 'No Customer'} (Due: ${po.due_date || 'N/A'})`
+                          )
+                        )
+                      ),
+                      React.createElement('button', {
+                        onClick: () => handleAllocate(marking),
+                        className: 'px-4 py-1 bg-green-500 text-white rounded hover:bg-green-600 font-semibold'
+                      }, 'Confirm'),
+                      React.createElement('button', {
+                        onClick: () => {
+                          setAllocatingMarking(null);
+                          setSelectedPO('');
+                        },
+                        className: 'px-4 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 font-semibold'
+                      }, 'Cancel')
+                    )
                   )
                 );
               })
@@ -4539,7 +5105,13 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
               key: `expanded-${row.product_id}`,
               productId: row.product_id,
               markings: markingData[row.product_id],
-              loading: loadingMarkings[row.product_id]
+              loading: loadingMarkings[row.product_id],
+              onRefresh: () => {
+                // Refresh marking data
+                fetchMarkingData(row.product_id);
+                // Refresh entire inventory
+                if (onRefresh) onRefresh();
+              }
             });
           }
         })

@@ -2237,45 +2237,116 @@ app.get('/api/shipments', (req, res) => {
 app.post('/api/shipments', (req, res) => {
   const { id, po_id, shipment_date, container_number, bl_number, bl_date, notes, items, carrier, destination, tracking_number } = req.body;
   // Record shipment, update delivered counts, and decrement inventory.packed
-  db.serialize(() => {
-    db.run('BEGIN');
-    db.run(
-      "INSERT INTO shipments (id, po_id, shipment_date, container_number, bl_number, bl_date, notes, carrier, destination, tracking_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [id, po_id, shipment_date, container_number, bl_number, bl_date, notes, carrier, destination, tracking_number],
-      function(err) {
-        if (err) {
-          try { db.run('ROLLBACK'); } catch(_){}
-          return res.status(500).json({ error: err.message });
-        }
-        const stmt = db.prepare("INSERT INTO shipment_items (shipment_id, product_id, quantity) VALUES (?, ?, ?)");
-        let failed = false;
-        (items||[]).forEach(item => {
-          if (failed) return;
-          const qty = Number(item.quantity||0);
-          stmt.run([id, item.product_id, qty], (e)=>{ if(e){ failed = true; }});
-          db.run(
-            "UPDATE client_po_line_items SET delivered = delivered + ? WHERE po_id = ? AND product_id = ?",
-            [qty, po_id, item.product_id],
-            (e)=>{ if(e){ failed = true; }}
-          );
-          db.run(
-            `UPDATE inventory SET packed = MAX(packed - ?, 0), updated_at = CURRENT_TIMESTAMP WHERE product_id = ?`,
-            [qty, item.product_id],
-            (e)=>{ if(e){ failed = true; }}
-          );
-        });
-        stmt.finalize((err) => {
-          if (err || failed) {
-            try { db.run('ROLLBACK'); } catch(_){}
-            return res.status(500).json({ error: (err&&err.message) || 'Failed to save shipment items' });
-          }
-          db.run('COMMIT', (cerr) => {
-            if (cerr) return res.status(500).json({ error: cerr.message });
-            res.json({ message: 'Shipment recorded successfully' });
+
+  // First, validate marking requirements
+  db.get('SELECT marking FROM client_purchase_orders WHERE id = ?', [po_id], (poErr, po) => {
+    if (poErr) {
+      return res.status(500).json({ error: poErr.message });
+    }
+
+    const warnings = [];
+
+    // If PO has marking, check if sufficient marked inventory exists
+    if (po && po.marking && po.marking.trim() !== '') {
+      const poMarking = po.marking.trim();
+      let validationComplete = 0;
+      const totalItems = (items || []).length;
+
+      if (totalItems === 0) {
+        // No items to validate, proceed
+        proceedWithShipment();
+      } else {
+        // Check each item for marking validation
+        (items || []).forEach(item => {
+          const sql = `
+            SELECT SUM(quantity) as available_quantity
+            FROM inventory_allocations
+            WHERE product_id = ?
+              AND stage = 'packed'
+              AND marking_text = ?
+              AND (allocated_po_id = ? OR allocated_po_id IS NULL)
+          `;
+
+          db.get(sql, [item.product_id, poMarking, po_id], (markErr, markResult) => {
+            validationComplete++;
+
+            if (!markErr) {
+              const availableQty = markResult?.available_quantity || 0;
+              const requestedQty = Number(item.quantity || 0);
+
+              if (availableQty < requestedQty) {
+                warnings.push({
+                  product_id: item.product_id,
+                  message: `Warning: PO requires "${poMarking}" marking but only ${availableQty} units available (requested ${requestedQty})`
+                });
+              }
+            }
+
+            // After all items validated, proceed with shipment
+            if (validationComplete === totalItems) {
+              proceedWithShipment();
+            }
           });
         });
       }
-    );
+    } else {
+      // No marking validation needed
+      proceedWithShipment();
+    }
+
+    function proceedWithShipment() {
+      db.serialize(() => {
+        db.run('BEGIN');
+        db.run(
+          "INSERT INTO shipments (id, po_id, shipment_date, container_number, bl_number, bl_date, notes, carrier, destination, tracking_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          [id, po_id, shipment_date, container_number, bl_number, bl_date, notes, carrier, destination, tracking_number],
+          function(err) {
+            if (err) {
+              try { db.run('ROLLBACK'); } catch(_){}
+              return res.status(500).json({ error: err.message });
+            }
+            const stmt = db.prepare("INSERT INTO shipment_items (shipment_id, product_id, quantity) VALUES (?, ?, ?)");
+            let failed = false;
+            (items||[]).forEach(item => {
+              if (failed) return;
+              const qty = Number(item.quantity||0);
+              stmt.run([id, item.product_id, qty], (e)=>{ if(e){ failed = true; }});
+              db.run(
+                "UPDATE client_po_line_items SET delivered = delivered + ? WHERE po_id = ? AND product_id = ?",
+                [qty, po_id, item.product_id],
+                (e)=>{ if(e){ failed = true; }}
+              );
+              db.run(
+                `UPDATE inventory SET packed = MAX(packed - ?, 0), updated_at = CURRENT_TIMESTAMP WHERE product_id = ?`,
+                [qty, item.product_id],
+                (e)=>{ if(e){ failed = true; }}
+              );
+            });
+            stmt.finalize((err) => {
+              if (err || failed) {
+                try { db.run('ROLLBACK'); } catch(_){}
+                return res.status(500).json({ error: (err&&err.message) || 'Failed to save shipment items' });
+              }
+              db.run('COMMIT', (cerr) => {
+                if (cerr) return res.status(500).json({ error: cerr.message });
+
+                // Include warnings in the response
+                const response = {
+                  success: true,
+                  message: 'Shipment recorded successfully'
+                };
+
+                if (warnings.length > 0) {
+                  response.warnings = warnings;
+                }
+
+                res.json(response);
+              });
+            });
+          }
+        );
+      });
+    }
   });
 });
 
@@ -2571,6 +2642,409 @@ app.get('/api/inventory/markings', (_req, res) => {
       res.status(500).json({ error: err.message });
     } else {
       res.json(rows || []);
+    }
+  });
+});
+
+// ============= Allocation Management Endpoints =============
+
+// POST /api/inventory/allocations/assign - Assign marked inventory to a PO
+app.post('/api/inventory/allocations/assign', (req, res) => {
+  const { product_id, stage, marking_type, marking_text, quantity, po_id } = req.body;
+
+  if (!product_id || !stage || !marking_type || !quantity || !po_id) {
+    return res.status(400).json({ error: 'Missing required fields: product_id, stage, marking_type, quantity, po_id' });
+  }
+
+  console.log('Assigning allocation:', { product_id, stage, marking_type, marking_text, quantity, po_id });
+
+  db.serialize(() => {
+    // First validate that the PO exists
+    db.get('SELECT id FROM client_purchase_orders WHERE id = ?', [po_id], (err, po) => {
+      if (err) {
+        console.error('Error checking PO:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      if (!po) {
+        return res.status(404).json({ error: `Purchase Order ${po_id} not found` });
+      }
+
+      // Update the inventory_allocations table to set allocated_po_id
+      const updateSql = `
+        UPDATE inventory_allocations
+        SET allocated_po_id = ?,
+            allocated_date = DATE('now')
+        WHERE product_id = ?
+          AND stage = ?
+          AND marking_type = ?
+          AND (marking_text = ? OR (marking_text IS NULL AND ? IS NULL))
+          AND allocated_po_id IS NULL
+          AND quantity >= ?
+        LIMIT 1
+      `;
+
+      db.run(updateSql, [po_id, product_id, stage, marking_type, marking_text, marking_text, quantity], function(updateErr) {
+        if (updateErr) {
+          console.error('Error updating allocation:', updateErr);
+          return res.status(500).json({ error: updateErr.message });
+        }
+
+        if (this.changes === 0) {
+          // If no rows were updated, try to find a matching allocation entry and split it
+          const findSql = `
+            SELECT * FROM inventory_allocations
+            WHERE product_id = ?
+              AND stage = ?
+              AND marking_type = ?
+              AND (marking_text = ? OR (marking_text IS NULL AND ? IS NULL))
+              AND allocated_po_id IS NULL
+              AND quantity >= ?
+            LIMIT 1
+          `;
+
+          db.get(findSql, [product_id, stage, marking_type, marking_text, marking_text, quantity], (findErr, row) => {
+            if (findErr) {
+              console.error('Error finding allocation:', findErr);
+              return res.status(500).json({ error: findErr.message });
+            }
+
+            if (!row) {
+              return res.status(404).json({ error: 'No matching unallocated inventory found with sufficient quantity' });
+            }
+
+            // Split the allocation: reduce original quantity and create a new allocated entry
+            db.run('BEGIN');
+
+            db.run(
+              'UPDATE inventory_allocations SET quantity = quantity - ? WHERE id = ?',
+              [quantity, row.id],
+              (splitErr) => {
+                if (splitErr) {
+                  db.run('ROLLBACK');
+                  return res.status(500).json({ error: splitErr.message });
+                }
+
+                db.run(
+                  `INSERT INTO inventory_allocations
+                   (product_id, stage, marking_type, marking_text, quantity, allocated_po_id, allocated_date)
+                   VALUES (?, ?, ?, ?, ?, ?, DATE('now'))`,
+                  [product_id, stage, marking_type, marking_text, quantity, po_id],
+                  (insertErr) => {
+                    if (insertErr) {
+                      db.run('ROLLBACK');
+                      return res.status(500).json({ error: insertErr.message });
+                    }
+
+                    db.run('COMMIT', (commitErr) => {
+                      if (commitErr) {
+                        return res.status(500).json({ error: commitErr.message });
+                      }
+                      console.log('Allocation assigned successfully (split entry)');
+                      res.json({ success: true, message: 'Inventory allocated to PO successfully' });
+                    });
+                  }
+                );
+              }
+            );
+          });
+        } else {
+          console.log('Allocation assigned successfully');
+          res.json({ success: true, message: 'Inventory allocated to PO successfully' });
+        }
+      });
+    });
+  });
+});
+
+// POST /api/inventory/allocations/deallocate - Remove PO allocation
+app.post('/api/inventory/allocations/deallocate', (req, res) => {
+  const { product_id, stage, marking_type, marking_text, po_id } = req.body;
+
+  if (!product_id || !stage || !marking_type || !po_id) {
+    return res.status(400).json({ error: 'Missing required fields: product_id, stage, marking_type, po_id' });
+  }
+
+  console.log('Deallocating:', { product_id, stage, marking_type, marking_text, po_id });
+
+  const updateSql = `
+    UPDATE inventory_allocations
+    SET allocated_po_id = NULL,
+        allocated_date = NULL
+    WHERE product_id = ?
+      AND stage = ?
+      AND marking_type = ?
+      AND (marking_text = ? OR (marking_text IS NULL AND ? IS NULL))
+      AND allocated_po_id = ?
+  `;
+
+  db.run(updateSql, [product_id, stage, marking_type, marking_text, marking_text, po_id], function(err) {
+    if (err) {
+      console.error('Error deallocating:', err);
+      return res.status(500).json({ error: err.message });
+    }
+
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'No matching allocation found to deallocate' });
+    }
+
+    console.log('Deallocation successful, rows affected:', this.changes);
+    res.json({ success: true, message: 'Allocation removed successfully', rowsAffected: this.changes });
+  });
+});
+
+// GET /api/inventory/available-markings - Get available (unallocated) marked inventory
+app.get('/api/inventory/available-markings', (req, res) => {
+  const sql = `
+    SELECT
+      product_id,
+      stage,
+      marking_type,
+      marking_text,
+      SUM(quantity) as total_quantity,
+      COUNT(*) as entry_count
+    FROM inventory_allocations
+    WHERE allocated_po_id IS NULL
+    GROUP BY product_id, stage, marking_type, marking_text
+    ORDER BY product_id, stage, marking_type, marking_text
+  `;
+
+  db.all(sql, [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching available markings:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows || []);
+  });
+});
+
+// GET /api/marking-dashboard - Get summary data for marking dashboard
+app.get('/api/marking-dashboard', (req, res) => {
+  db.serialize(() => {
+    const dashboardData = {
+      totalMarkedInventory: {},
+      allocatedVsAvailable: { allocated: 0, available: 0 },
+      topMarkings: [],
+      poAllocations: []
+    };
+
+    // Total marked inventory by type
+    db.all(`
+      SELECT
+        marking_type,
+        SUM(quantity) as total_quantity
+      FROM inventory_allocations
+      GROUP BY marking_type
+    `, [], (err1, rows1) => {
+      if (err1) {
+        console.error('Error fetching total marked inventory:', err1);
+        return res.status(500).json({ error: err1.message });
+      }
+
+      rows1.forEach(row => {
+        dashboardData.totalMarkedInventory[row.marking_type] = row.total_quantity;
+      });
+
+      // Allocated vs Available quantities
+      db.get(`
+        SELECT
+          SUM(CASE WHEN allocated_po_id IS NOT NULL THEN quantity ELSE 0 END) as allocated,
+          SUM(CASE WHEN allocated_po_id IS NULL THEN quantity ELSE 0 END) as available
+        FROM inventory_allocations
+      `, [], (err2, row2) => {
+        if (err2) {
+          console.error('Error fetching allocated vs available:', err2);
+          return res.status(500).json({ error: err2.message });
+        }
+
+        dashboardData.allocatedVsAvailable.allocated = row2.allocated || 0;
+        dashboardData.allocatedVsAvailable.available = row2.available || 0;
+
+        // Top 5 markings by quantity
+        db.all(`
+          SELECT
+            marking_type,
+            marking_text,
+            SUM(quantity) as total_quantity,
+            COUNT(DISTINCT allocated_po_id) as po_count
+          FROM inventory_allocations
+          WHERE marking_text IS NOT NULL
+          GROUP BY marking_type, marking_text
+          ORDER BY total_quantity DESC
+          LIMIT 5
+        `, [], (err3, rows3) => {
+          if (err3) {
+            console.error('Error fetching top markings:', err3);
+            return res.status(500).json({ error: err3.message });
+          }
+
+          dashboardData.topMarkings = rows3 || [];
+
+          // PO allocation status
+          db.all(`
+            SELECT
+              ia.allocated_po_id as po_id,
+              ia.product_id,
+              ia.marking_type,
+              ia.marking_text,
+              SUM(ia.quantity) as allocated_quantity,
+              cpo.customer_id,
+              c.name as customer_name,
+              cpo.due_date,
+              cpo.status
+            FROM inventory_allocations ia
+            LEFT JOIN client_purchase_orders cpo ON ia.allocated_po_id = cpo.id
+            LEFT JOIN customers c ON cpo.customer_id = c.id
+            WHERE ia.allocated_po_id IS NOT NULL
+            GROUP BY ia.allocated_po_id, ia.product_id, ia.marking_type, ia.marking_text
+            ORDER BY cpo.due_date ASC
+          `, [], (err4, rows4) => {
+            if (err4) {
+              console.error('Error fetching PO allocations:', err4);
+              return res.status(500).json({ error: err4.message });
+            }
+
+            dashboardData.poAllocations = rows4 || [];
+
+            console.log('Marking dashboard data compiled successfully');
+            res.json(dashboardData);
+          });
+        });
+      });
+    });
+  });
+});
+
+// GET /api/production/suggested-markings - Get suggested markings from active POs
+app.get('/api/production/suggested-markings', (req, res) => {
+  const sql = `
+    SELECT DISTINCT
+      cpo.marking as marking_text,
+      cpo.id as po_id,
+      c.name as customer_name,
+      cpo.due_date
+    FROM client_purchase_orders cpo
+    LEFT JOIN customers c ON cpo.customer_id = c.id
+    WHERE cpo.status != 'Completed'
+      AND cpo.status != 'Cancelled'
+      AND cpo.marking IS NOT NULL
+      AND cpo.marking != ''
+    ORDER BY cpo.due_date ASC
+  `;
+
+  db.all(sql, [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching suggested markings:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    console.log('Suggested markings fetched:', rows?.length || 0);
+    res.json(rows || []);
+  });
+});
+
+// POST /api/shipments/validate-markings - Validate marking requirements before shipment creation
+app.post('/api/shipments/validate-markings', (req, res) => {
+  const { po_id, items } = req.body;
+
+  if (!po_id) {
+    return res.status(400).json({ error: 'Missing required field: po_id' });
+  }
+
+  console.log('Validating shipment markings for PO:', po_id, 'with items:', items);
+
+  // First, get the PO details to check if it has marking requirements
+  db.get('SELECT id, marking FROM client_purchase_orders WHERE id = ?', [po_id], (err, po) => {
+    if (err) {
+      console.error('Error fetching PO:', err);
+      return res.status(500).json({ error: err.message });
+    }
+
+    if (!po) {
+      return res.status(404).json({ error: `Purchase Order ${po_id} not found` });
+    }
+
+    const poMarking = po.marking;
+    const warnings = [];
+    const errors = [];
+
+    // If PO has no marking requirement, validation passes
+    if (!poMarking || poMarking.trim() === '') {
+      console.log('PO has no marking requirement, validation passed');
+      return res.json({
+        valid: true,
+        warnings: [],
+        errors: [],
+        message: 'No marking requirements for this PO'
+      });
+    }
+
+    // If items are provided, check marking availability for each product
+    if (items && items.length > 0) {
+      let itemsChecked = 0;
+      const totalItems = items.length;
+
+      items.forEach(item => {
+        const { product_id, quantity } = item;
+
+        // Check if sufficient marked inventory exists for this product
+        db.get(`
+          SELECT
+            SUM(quantity) as available_marked_qty
+          FROM inventory_allocations
+          WHERE product_id = ?
+            AND stage = 'packed'
+            AND (marking_text = ? OR (allocated_po_id = ? AND allocated_po_id IS NOT NULL))
+        `, [product_id, poMarking, po_id], (itemErr, markingData) => {
+          itemsChecked++;
+
+          if (itemErr) {
+            console.error('Error checking marking data:', itemErr);
+            errors.push(`Error checking marking for ${product_id}: ${itemErr.message}`);
+          } else {
+            const availableMarkedQty = markingData?.available_marked_qty || 0;
+
+            if (availableMarkedQty < quantity) {
+              warnings.push({
+                product_id,
+                required_quantity: quantity,
+                available_marked_quantity: availableMarkedQty,
+                shortage: quantity - availableMarkedQty,
+                marking: poMarking,
+                message: `Warning: PO requires "${poMarking}" marking, but only ${availableMarkedQty}/${quantity} units available for ${product_id}`
+              });
+            }
+          }
+
+          // When all items have been checked, send response
+          if (itemsChecked === totalItems) {
+            const isValid = errors.length === 0;
+            const hasWarnings = warnings.length > 0;
+
+            console.log('Validation complete:', { valid: isValid, warnings: warnings.length, errors: errors.length });
+
+            res.json({
+              valid: isValid,
+              warnings,
+              errors,
+              hasWarnings,
+              message: hasWarnings
+                ? `Warning: Some products have insufficient marked inventory`
+                : isValid
+                ? 'All marking requirements validated successfully'
+                : 'Validation failed with errors'
+            });
+          }
+        });
+      });
+    } else {
+      // No items provided, just return PO marking requirement
+      console.log('No items provided, returning PO marking requirement');
+      res.json({
+        valid: true,
+        warnings: [],
+        errors: [],
+        poMarking,
+        message: `PO requires "${poMarking}" marking. Add items to validate marking availability.`
+      });
     }
   });
 });
