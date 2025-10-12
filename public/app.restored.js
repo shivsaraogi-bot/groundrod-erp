@@ -3745,6 +3745,123 @@ function InventoryView({ inventory }){
   );
 }
 
+// Marking Breakdown Display Component
+function MarkingBreakdownRow({ productId, markings, loading }) {
+  if (loading) {
+    return React.createElement('tr', { className: 'bg-blue-50' },
+      React.createElement('td', { colSpan: 9, className: 'p-4 text-center' },
+        React.createElement('div', { className: 'flex items-center justify-center gap-2' },
+          React.createElement('span', { className: 'text-xl' }, '⏳'),
+          React.createElement('span', { className: 'text-gray-600' }, 'Loading marking breakdown...')
+        )
+      )
+    );
+  }
+
+  if (!markings || markings.length === 0) {
+    return React.createElement('tr', { className: 'bg-gray-50' },
+      React.createElement('td', { colSpan: 9, className: 'p-4 text-center text-gray-600' },
+        React.createElement('div', { className: 'flex items-center justify-center gap-2' },
+          React.createElement('span', { className: 'text-xl' }, '📋'),
+          React.createElement('span', null, 'No marking data available for this product')
+        )
+      )
+    );
+  }
+
+  // Group markings by stage
+  const stageGroups = {};
+  markings.forEach(m => {
+    if (!stageGroups[m.stage]) {
+      stageGroups[m.stage] = [];
+    }
+    stageGroups[m.stage].push(m);
+  });
+
+  const stageLabels = {
+    steel_rods: 'Steel Rods',
+    plated: 'Plated',
+    machined: 'Machined',
+    qc: 'QC',
+    stamped: 'Stamped',
+    packed: 'Packed'
+  };
+
+  return React.createElement('tr', { className: 'bg-blue-50 border-l-4 border-l-blue-600' },
+    React.createElement('td', { colSpan: 9, className: 'p-6' },
+      React.createElement('div', { className: 'space-y-4' },
+        React.createElement('div', { className: 'flex items-center gap-2 mb-4' },
+          React.createElement('span', { className: 'text-2xl' }, '🏷️'),
+          React.createElement('h4', { className: 'text-lg font-bold text-gray-800' }, `Marking Breakdown for ${productId}`)
+        ),
+
+        // Display each stage with its markings
+        Object.entries(stageGroups).map(([stage, stageMarkings]) => {
+          const totalQty = stageMarkings.reduce((sum, m) => sum + (m.quantity || 0), 0);
+
+          return React.createElement('div', { key: stage, className: 'bg-white rounded-lg border border-gray-200 p-4' },
+            React.createElement('div', { className: 'flex items-center justify-between mb-3' },
+              React.createElement('h5', { className: 'font-semibold text-blue-900' },
+                `${stageLabels[stage] || stage} (${totalQty} total)`
+              ),
+              React.createElement('span', { className: 'text-sm text-gray-500' },
+                `${stageMarkings.length} marking${stageMarkings.length !== 1 ? 's' : ''}`
+              )
+            ),
+
+            React.createElement('div', { className: 'space-y-2' },
+              stageMarkings.map((marking, idx) => {
+                const isAllocated = marking.allocated_po_id;
+                const isUnmarked = !marking.marking_type || marking.marking_type === 'none';
+
+                let badgeColor = 'bg-green-100 text-green-800 border-green-300';
+                let icon = '📦';
+                let status = 'Available';
+
+                if (isAllocated) {
+                  badgeColor = 'bg-yellow-100 text-yellow-800 border-yellow-300';
+                  icon = '✅';
+                  status = `Allocated to ${marking.allocated_po_id}`;
+                } else if (isUnmarked) {
+                  badgeColor = 'bg-blue-100 text-blue-800 border-blue-300';
+                  icon = '📦';
+                  status = 'Unmarked';
+                }
+
+                return React.createElement('div', {
+                  key: `${stage}-${idx}`,
+                  className: `flex items-center justify-between p-3 rounded border ${badgeColor}`
+                },
+                  React.createElement('div', { className: 'flex items-center gap-3 flex-1' },
+                    React.createElement('span', { className: 'text-xl' }, icon),
+                    React.createElement('div', { className: 'flex-1' },
+                      React.createElement('div', { className: 'flex items-center gap-2' },
+                        React.createElement('span', { className: 'font-semibold' },
+                          marking.marking_type === 'customer_branded' ? 'Customer Branded' :
+                          marking.marking_type === 'custom' ? 'Custom' :
+                          marking.marking_type === 'none' ? 'Unmarked' :
+                          marking.marking_type || 'Unknown'
+                        ),
+                        marking.marking_text && React.createElement('span', { className: 'text-sm' },
+                          `- "${marking.marking_text}"`
+                        )
+                      ),
+                      React.createElement('div', { className: 'text-sm text-gray-600' }, status)
+                    )
+                  ),
+                  React.createElement('div', { className: 'font-bold text-lg' },
+                    `${marking.quantity || 0} pcs`
+                  )
+                );
+              })
+            )
+          );
+        })
+      )
+    )
+  );
+}
+
 // Extended Inventory view: Raw Materials + WIP/Finished
 function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefresh, filter, setFilter, rangeMode, setRangeMode }){
   // Controls
@@ -3840,6 +3957,11 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
   const [tracingInventory, setTracingInventory] = useState(null);
   const [productionTrace, setProductionTrace] = useState([]);
   const [traceLimit, setTraceLimit] = useState(50);
+
+  // Marking Breakdown state
+  const [expandedRows, setExpandedRows] = useState({});
+  const [markingData, setMarkingData] = useState({});
+  const [loadingMarkings, setLoadingMarkings] = useState({});
 
   React.useEffect(() => {
     setLocalRawMaterials(rawMaterials || []);
@@ -4002,6 +4124,49 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
       console.error('Error fetching production trace:', err);
       alert(`Error: ${err.message}`);
       setProductionTrace([]);
+    }
+  }
+
+  // Marking Breakdown functions
+  async function toggleMarkingBreakdown(productId) {
+    const isExpanded = expandedRows[productId];
+
+    // Toggle expansion
+    setExpandedRows({
+      ...expandedRows,
+      [productId]: !isExpanded
+    });
+
+    // If expanding and we don't have data yet, fetch it
+    if (!isExpanded && !markingData[productId]) {
+      await fetchMarkingData(productId);
+    }
+  }
+
+  async function fetchMarkingData(productId) {
+    setLoadingMarkings({ ...loadingMarkings, [productId]: true });
+
+    try {
+      const url = `${API_URL}/inventory/markings?product_id=${encodeURIComponent(productId)}`;
+      console.log('Fetching marking data from:', url);
+
+      const res = await fetch(url);
+
+      if (res.ok) {
+        const data = await res.json();
+        console.log('Marking data:', data);
+        setMarkingData({ ...markingData, [productId]: data });
+      } else {
+        console.error('Failed to fetch marking data:', res.status, res.statusText);
+        alert(`Failed to fetch marking breakdown: ${res.status} ${res.statusText}`);
+        setMarkingData({ ...markingData, [productId]: [] });
+      }
+    } catch (err) {
+      console.error('Error fetching marking data:', err);
+      alert(`Error: ${err.message}`);
+      setMarkingData({ ...markingData, [productId]: [] });
+    } finally {
+      setLoadingMarkings({ ...loadingMarkings, [productId]: false });
     }
   }
 
@@ -4346,15 +4511,45 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
           filterOptions: [
             { key: 'product_description', label: 'Product', values: [...new Set((invData||[]).map(r => r.product_description).filter(Boolean))] }
           ],
-          defaultVisibleColumns: { product_description: true, steel_rods: true, plated: true, machined: true, qc: true, stamped: true, packed: true, total: true }
+          defaultVisibleColumns: { product_description: true, steel_rods: true, plated: true, machined: true, qc: true, stamped: true, packed: true, total: true },
+          actions: (row) => {
+            const isExpanded = expandedRows[row.product_id];
+            const isLoading = loadingMarkings[row.product_id];
+
+            return React.createElement('div', { className: 'flex gap-2 items-center justify-end' },
+              React.createElement('button', {
+                onClick: (e) => {
+                  e.stopPropagation();
+                  toggleMarkingBreakdown(row.product_id);
+                },
+                className: `px-3 py-1 rounded text-sm font-semibold flex items-center gap-1 ${
+                  isExpanded ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`,
+                disabled: isLoading
+              },
+                React.createElement('span', { className: 'text-base' }, isExpanded ? '▲' : '🏷️'),
+                isExpanded ? 'Hide Markings' : 'View Markings'
+              )
+            );
+          },
+          expandableRowContent: (row) => {
+            if (!expandedRows[row.product_id]) return null;
+
+            return React.createElement(MarkingBreakdownRow, {
+              key: `expanded-${row.product_id}`,
+              productId: row.product_id,
+              markings: markingData[row.product_id],
+              loading: loadingMarkings[row.product_id]
+            });
+          }
         })
       )
     )
   );
 }
 
-// Enhanced Table Component with sorting, filtering, column customization, and clickable rows
-function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, onDelete, onExport, filterOptions = [], defaultVisibleColumns, actions }) {
+// Enhanced Table Component with sorting, filtering, column customization, clickable rows, and expandable rows
+function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, onDelete, onExport, filterOptions = [], defaultVisibleColumns, actions, expandableRowContent }) {
   const storageKey = `tableColumns_${title?.replace(/\s+/g, '_')}`;
 
   const getInitialColumns = () => {
@@ -4458,22 +4653,28 @@ function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, on
             )
           ),
           React.createElement('tbody', null,
-            filteredData.length > 0 ? filteredData.map((row, rowIdx) => React.createElement('tr', {
-              key: row[primaryKey] || rowIdx,
-              className: `border-b hover:bg-blue-50 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`,
-              onClick: onRowClick ? () => onRowClick(row) : undefined
-            },
-              orderedColumns.map(col => React.createElement('td', { key: col.key, className: `p-3 border ${col.key === primaryKey ? 'font-mono font-semibold text-blue-600' : ''}` },
-                col.render ? col.render(row[col.key], row) : (row[col.key] || '-')
-              )),
-              React.createElement('td', { className: 'p-3 text-right border', onClick: (e) => e.stopPropagation() },
-                actions && actions(row),
-                onDelete && React.createElement('button', { onClick: () => onDelete(row[primaryKey]), className: 'px-2 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 flex items-center gap-1' },
-                  React.createElement('span', null, '🗑️'),
-                  'Delete'
+            filteredData.length > 0 ? filteredData.flatMap((row, rowIdx) => {
+              const mainRow = React.createElement('tr', {
+                key: row[primaryKey] || rowIdx,
+                className: `border-b hover:bg-blue-50 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`,
+                onClick: onRowClick ? () => onRowClick(row) : undefined
+              },
+                orderedColumns.map(col => React.createElement('td', { key: col.key, className: `p-3 border ${col.key === primaryKey ? 'font-mono font-semibold text-blue-600' : ''}` },
+                  col.render ? col.render(row[col.key], row) : (row[col.key] || '-')
+                )),
+                React.createElement('td', { className: 'p-3 text-right border', onClick: (e) => e.stopPropagation() },
+                  actions && actions(row),
+                  onDelete && React.createElement('button', { onClick: () => onDelete(row[primaryKey]), className: 'px-2 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 flex items-center gap-1' },
+                    React.createElement('span', null, '🗑️'),
+                    'Delete'
+                  )
                 )
-              )
-            )) : React.createElement('tr', null, React.createElement('td', { colSpan: orderedColumns.length + 1, className: 'p-8 text-center text-gray-500' }, 'No data found'))
+              );
+
+              // Add expandable content row if provided
+              const expandableRow = expandableRowContent && expandableRowContent(row);
+              return expandableRow ? [mainRow, expandableRow] : [mainRow];
+            }) : [React.createElement('tr', { key: 'no-data' }, React.createElement('td', { colSpan: orderedColumns.length + 1, className: 'p-8 text-center text-gray-500' }, 'No data found'))]
           )
         )
       )

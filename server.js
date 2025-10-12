@@ -2546,6 +2546,35 @@ app.get('/api/inventory', (req, res) => {
   });
 });
 
+// Get marking breakdown for inventory (for detailed allocation view)
+app.get('/api/inventory/markings', (_req, res) => {
+  db.all(`
+    SELECT
+      ia.product_id,
+      p.description as product_description,
+      ia.stage,
+      ia.marking_type,
+      ia.marking_text,
+      SUM(ia.quantity) as quantity,
+      ia.allocated_po_id,
+      cpo.marking as po_marking,
+      c.name as customer_name
+    FROM inventory_allocations ia
+    LEFT JOIN products p ON ia.product_id = p.id
+    LEFT JOIN client_purchase_orders cpo ON ia.allocated_po_id = cpo.id
+    LEFT JOIN customers c ON cpo.customer_id = c.id
+    GROUP BY ia.product_id, ia.stage, ia.marking_type, ia.marking_text, ia.allocated_po_id
+    HAVING SUM(ia.quantity) > 0
+    ORDER BY p.description, ia.stage, ia.marking_type, ia.marking_text
+  `, (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+    } else {
+      res.json(rows || []);
+    }
+  });
+});
+
 app.post('/api/production', (req, res) => {
   const { date, entries } = req.body;
 
