@@ -449,10 +449,22 @@ function GroundRodERP() {
 
   return (
     React.createElement('div', { className: 'min-h-screen bg-gradient-to-br from-gray-50 to-blue-50' },
-      React.createElement(Header, { onRefresh: fetchAllData }),
-      React.createElement(NavTabs, { activeTab, setActiveTab }),
-      React.createElement('main', { className: 'max-w-7xl mx-auto px-6 py-6' },
+      activeTab !== 'mobile' && React.createElement(Header, { onRefresh: fetchAllData }),
+      activeTab !== 'mobile' && React.createElement(NavTabs, { activeTab, setActiveTab }),
+      React.createElement('main', { className: activeTab === 'mobile' ? '' : 'max-w-7xl mx-auto px-6 py-6' },
         activeTab === 'dashboard' && React.createElement(Dashboard, { stats: dashboardStats, riskAnalysis, clientPurchaseOrders, inventory, setActiveTab }),
+        activeTab === 'mobile' && React.createElement(MobileInterface, {
+          products,
+          inventory,
+          rawMaterials,
+          clientPurchaseOrders,
+          customers,
+          vendors,
+          shipments,
+          invoices,
+          onRefresh: fetchAllData,
+          setActiveTab
+        }),
         activeTab === 'mrp' && React.createElement(PurchasePlanningMRP, { onRefresh: fetchAllData }),
         activeTab === 'production-schedule' && React.createElement(ProductionSchedule, { onRefresh: fetchAllData }),
         activeTab === 'material-variance' && React.createElement(MaterialVariance, { onRefresh: fetchAllData }),
@@ -472,8 +484,8 @@ function GroundRodERP() {
         activeTab === 'customers' && React.createElement(CustomerManagementEx, { customers, onRefresh: fetchAllData }),
         activeTab === 'vendors' && React.createElement(VendorManagement, { vendors, onRefresh: fetchAllData }),
       ),
-      // AI Chatbot Widget - floating button in bottom-right corner
-      React.createElement(ChatWidget)
+      // AI Chatbot Widget - floating button in bottom-right corner (hidden in mobile view)
+      activeTab !== 'mobile' && React.createElement(ChatWidget)
     )
   );
 }
@@ -505,7 +517,8 @@ function NavTabs({ activeTab, setActiveTab }){
     {
       id: 'main',
       items: [
-        { id: 'dashboard', label: 'Dashboard', icon: '📊' }
+        { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+        { id: 'mobile', label: 'Mobile App', icon: '📱' }
       ]
     },
     {
@@ -1307,7 +1320,7 @@ function MaterialVariance({ onRefresh }) {
 // MOBILE INTERFACE
 // ============================================================================
 
-function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrders, onRefresh }) {
+function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrders, customers, vendors, shipments, invoices, onRefresh, setActiveTab }) {
   const [mobileView, setMobileView] = useState('home');
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
