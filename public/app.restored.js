@@ -5545,9 +5545,22 @@ function CustomerManagementEx({ customers, onRefresh }){
   const columns = [
     { key: 'id', label: 'Customer ID' },
     { key: 'name', label: 'Name' },
-    { key: 'contact_person', label: 'Contact Person' },
-    { key: 'phone', label: 'Phone' },
-    { key: 'email', label: 'Email' },
+    {
+      key: 'display_contact_person',
+      label: 'Contact Person',
+      render: (val, row) => {
+        if (row.primary_contact_name) {
+          return React.createElement('div', null,
+            React.createElement('div', { className: 'font-semibold' }, row.primary_contact_name),
+            row.primary_contact_title && React.createElement('div', { className: 'text-xs text-gray-600' }, row.primary_contact_title),
+            React.createElement('span', { className: 'text-xs bg-blue-100 text-blue-700 px-1 py-0.5 rounded' }, '⭐ Primary')
+          );
+        }
+        return val || row.contact_person || '';
+      }
+    },
+    { key: 'display_phone', label: 'Phone' },
+    { key: 'display_email', label: 'Email' },
     { key: 'office_address', label: 'Office Address' },
     { key: 'warehouse_address', label: 'Warehouse Address' }
   ];

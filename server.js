@@ -895,11 +895,28 @@ function insertSampleData() {
 // ============= CUSTOMER APIs =============
 
 app.get('/api/customers', (req, res) => {
-  db.all("SELECT * FROM customers ORDER BY name", (err, rows) => {
+  db.all(`
+    SELECT
+      c.*,
+      cc.name as primary_contact_name,
+      cc.title as primary_contact_title,
+      cc.phone as primary_contact_phone,
+      cc.email as primary_contact_email
+    FROM customers c
+    LEFT JOIN customer_contacts cc ON c.id = cc.customer_id AND cc.is_primary = 1
+    ORDER BY c.name
+  `, (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
     } else {
-      res.json(rows);
+      // For display, use primary contact if available, otherwise fall back to legacy fields
+      const customersWithContacts = rows.map(row => ({
+        ...row,
+        display_contact_person: row.primary_contact_name || row.contact_person,
+        display_phone: row.primary_contact_phone || row.phone,
+        display_email: row.primary_contact_email || row.email
+      }));
+      res.json(customersWithContacts);
     }
   });
 });
