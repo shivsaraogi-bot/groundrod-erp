@@ -1424,7 +1424,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
             React.createElement('option', { value: '' }, '-- Select Product --'),
             products.map(p =>
               React.createElement('option', { key: p.id, value: p.id },
-                `${p.product_name} (${p.marking})`
+                `${p.id} - ${p.description || p.product_name || 'Product'}`
               )
             )
           ),
