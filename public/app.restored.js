@@ -374,7 +374,7 @@ function GroundRodERP() {
       React.createElement(Header, { onRefresh: fetchAllData }),
       React.createElement(NavTabs, { activeTab, setActiveTab }),
       React.createElement('main', { className: 'max-w-7xl mx-auto px-6 py-6' },
-        activeTab === 'dashboard' && React.createElement(Dashboard, { stats: dashboardStats, riskAnalysis, clientPurchaseOrders, inventory }),
+        activeTab === 'dashboard' && React.createElement(Dashboard, { stats: dashboardStats, riskAnalysis, clientPurchaseOrders, inventory, setActiveTab }),
         activeTab === 'production' && React.createElement('div', { className: 'space-y-6' },
           React.createElement(DrawingOperations, { products, rawMaterials, onSubmit: fetchAllData }),
           React.createElement(DailyProduction, { products, onSubmit: fetchAllData })
@@ -385,7 +385,6 @@ function GroundRodERP() {
         activeTab === 'job-work' && React.createElement(JobWorkOrders, { vendors, products, rawMaterials, onRefresh: fetchAllData }),
         activeTab === 'shipments' && React.createElement(Shipments, { shipments, purchaseOrders: clientPurchaseOrders, products, onRefresh: fetchAllData }),
         activeTab === 'inventory' && React.createElement(InventoryViewEx, { inventory, rawMaterials, products, customers, onRefresh: fetchAllData, filter, setFilter, rangeMode, setRangeMode }),
-        activeTab === 'marking-dashboard' && React.createElement(MarkingDashboard, { onRefresh: fetchAllData }),
         activeTab === 'products' && React.createElement(ProductMasterEx, { products, calculateWeights, onRefresh: fetchAllData }),
         activeTab === 'customers' && React.createElement(CustomerManagementEx, { customers, onRefresh: fetchAllData }),
         activeTab === 'vendors' && React.createElement(VendorManagement, { vendors, onRefresh: fetchAllData }),
@@ -425,7 +424,6 @@ function NavTabs({ activeTab, setActiveTab }){
     { id: 'job-work', label: 'Job Work', icon: '🔧' },
     { id: 'shipments', label: 'Shipments', icon: '🚚' },
     { id: 'inventory', label: 'Inventory', icon: '📦' },
-    { id: 'marking-dashboard', label: 'Marking Dashboard', icon: '🏷️' },
     { id: 'products', label: 'Products', icon: '🏭' },
     { id: 'customers', label: 'Customers', icon: '👥' },
     { id: 'vendors', label: 'Vendors', icon: '🏢' },
@@ -449,7 +447,7 @@ function NavTabs({ activeTab, setActiveTab }){
   );
 }
 
-function Dashboard({ stats, riskAnalysis, clientPurchaseOrders, inventory }){
+function Dashboard({ stats, riskAnalysis, clientPurchaseOrders, inventory, setActiveTab }){
   return (
     React.createElement('div', { className: 'space-y-6' },
       React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4' },
@@ -501,7 +499,20 @@ function Dashboard({ stats, riskAnalysis, clientPurchaseOrders, inventory }){
           )
         )
       ),
-      React.createElement(AnalyticsPanel, null)
+      React.createElement(AnalyticsPanel, null),
+      React.createElement('div', { className: 'mt-8' },
+        React.createElement('h2', { className: 'text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2' },
+          React.createElement('span', null, '🏷️'),
+          'Marking & Branding Analytics'
+        ),
+        React.createElement(MarkingDashboard, {
+          onNavigate: (tab, filter) => {
+            if (setActiveTab) {
+              setActiveTab(tab);
+            }
+          }
+        })
+      )
     )
   );
 }
@@ -3950,7 +3961,7 @@ function InventoryView({ inventory }){
 }
 
 // Marking Dashboard Component
-function MarkingDashboard({ onRefresh }) {
+function MarkingDashboard({ onRefresh, onNavigate }) {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState('all');
@@ -4001,7 +4012,6 @@ function MarkingDashboard({ onRefresh }) {
 
   return React.createElement('div', { className: 'space-y-6' },
     React.createElement('div', { className: 'flex items-center justify-between' },
-      React.createElement('h2', { className: 'text-2xl font-bold text-gray-800' }, 'Marking Dashboard'),
       React.createElement('button', {
         onClick: () => {
           fetchDashboardData();
@@ -4017,7 +4027,11 @@ function MarkingDashboard({ onRefresh }) {
     // Summary Cards
     React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-4' },
       // Total Marked Inventory
-      React.createElement('div', { className: 'bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl shadow-lg p-6' },
+      React.createElement('div', {
+        className: 'bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl shadow-lg p-6 cursor-pointer hover:scale-105 transition-transform',
+        onClick: () => onNavigate && onNavigate('inventory'),
+        title: 'Click to view in Inventory'
+      },
         React.createElement('div', { className: 'flex items-center justify-between mb-2' },
           React.createElement('span', { className: 'text-3xl' }, '🏷️'),
           React.createElement('span', { className: 'text-sm opacity-80' }, 'Total Marked')
@@ -4029,7 +4043,11 @@ function MarkingDashboard({ onRefresh }) {
       ),
 
       // Allocated Inventory
-      React.createElement('div', { className: 'bg-gradient-to-br from-yellow-500 to-yellow-600 text-white rounded-xl shadow-lg p-6' },
+      React.createElement('div', {
+        className: 'bg-gradient-to-br from-yellow-500 to-yellow-600 text-white rounded-xl shadow-lg p-6 cursor-pointer hover:scale-105 transition-transform',
+        onClick: () => onNavigate && onNavigate('inventory'),
+        title: 'Click to view allocated items in Inventory'
+      },
         React.createElement('div', { className: 'flex items-center justify-between mb-2' },
           React.createElement('span', { className: 'text-3xl' }, '✅'),
           React.createElement('span', { className: 'text-sm opacity-80' }, 'Allocated')
@@ -4041,7 +4059,11 @@ function MarkingDashboard({ onRefresh }) {
       ),
 
       // Available Inventory
-      React.createElement('div', { className: 'bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl shadow-lg p-6' },
+      React.createElement('div', {
+        className: 'bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl shadow-lg p-6 cursor-pointer hover:scale-105 transition-transform',
+        onClick: () => onNavigate && onNavigate('inventory'),
+        title: 'Click to view available items in Inventory'
+      },
         React.createElement('div', { className: 'flex items-center justify-between mb-2' },
           React.createElement('span', { className: 'text-3xl' }, '📦'),
           React.createElement('span', { className: 'text-sm opacity-80' }, 'Available')
@@ -4102,9 +4124,18 @@ function MarkingDashboard({ onRefresh }) {
                 idx + 1
               ),
               React.createElement('div', { className: 'flex-1' },
-                React.createElement('div', { className: 'font-semibold' }, marking.marking_text),
+                React.createElement('div', {
+                  className: 'font-semibold cursor-pointer text-blue-600 hover:text-blue-800 hover:underline',
+                  onClick: () => onNavigate && onNavigate('inventory'),
+                  title: 'Click to view this marking in Inventory'
+                }, marking.marking_text),
                 React.createElement('div', { className: 'text-sm text-gray-600' },
-                  `${marking.marking_type} - ${marking.po_count || 0} PO(s)`
+                  `${marking.marking_type} - `,
+                  React.createElement('span', {
+                    className: 'cursor-pointer text-blue-600 hover:text-blue-800 hover:underline font-semibold',
+                    onClick: () => onNavigate && onNavigate('client-orders'),
+                    title: 'Click to view POs with this marking'
+                  }, `${marking.po_count || 0} PO(s)`)
                 )
               ),
               React.createElement('div', { className: 'flex-shrink-0 font-bold text-lg text-blue-600' },
@@ -4156,16 +4187,32 @@ function MarkingDashboard({ onRefresh }) {
             React.createElement('tbody', null,
               filteredAllocations.map((alloc, idx) =>
                 React.createElement('tr', { key: idx, className: 'border-b hover:bg-gray-50' },
-                  React.createElement('td', { className: 'p-2 text-sm font-semibold' }, alloc.po_id),
-                  React.createElement('td', { className: 'p-2 text-sm' }, alloc.product_id),
+                  React.createElement('td', {
+                    className: 'p-2 text-sm font-semibold cursor-pointer text-blue-600 hover:text-blue-800 hover:underline',
+                    onClick: () => onNavigate && onNavigate('client-orders'),
+                    title: 'Click to view this PO in Client Orders'
+                  }, alloc.po_id),
+                  React.createElement('td', {
+                    className: 'p-2 text-sm cursor-pointer text-blue-600 hover:text-blue-800 hover:underline',
+                    onClick: () => onNavigate && onNavigate('inventory'),
+                    title: 'Click to view this product in Inventory'
+                  }, alloc.product_id),
                   React.createElement('td', { className: 'p-2 text-sm' },
                     React.createElement('div', null,
-                      React.createElement('div', { className: 'font-semibold' }, alloc.marking_text),
+                      React.createElement('div', {
+                        className: 'font-semibold cursor-pointer text-blue-600 hover:text-blue-800 hover:underline',
+                        onClick: () => onNavigate && onNavigate('inventory'),
+                        title: 'Click to view this marking in Inventory'
+                      }, alloc.marking_text),
                       React.createElement('div', { className: 'text-xs text-gray-600' }, alloc.marking_type)
                     )
                   ),
                   React.createElement('td', { className: 'p-2 text-sm font-bold' }, (alloc.allocated_quantity || 0).toLocaleString()),
-                  React.createElement('td', { className: 'p-2 text-sm' }, alloc.customer_name || 'N/A'),
+                  React.createElement('td', {
+                    className: 'p-2 text-sm cursor-pointer text-blue-600 hover:text-blue-800 hover:underline',
+                    onClick: () => onNavigate && onNavigate('customers'),
+                    title: 'Click to view this customer in Customers'
+                  }, alloc.customer_name || 'N/A'),
                   React.createElement('td', { className: 'p-2 text-sm' }, alloc.due_date || 'N/A'),
                   React.createElement('td', { className: 'p-2 text-sm' },
                     React.createElement('span', {
