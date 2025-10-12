@@ -3413,6 +3413,8 @@ app.post('/api/production', (req, res) => {
           }
 
           // CRITICAL: Consume raw materials based on BOM for stamped (finished) quantity
+          // NOTE: Steel is already consumed at Job Work/Drawing stage when converting raw steel to steel_rods
+          // Only consume copper and other materials that are used during plating/stamping
           const stampedUnits = Number(entry.stamped||0);
           if (stampedUnits > 0){
             db.all('SELECT material, qty_per_unit FROM bom WHERE product_id = ?', [entry.product_id], (bomErr, bomRows) => {
@@ -3420,6 +3422,14 @@ app.post('/api/production', (req, res) => {
                 console.warn('BOM fetch warning:', bomErr.message);
               } else if (bomRows && bomRows.length > 0) {
                 bomRows.forEach(bom => {
+                  // Skip Steel - it was already deducted at Job Work stage (raw steel -> steel_rods)
+                  const materialLower = (bom.material || '').toLowerCase();
+                  if (materialLower.includes('steel') || materialLower.includes('rod')) {
+                    console.log(`Skipping ${bom.material} deduction at stamping - already consumed at job work stage`);
+                    return;
+                  }
+
+                  // Only deduct copper and other plating/finishing materials
                   const totalRequired = stampedUnits * Number(bom.qty_per_unit || 0);
                   if (totalRequired > 0) {
                     db.run(`UPDATE raw_materials_inventory
