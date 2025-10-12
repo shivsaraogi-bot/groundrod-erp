@@ -507,8 +507,48 @@ function NavTabs({ activeTab, setActiveTab }){
 }
 
 function Dashboard({ stats, riskAnalysis, clientPurchaseOrders, inventory, setActiveTab }){
+  const [showResetButton, setShowResetButton] = useState(false);
+
+  async function handleDatabaseReset() {
+    if (!confirm('⚠️ WARNING: This will DELETE all inventory, production, vendor POs, and shipments.\n\nCustomers, Client POs, and Products will be PRESERVED.\n\nAre you absolutely sure?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/admin/reset-inventory-production`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmPassword: 'RESET2025' })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('✅ Database reset successful!\n\nCleared: ' + data.cleared.join(', ') + '\n\nPreserved: ' + data.preserved.join(', ') + '\n\nThe page will now refresh.');
+        window.location.reload();
+      } else {
+        alert('❌ Reset failed: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('❌ Reset failed: ' + err.message);
+    }
+  }
+
   return (
     React.createElement('div', { className: 'space-y-6' },
+      React.createElement('div', { className: 'flex justify-between items-center mb-4' },
+        React.createElement('h2', { className: 'text-2xl font-bold text-gray-900' }, '📊 Dashboard'),
+        React.createElement('div', { className: 'flex gap-2' },
+          React.createElement('button', {
+            className: 'px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300',
+            onClick: () => setShowResetButton(!showResetButton)
+          }, showResetButton ? 'Hide Reset' : 'Show Admin'),
+          showResetButton && React.createElement('button', {
+            className: 'px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-semibold',
+            onClick: handleDatabaseReset
+          }, '🗑️ Reset Database')
+        )
+      ),
       React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4' },
         React.createElement(MetricCardDrill, { id:'wip', title: 'Total WIP', value: formatQuantity(stats.total_wip || 0), color: 'blue' }),
         React.createElement(MetricCardDrill, { id:'finished', title: 'Finished Goods', value: formatQuantity(stats.total_finished || 0), color: 'green' }),
