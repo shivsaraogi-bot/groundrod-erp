@@ -2,6 +2,65 @@ const { useState, useEffect, useRef } = React;
 const API_URL = window.location.origin + '/api';
 
 // ============================================================================
+// NUMBER FORMATTING UTILITIES
+// ============================================================================
+
+// Number formatting utilities
+function formatIndianNumber(num, forceDecimals = false) {
+  if (num === null || num === undefined || isNaN(num)) return '0';
+
+  const absNum = Math.abs(num);
+  let decimals = 0;
+
+  if (forceDecimals || absNum < 100) {
+    if (absNum < 10) decimals = 2;
+    else if (absNum < 100) decimals = 2;
+  }
+
+  const fixed = Number(num).toFixed(decimals);
+  const [integer, decimal] = fixed.split('.');
+
+  // Indian numbering: X,XX,XXX
+  const lastThree = integer.slice(-3);
+  const remaining = integer.slice(0, -3);
+  const formatted = remaining ? remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + lastThree : lastThree;
+
+  const result = (num < 0 ? '-' : '') + formatted;
+  return decimal && parseFloat('0.' + decimal) > 0 ? result + '.' + decimal : result;
+}
+
+function formatUSNumber(num, forceDecimals = false) {
+  if (num === null || num === undefined || isNaN(num)) return '0';
+
+  const absNum = Math.abs(num);
+  let decimals = 0;
+
+  if (forceDecimals || absNum < 100) {
+    if (absNum < 10) decimals = 2;
+    else if (absNum < 100) decimals = 2;
+  }
+
+  const options = {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals
+  };
+
+  return num.toLocaleString('en-US', options);
+}
+
+function formatQuantity(num) {
+  // For kg, units - use Indian system
+  return formatIndianNumber(num);
+}
+
+function formatCurrency(num, currency = 'INR') {
+  if (currency === 'USD') {
+    return '$' + formatUSNumber(num);
+  }
+  return '₹' + formatIndianNumber(num);
+}
+
+// ============================================================================
 // GEMINI AI CHATBOT WIDGET
 // ============================================================================
 
@@ -451,10 +510,10 @@ function Dashboard({ stats, riskAnalysis, clientPurchaseOrders, inventory, setAc
   return (
     React.createElement('div', { className: 'space-y-6' },
       React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4' },
-        React.createElement(MetricCardDrill, { id:'wip', title: 'Total WIP', value: (stats.total_wip || 0).toLocaleString(), color: 'blue' }),
-        React.createElement(MetricCardDrill, { id:'finished', title: 'Finished Goods', value: (stats.total_finished || 0).toLocaleString(), color: 'green' }),
-        React.createElement(MetricCardDrill, { id:'pending', title: 'Pending Orders', value: (stats.pending_orders || 0).toLocaleString(), color: 'orange' }),
-        React.createElement(MetricCardDrill, { id:'overdue', title: 'Overdue Orders', value: stats.overdue_orders || 0, color: 'red' })
+        React.createElement(MetricCardDrill, { id:'wip', title: 'Total WIP', value: formatQuantity(stats.total_wip || 0), color: 'blue' }),
+        React.createElement(MetricCardDrill, { id:'finished', title: 'Finished Goods', value: formatQuantity(stats.total_finished || 0), color: 'green' }),
+        React.createElement(MetricCardDrill, { id:'pending', title: 'Pending Orders', value: formatQuantity(stats.pending_orders || 0), color: 'orange' }),
+        React.createElement(MetricCardDrill, { id:'overdue', title: 'Overdue Orders', value: formatQuantity(stats.overdue_orders || 0), color: 'red' })
       ),
       React.createElement('div', { className: 'bg-white rounded-xl shadow-md p-6 border border-gray-200' },
         React.createElement('h3', { className: 'text-xl font-bold mb-4 text-gray-800' }, 'Risk Management - Material Requirements vs Availability'),
@@ -493,7 +552,7 @@ function Dashboard({ stats, riskAnalysis, clientPurchaseOrders, inventory, setAc
             inventory.sort((a,b)=>b.stamped-a.stamped).slice(0,5).map(item => (
               React.createElement('div', { key: item.product_id, className: 'flex justify-between items-center p-3 bg-blue-50 rounded-lg' },
                 React.createElement('div', { className: 'font-semibold text-sm' }, item.product_description),
-                React.createElement('div', { className: 'font-bold text-blue-600' }, `${item.stamped} units`)
+                React.createElement('div', { className: 'font-bold text-blue-600' }, `${formatQuantity(item.stamped)} units`)
               )
             ))
           )
@@ -524,18 +583,18 @@ function RiskBox({ title, data }){
       React.createElement('div', { className: 'space-y-2' },
         React.createElement('div', { className: 'flex justify-between' },
           React.createElement('span', { className: 'font-semibold' }, 'Required for Pending Orders:'),
-          React.createElement('span', { className: 'font-bold text-blue-600' }, `${parseFloat(data.required).toLocaleString()} kg`)
+          React.createElement('span', { className: 'font-bold text-blue-600' }, `${formatQuantity(parseFloat(data.required))} kg`)
         ),
         React.createElement('div', { className: 'flex justify-between' },
           React.createElement('span', { className: 'font-semibold' }, 'Available Stock:'),
-          React.createElement('span', { className: 'font-bold text-green-600' }, `${parseFloat(data.available).toLocaleString()} kg`)
+          React.createElement('span', { className: 'font-bold text-green-600' }, `${formatQuantity(parseFloat(data.available))} kg`)
         ),
         React.createElement('div', { className: 'flex justify-between pt-2 border-t border-gray-300' },
           React.createElement('span', { className: 'font-bold' }, 'Net Position:'),
           parseFloat(data.shortage) > 0 ? (
-            React.createElement('span', { className: 'font-bold text-red-600' }, `SHORTAGE: ${parseFloat(data.shortage).toLocaleString()} kg`)
+            React.createElement('span', { className: 'font-bold text-red-600' }, `SHORTAGE: ${formatQuantity(parseFloat(data.shortage))} kg`)
           ) : (
-            React.createElement('span', { className: 'font-bold text-green-600' }, `EXCESS: ${parseFloat(data.excess).toLocaleString()} kg`)
+            React.createElement('span', { className: 'font-bold text-green-600' }, `EXCESS: ${formatQuantity(parseFloat(data.excess))} kg`)
           )
         )
       )
@@ -975,11 +1034,11 @@ function DailyProduction({ products, onSubmit }){
             { key: 'id', label: 'ID' },
             { key: 'production_date', label: 'Date' },
             { key: 'product_description', label: 'Product', render: (val, row) => val || row.product_id },
-            { key: 'plated', label: 'Plated', render: (val) => val || 0 },
-            { key: 'machined', label: 'Machined', render: (val) => val || 0 },
-            { key: 'qc', label: 'QC', render: (val) => val || 0 },
-            { key: 'stamped', label: 'Stamped', render: (val) => val || 0 },
-            { key: 'rejected', label: 'Rejected', render: (val) => val || 0 },
+            { key: 'plated', label: 'Plated', render: (val) => formatQuantity(val || 0) },
+            { key: 'machined', label: 'Machined', render: (val) => formatQuantity(val || 0) },
+            { key: 'qc', label: 'QC', render: (val) => formatQuantity(val || 0) },
+            { key: 'stamped', label: 'Stamped', render: (val) => formatQuantity(val || 0) },
+            { key: 'rejected', label: 'Rejected', render: (val) => formatQuantity(val || 0) },
             { key: 'notes', label: 'Notes', render: (val) => val || '-' }
           ],
           primaryKey: 'id',
@@ -1997,10 +2056,10 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                   React.createElement('tr', { key: idx, className: 'border-b hover:bg-blue-50' },
                     React.createElement('td', { className: 'p-3 font-mono text-blue-600' }, item.product_id),
                     React.createElement('td', { className: 'p-3' }, item.description || '-'),
-                    React.createElement('td', { className: 'p-3 text-right font-semibold' }, item.quantity),
-                    React.createElement('td', { className: 'p-3 text-right' }, `${item.unit_price?.toFixed(2) || '0.00'}`),
+                    React.createElement('td', { className: 'p-3 text-right font-semibold' }, formatQuantity(item.quantity)),
+                    React.createElement('td', { className: 'p-3 text-right' }, formatCurrency(item.unit_price || 0, localOrders.find(po => po.id === poId)?.currency || 'INR')),
                     React.createElement('td', { className: 'p-3' }, item.due_date || '-'),
-                    React.createElement('td', { className: 'p-3 text-right font-bold text-green-700' }, `${(item.quantity * item.unit_price)?.toFixed(2) || '0.00'}`)
+                    React.createElement('td', { className: 'p-3 text-right font-bold text-green-700' }, formatCurrency((item.quantity * item.unit_price) || 0, localOrders.find(po => po.id === poId)?.currency || 'INR'))
                   )
                 )
               )
@@ -3018,13 +3077,13 @@ function Shipments({ shipments }){
                   React.createElement('div', { className: 'flex-1' },
                     React.createElement('div', { className: 'font-semibold text-red-800' }, warning.product_id),
                     React.createElement('div', { className: 'text-sm text-red-700 mt-1' },
-                      `Required: ${warning.required_quantity} units with "${warning.marking}" marking`
+                      `Required: ${formatQuantity(warning.required_quantity)} units with "${warning.marking}" marking`
                     ),
                     React.createElement('div', { className: 'text-sm text-red-700' },
-                      `Available: ${warning.available_marked_quantity} units`
+                      `Available: ${formatQuantity(warning.available_marked_quantity)} units`
                     ),
                     React.createElement('div', { className: 'text-sm font-semibold text-red-800 mt-1' },
-                      `Shortage: ${warning.shortage} units`
+                      `Shortage: ${formatQuantity(warning.shortage)} units`
                     )
                   )
                 )
@@ -3510,9 +3569,9 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
           { key: 'customer_name', label: 'Customer' },
           { key: 'invoice_date', label: 'Invoice Date' },
           { key: 'due_date', label: 'Due Date' },
-          { key: 'total_amount', label: 'Total', render: (val, row) => `${row.currency || 'INR'} ${val?.toFixed(2) || '0.00'}` },
-          { key: 'amount_paid', label: 'Paid', render: (val, row) => `${row.currency || 'INR'} ${val?.toFixed(2) || '0.00'}` },
-          { key: 'outstanding_amount', label: 'Outstanding', render: (val, row) => `${row.currency || 'INR'} ${val?.toFixed(2) || '0.00'}` },
+          { key: 'total_amount', label: 'Total', render: (val, row) => formatCurrency(val || 0, row.currency || 'INR') },
+          { key: 'amount_paid', label: 'Paid', render: (val, row) => formatCurrency(val || 0, row.currency || 'INR') },
+          { key: 'outstanding_amount', label: 'Outstanding', render: (val, row) => formatCurrency(val || 0, row.currency || 'INR') },
           { key: 'payment_status', label: 'Status', render: (val) => {
             const statusConfig = {
               'Paid': { icon: '💵', color: 'bg-green-100 text-green-800 border-green-300' },
@@ -3795,15 +3854,15 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
             React.createElement('div', { className: 'grid grid-cols-3 gap-3 text-sm' },
               React.createElement('div', null,
                 React.createElement('span', { className: 'text-gray-600' }, 'Total: '),
-                React.createElement('span', { className: 'font-semibold' }, `${selectedInvoice.currency || 'INR'} ${selectedInvoice.total_amount?.toFixed(2) || '0.00'}`)
+                React.createElement('span', { className: 'font-semibold' }, formatCurrency(selectedInvoice.total_amount || 0, selectedInvoice.currency || 'INR'))
               ),
               React.createElement('div', null,
                 React.createElement('span', { className: 'text-gray-600' }, 'Paid: '),
-                React.createElement('span', { className: 'font-semibold text-green-600' }, `${selectedInvoice.currency || 'INR'} ${selectedInvoice.amount_paid?.toFixed(2) || '0.00'}`)
+                React.createElement('span', { className: 'font-semibold text-green-600' }, formatCurrency(selectedInvoice.amount_paid || 0, selectedInvoice.currency || 'INR'))
               ),
               React.createElement('div', null,
                 React.createElement('span', { className: 'text-gray-600' }, 'Outstanding: '),
-                React.createElement('span', { className: 'font-semibold text-red-600' }, `${selectedInvoice.currency || 'INR'} ${selectedInvoice.outstanding_amount?.toFixed(2) || '0.00'}`)
+                React.createElement('span', { className: 'font-semibold text-red-600' }, formatCurrency(selectedInvoice.outstanding_amount || 0, selectedInvoice.currency || 'INR'))
               )
             )
           ),
@@ -3817,7 +3876,7 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
               localPayments.filter(p => p.invoice_number === selectedInvoice.invoice_number).map(payment =>
                 React.createElement('tr', { key: payment.id, className: 'border-b' },
                   React.createElement('td', { className: 'p-2 text-sm' }, payment.payment_date),
-                  React.createElement('td', { className: 'p-2 text-sm font-semibold' }, payment.amount?.toFixed(2)),
+                  React.createElement('td', { className: 'p-2 text-sm font-semibold' }, formatCurrency(payment.amount || 0, selectedInvoice.currency || 'INR')),
                   React.createElement('td', { className: 'p-2 text-sm' }, payment.payment_method || '-'),
                   React.createElement('td', { className: 'p-2 text-sm' }, payment.reference_number || '-'),
                   React.createElement('td', { className: 'p-2 text-sm' }, payment.notes || '-'),
@@ -4022,7 +4081,7 @@ function MarkingDashboard({ onRefresh, onNavigate }) {
           React.createElement('span', { className: 'text-sm opacity-80' }, 'Total Marked')
         ),
         React.createElement('div', { className: 'text-3xl font-bold' },
-          Object.values(dashboardData.totalMarkedInventory).reduce((sum, val) => sum + val, 0).toLocaleString()
+          formatQuantity(Object.values(dashboardData.totalMarkedInventory).reduce((sum, val) => sum + val, 0))
         ),
         React.createElement('div', { className: 'text-sm opacity-90 mt-2' }, 'All marking types combined')
       ),
@@ -4038,7 +4097,7 @@ function MarkingDashboard({ onRefresh, onNavigate }) {
           React.createElement('span', { className: 'text-sm opacity-80' }, 'Allocated')
         ),
         React.createElement('div', { className: 'text-3xl font-bold' },
-          (dashboardData.allocatedVsAvailable.allocated || 0).toLocaleString()
+          formatQuantity(dashboardData.allocatedVsAvailable.allocated || 0)
         ),
         React.createElement('div', { className: 'text-sm opacity-90 mt-2' }, 'Assigned to POs')
       ),
@@ -4054,7 +4113,7 @@ function MarkingDashboard({ onRefresh, onNavigate }) {
           React.createElement('span', { className: 'text-sm opacity-80' }, 'Available')
         ),
         React.createElement('div', { className: 'text-3xl font-bold' },
-          (dashboardData.allocatedVsAvailable.available || 0).toLocaleString()
+          formatQuantity(dashboardData.allocatedVsAvailable.available || 0)
         ),
         React.createElement('div', { className: 'text-sm opacity-90 mt-2' }, 'Unallocated inventory')
       )
@@ -4067,7 +4126,7 @@ function MarkingDashboard({ onRefresh, onNavigate }) {
         React.createElement('div', null,
           React.createElement('div', { className: 'flex justify-between text-sm mb-1' },
             React.createElement('span', { className: 'font-semibold' }, 'Allocated'),
-            React.createElement('span', null, (dashboardData.allocatedVsAvailable.allocated || 0).toLocaleString())
+            React.createElement('span', null, formatQuantity(dashboardData.allocatedVsAvailable.allocated || 0))
           ),
           React.createElement('div', { className: 'w-full bg-gray-200 rounded-full h-4' },
             React.createElement('div', {
@@ -4082,7 +4141,7 @@ function MarkingDashboard({ onRefresh, onNavigate }) {
         React.createElement('div', null,
           React.createElement('div', { className: 'flex justify-between text-sm mb-1' },
             React.createElement('span', { className: 'font-semibold' }, 'Available'),
-            React.createElement('span', null, (dashboardData.allocatedVsAvailable.available || 0).toLocaleString())
+            React.createElement('span', null, formatQuantity(dashboardData.allocatedVsAvailable.available || 0))
           ),
           React.createElement('div', { className: 'w-full bg-gray-200 rounded-full h-4' },
             React.createElement('div', {
@@ -4124,7 +4183,7 @@ function MarkingDashboard({ onRefresh, onNavigate }) {
                 )
               ),
               React.createElement('div', { className: 'flex-shrink-0 font-bold text-lg text-blue-600' },
-                (marking.total_quantity || 0).toLocaleString()
+                formatQuantity(marking.total_quantity || 0)
               )
             )
           )
@@ -4192,7 +4251,7 @@ function MarkingDashboard({ onRefresh, onNavigate }) {
                       React.createElement('div', { className: 'text-xs text-gray-600' }, alloc.marking_type)
                     )
                   ),
-                  React.createElement('td', { className: 'p-2 text-sm font-bold' }, (alloc.allocated_quantity || 0).toLocaleString()),
+                  React.createElement('td', { className: 'p-2 text-sm font-bold' }, formatQuantity(alloc.allocated_quantity || 0)),
                   React.createElement('td', {
                     className: 'p-2 text-sm cursor-pointer text-blue-600 hover:text-blue-800 hover:underline',
                     onClick: () => onNavigate && onNavigate('customers'),
@@ -4355,7 +4414,7 @@ function MarkingBreakdownRow({ productId, markings, loading, onRefresh }) {
           return React.createElement('div', { key: stage, className: 'bg-white rounded-lg border border-gray-200 p-4' },
             React.createElement('div', { className: 'flex items-center justify-between mb-3' },
               React.createElement('h5', { className: 'font-semibold text-blue-900' },
-                `${stageLabels[stage] || stage} (${totalQty} total)`
+                `${stageLabels[stage] || stage} (${formatQuantity(totalQty)} total)`
               ),
               React.createElement('span', { className: 'text-sm text-gray-500' },
                 `${stageMarkings.length} marking${stageMarkings.length !== 1 ? 's' : ''}`
@@ -4408,7 +4467,7 @@ function MarkingBreakdownRow({ productId, markings, loading, onRefresh }) {
                     ),
                     React.createElement('div', { className: 'flex items-center gap-3' },
                       React.createElement('div', { className: 'font-bold text-lg' },
-                        `${marking.quantity || 0} pcs`
+                        `${formatQuantity(marking.quantity || 0)} pcs`
                       ),
                       // Action buttons
                       !isAllocated && React.createElement('button', {
@@ -4870,7 +4929,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
         { key: 'product_id', label: 'Product ID' },
         { key: 'product_description', label: 'Product' },
         { key: 'stage', label: 'Stage', render: (val) => val ? val.charAt(0).toUpperCase() + val.slice(1) : '-' },
-        { key: 'quantity', label: 'Quantity', render: (val) => val >= 0 ? `+${val}` : val },
+        { key: 'quantity', label: 'Quantity', render: (val) => val >= 0 ? `+${formatQuantity(val)}` : formatQuantity(val) },
         { key: 'adjustment_type', label: 'Type', render: (val) => {
           const types = {
             'opening_balance': 'Opening Balance',
@@ -4903,23 +4962,23 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
         React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-3 text-sm' },
           React.createElement('div', null,
             React.createElement('div', { className: 'text-blue-700 font-medium' }, 'Steel Rods'),
-            React.createElement('div', { className: 'font-bold text-lg' }, tracingInventory.steel_rods || 0)
+            React.createElement('div', { className: 'font-bold text-lg' }, formatQuantity(tracingInventory.steel_rods || 0))
           ),
           React.createElement('div', null,
             React.createElement('div', { className: 'text-blue-700 font-medium' }, 'Plated'),
-            React.createElement('div', { className: 'font-bold text-lg' }, tracingInventory.plated || 0)
+            React.createElement('div', { className: 'font-bold text-lg' }, formatQuantity(tracingInventory.plated || 0))
           ),
           React.createElement('div', null,
             React.createElement('div', { className: 'text-blue-700 font-medium' }, 'Machined'),
-            React.createElement('div', { className: 'font-bold text-lg' }, tracingInventory.machined || 0)
+            React.createElement('div', { className: 'font-bold text-lg' }, formatQuantity(tracingInventory.machined || 0))
           ),
           React.createElement('div', null,
             React.createElement('div', { className: 'text-blue-700 font-medium' }, 'QC'),
-            React.createElement('div', { className: 'font-bold text-lg' }, tracingInventory.qc || 0)
+            React.createElement('div', { className: 'font-bold text-lg' }, formatQuantity(tracingInventory.qc || 0))
           ),
           React.createElement('div', null,
             React.createElement('div', { className: 'text-blue-700 font-medium' }, 'Stamped (Finished Goods)'),
-            React.createElement('div', { className: 'font-bold text-lg' }, tracingInventory.stamped || 0)
+            React.createElement('div', { className: 'font-bold text-lg' }, formatQuantity(tracingInventory.stamped || 0))
           )
         )
       ),
@@ -4943,11 +5002,11 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
               productionTrace.map((entry, idx) =>
                 React.createElement('tr', { key: idx, className: 'border-b hover:bg-gray-50' },
                   React.createElement('td', { className: 'p-2' }, entry.production_date || '-'),
-                  React.createElement('td', { className: 'p-2 text-right' }, entry.plated || 0),
-                  React.createElement('td', { className: 'p-2 text-right' }, entry.machined || 0),
-                  React.createElement('td', { className: 'p-2 text-right' }, entry.qc || 0),
-                  React.createElement('td', { className: 'p-2 text-right' }, entry.stamped || 0),
-                  React.createElement('td', { className: 'p-2 text-right' }, entry.rejected || 0),
+                  React.createElement('td', { className: 'p-2 text-right' }, formatQuantity(entry.plated || 0)),
+                  React.createElement('td', { className: 'p-2 text-right' }, formatQuantity(entry.machined || 0)),
+                  React.createElement('td', { className: 'p-2 text-right' }, formatQuantity(entry.qc || 0)),
+                  React.createElement('td', { className: 'p-2 text-right' }, formatQuantity(entry.stamped || 0)),
+                  React.createElement('td', { className: 'p-2 text-right' }, formatQuantity(entry.rejected || 0)),
                   React.createElement('td', { className: 'p-2 text-xs' }, entry.notes || '-')
                 )
               )
@@ -4997,8 +5056,8 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
           data: localRawMaterials,
           columns: [
             { key: 'material', label: 'Material' },
-            { key: 'current_stock', label: 'Current Stock', render: (val) => val || 0 },
-            { key: 'reorder_level', label: 'Reorder Level', render: (val) => val || 0 },
+            { key: 'current_stock', label: 'Current Stock', render: (val) => formatQuantity(val || 0) + ' kg' },
+            { key: 'reorder_level', label: 'Reorder Level', render: (val) => formatQuantity(val || 0) + ' kg' },
             { key: 'last_purchase_date', label: 'Last Purchase', render: (val) => val || '-' }
           ],
           primaryKey: 'material',
@@ -5082,12 +5141,12 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
           columns: [
             { key: 'product_id', label: 'Product ID' },
             { key: 'product_description', label: 'Product' },
-            { key: 'steel_rods', label: 'Steel Rods', render: (val) => val || 0 },
-            { key: 'plated', label: 'Plated', render: (val) => val || 0 },
-            { key: 'machined', label: 'Machined', render: (val) => val || 0 },
-            { key: 'qc', label: 'QC', render: (val) => val || 0 },
-            { key: 'stamped', label: 'Stamped (Finished Goods)', render: (val) => val || 0 },
-            { key: 'total', label: 'Total', render: (val) => val || 0 }
+            { key: 'steel_rods', label: 'Steel Rods', render: (val) => formatQuantity(val || 0) },
+            { key: 'plated', label: 'Plated', render: (val) => formatQuantity(val || 0) },
+            { key: 'machined', label: 'Machined', render: (val) => formatQuantity(val || 0) },
+            { key: 'qc', label: 'QC', render: (val) => formatQuantity(val || 0) },
+            { key: 'stamped', label: 'Stamped (Finished Goods)', render: (val) => formatQuantity(val || 0) },
+            { key: 'total', label: 'Total', render: (val) => formatQuantity(val || 0) }
           ],
           primaryKey: 'product_id',
           onRowClick: handleInventoryClick,
