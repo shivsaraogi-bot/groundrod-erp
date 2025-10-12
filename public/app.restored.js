@@ -4467,7 +4467,6 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
   // Controls
   const [invData, setInvData] = useState(inventory);
   const [invCols, setInvCols] = useState({ product:true, steel_rods:true, plated:true, machined:true, qc:true, stamped:true, packed:true, total:true });
-  const [hideZeroInventory, setHideZeroInventory] = useState(true); // Hide zero inventory by default
   useEffect(() => { setInvData(inventory); }, [inventory]);
   async function refetch(){
     const params = new URLSearchParams();
@@ -4524,13 +4523,6 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
     },
       React.createElement('span', { className: 'text-base' }, showAdjustmentsHistory ? '👁️‍🗨️' : '👁️'),
       showAdjustmentsHistory ? 'Hide Adjustments' : 'View Adjustments'
-    ),
-    React.createElement('button', {
-      onClick: () => setHideZeroInventory(!hideZeroInventory),
-      className: `px-4 py-2 rounded font-semibold flex items-center gap-2 ${hideZeroInventory ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-700'}`
-    },
-      React.createElement('span', { className: 'text-base' }, hideZeroInventory ? '👁️' : '🚫'),
-      hideZeroInventory ? 'Show All Products' : 'Hide Zero Inventory'
     )
   );
   const [rmForm, setRmForm] = useState({ material:'', current_stock:0, reorder_level:0, last_purchase_date:'' });
@@ -5084,8 +5076,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
               total: (r.steel_rods||0)+(r.plated||0)+(r.machined||0)+(r.qc||0)+(r.stamped||0)
             }))
             .filter(r => {
-              if (!hideZeroInventory) return true;
-              // Hide if all inventory values are zero
+              // Always hide products with zero inventory across all stages
               return r.total > 0;
             }),
           columns: [
