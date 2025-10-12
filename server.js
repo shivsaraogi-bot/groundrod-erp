@@ -2623,6 +2623,43 @@ app.get('/api/inventory', (req, res) => {
   });
 });
 
+// Diagnostic endpoint to check inventory vs allocations consistency
+app.get('/api/inventory/diagnostic', (_req, res) => {
+  db.all(`
+    SELECT
+      'inventory' as source,
+      product_id,
+      steel_rods, plated, machined, qc, stamped,
+      (steel_rods + plated + machined + qc + stamped) as total
+    FROM inventory
+    WHERE (steel_rods + plated + machined + qc + stamped) > 0
+  `, [], (err1, invRows) => {
+    if (err1) return res.status(500).json({ error: err1.message });
+
+    db.all(`
+      SELECT
+        'allocations' as source,
+        product_id,
+        stage,
+        marking_type,
+        marking_text,
+        SUM(quantity) as quantity
+      FROM inventory_allocations
+      GROUP BY product_id, stage, marking_type, marking_text
+      HAVING SUM(quantity) > 0
+    `, [], (err2, allocRows) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+
+      res.json({
+        inventory_table: invRows || [],
+        allocations_table: allocRows || [],
+        inventory_count: invRows?.length || 0,
+        allocations_count: allocRows?.length || 0
+      });
+    });
+  });
+});
+
 // Get marking breakdown for inventory (for detailed allocation view)
 app.get('/api/inventory/markings', (_req, res) => {
   db.all(`
@@ -2834,12 +2871,13 @@ app.get('/api/marking-dashboard', (req, res) => {
       poAllocations: []
     };
 
-    // Total marked inventory by type
+    // Total marked inventory by type (only stamped - finished goods)
     db.all(`
       SELECT
         marking_type,
         SUM(quantity) as total_quantity
       FROM inventory_allocations
+      WHERE stage = 'stamped'
       GROUP BY marking_type
     `, [], (err1, rows1) => {
       if (err1) {
@@ -2851,12 +2889,13 @@ app.get('/api/marking-dashboard', (req, res) => {
         dashboardData.totalMarkedInventory[row.marking_type] = row.total_quantity;
       });
 
-      // Allocated vs Available quantities
+      // Allocated vs Available quantities (only stamped - finished goods)
       db.get(`
         SELECT
           SUM(CASE WHEN allocated_po_id IS NOT NULL THEN quantity ELSE 0 END) as allocated,
           SUM(CASE WHEN allocated_po_id IS NULL THEN quantity ELSE 0 END) as available
         FROM inventory_allocations
+        WHERE stage = 'stamped'
       `, [], (err2, row2) => {
         if (err2) {
           console.error('Error fetching allocated vs available:', err2);
@@ -2866,7 +2905,7 @@ app.get('/api/marking-dashboard', (req, res) => {
         dashboardData.allocatedVsAvailable.allocated = row2.allocated || 0;
         dashboardData.allocatedVsAvailable.available = row2.available || 0;
 
-        // Top 5 markings by quantity
+        // Top 5 markings by quantity (only stamped - finished goods)
         db.all(`
           SELECT
             marking_type,
@@ -2874,7 +2913,7 @@ app.get('/api/marking-dashboard', (req, res) => {
             SUM(quantity) as total_quantity,
             COUNT(DISTINCT allocated_po_id) as po_count
           FROM inventory_allocations
-          WHERE marking_text IS NOT NULL
+          WHERE marking_text IS NOT NULL AND stage = 'stamped'
           GROUP BY marking_type, marking_text
           ORDER BY total_quantity DESC
           LIMIT 5
@@ -2886,7 +2925,7 @@ app.get('/api/marking-dashboard', (req, res) => {
 
           dashboardData.topMarkings = rows3 || [];
 
-          // PO allocation status
+          // PO allocation status (only stamped - finished goods)
           db.all(`
             SELECT
               ia.allocated_po_id as po_id,
@@ -2901,7 +2940,7 @@ app.get('/api/marking-dashboard', (req, res) => {
             FROM inventory_allocations ia
             LEFT JOIN client_purchase_orders cpo ON ia.allocated_po_id = cpo.id
             LEFT JOIN customers c ON cpo.customer_id = c.id
-            WHERE ia.allocated_po_id IS NOT NULL
+            WHERE ia.allocated_po_id IS NOT NULL AND ia.stage = 'stamped'
             GROUP BY ia.allocated_po_id, ia.product_id, ia.marking_type, ia.marking_text
             ORDER BY cpo.due_date ASC
           `, [], (err4, rows4) => {
