@@ -430,10 +430,16 @@ function GroundRodERP() {
 
   return (
     React.createElement('div', { className: 'min-h-screen bg-gradient-to-br from-gray-50 to-blue-50' },
-      React.createElement(Header, { onRefresh: fetchAllData }),
-      React.createElement(NavTabs, { activeTab, setActiveTab }),
-      React.createElement('main', { className: 'max-w-7xl mx-auto px-6 py-6' },
+      activeTab !== 'mobile' && React.createElement(Header, { onRefresh: fetchAllData }),
+      activeTab !== 'mobile' && React.createElement(NavTabs, { activeTab, setActiveTab }),
+      React.createElement('main', { className: activeTab === 'mobile' ? '' : 'max-w-7xl mx-auto px-6 py-6' },
         activeTab === 'dashboard' && React.createElement(Dashboard, { stats: dashboardStats, riskAnalysis, clientPurchaseOrders, inventory, setActiveTab }),
+        activeTab === 'mobile' && React.createElement(MobileInterface, { products, inventory, rawMaterials, clientPurchaseOrders, onRefresh: fetchAllData }),
+        activeTab === 'mrp' && React.createElement(PurchasePlanningMRP, { onRefresh: fetchAllData }),
+        activeTab === 'production-schedule' && React.createElement(ProductionSchedule, { onRefresh: fetchAllData }),
+        activeTab === 'material-variance' && React.createElement(MaterialVariance, { onRefresh: fetchAllData }),
+        activeTab === 'delivery-performance' && React.createElement(DeliveryPerformance, { onRefresh: fetchAllData }),
+        activeTab === 'customer-analytics' && React.createElement(CustomerAnalytics, { onRefresh: fetchAllData }),
         activeTab === 'production' && React.createElement('div', { className: 'space-y-6' },
           React.createElement(DrawingOperations, { products, rawMaterials, onSubmit: fetchAllData }),
           React.createElement(DailyProduction, { products, onSubmit: fetchAllData })
@@ -448,8 +454,8 @@ function GroundRodERP() {
         activeTab === 'customers' && React.createElement(CustomerManagementEx, { customers, onRefresh: fetchAllData }),
         activeTab === 'vendors' && React.createElement(VendorManagement, { vendors, onRefresh: fetchAllData }),
       ),
-      // AI Chatbot Widget - floating button in bottom-right corner
-      React.createElement(ChatWidget)
+      // AI Chatbot Widget - floating button in bottom-right corner (hidden in mobile view)
+      activeTab !== 'mobile' && React.createElement(ChatWidget)
     )
   );
 }
@@ -476,6 +482,12 @@ function Header({ onRefresh }){
 function NavTabs({ activeTab, setActiveTab }){
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'mobile', label: 'Mobile', icon: '📱' },
+    { id: 'mrp', label: 'Purchase Planning', icon: '📈' },
+    { id: 'production-schedule', label: 'Production Schedule', icon: '📅' },
+    { id: 'material-variance', label: 'Material Variance', icon: '⚠️' },
+    { id: 'delivery-performance', label: 'Delivery Performance', icon: '🚚' },
+    { id: 'customer-analytics', label: 'Customer Analytics', icon: '📊' },
     { id: 'production', label: 'Production', icon: '⚙️' },
     { id: 'client-orders', label: 'Client Orders', icon: '📋' },
     { id: 'invoices', label: 'Invoices', icon: '💰' },
@@ -501,6 +513,1318 @@ function NavTabs({ activeTab, setActiveTab }){
             )
           ))
         )
+      )
+    )
+  );
+}
+
+function PurchasePlanningMRP({ onRefresh }) {
+  const [mrpData, setMrpData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedMaterial, setExpandedMaterial] = useState(null);
+
+  React.useEffect(() => {
+    fetchMRPData();
+  }, []);
+
+  async function fetchMRPData() {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/analytics/mrp`);
+      if (res.ok) {
+        const data = await res.json();
+        setMrpData(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch MRP data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (loading) {
+    return React.createElement('div', { className: 'flex items-center justify-center py-12' },
+      React.createElement('div', { className: 'text-center' },
+        React.createElement('div', { className: 'animate-spin rounded-full h-12 w-12 border-b-4 border-blue-500 mx-auto' }),
+        React.createElement('p', { className: 'mt-4 text-gray-600' }, 'Loading Purchase Planning Data...')
+      )
+    );
+  }
+
+  if (!mrpData || mrpData.purchaseSuggestions.length === 0) {
+    return React.createElement('div', { className: 'text-center py-12' },
+      React.createElement('div', { className: 'text-6xl mb-4' }, '✅'),
+      React.createElement('h2', { className: 'text-2xl font-bold text-gray-700 mb-2' }, 'All Set!'),
+      React.createElement('p', { className: 'text-gray-600' }, 'No open customer orders requiring materials, or sufficient inventory available.')
+    );
+  }
+
+  const { purchaseSuggestions, openOrders } = mrpData;
+  const shortageCount = purchaseSuggestions.filter(s => s.status === 'SHORTAGE').length;
+  const lowStockCount = purchaseSuggestions.filter(s => s.status === 'LOW_STOCK').length;
+
+  return React.createElement('div', { className: 'space-y-6' },
+    // Header with summary
+    React.createElement('div', { className: 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg shadow-lg p-6' },
+      React.createElement('div', { className: 'flex items-center justify-between' },
+        React.createElement('div', null,
+          React.createElement('h1', { className: 'text-3xl font-bold mb-2' }, '📈 Purchase Planning / MRP'),
+          React.createElement('p', { className: 'text-blue-100' }, 'Material Requirements Planning for Open Customer Orders')
+        ),
+        React.createElement('button', {
+          onClick: () => { fetchMRPData(); if (onRefresh) onRefresh(); },
+          className: 'px-4 py-2 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition'
+        }, '🔄 Refresh')
+      ),
+      React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-4 mt-6' },
+        React.createElement('div', { className: 'bg-white bg-opacity-20 backdrop-blur rounded-lg p-4' },
+          React.createElement('div', { className: 'text-4xl font-bold' }, openOrders.length),
+          React.createElement('div', { className: 'text-sm text-blue-100' }, 'Open Customer Orders')
+        ),
+        React.createElement('div', { className: 'bg-red-500 bg-opacity-90 rounded-lg p-4' },
+          React.createElement('div', { className: 'text-4xl font-bold' }, shortageCount),
+          React.createElement('div', { className: 'text-sm' }, 'Materials with SHORTAGE')
+        ),
+        React.createElement('div', { className: 'bg-yellow-500 bg-opacity-90 rounded-lg p-4' },
+          React.createElement('div', { className: 'text-4xl font-bold' }, lowStockCount),
+          React.createElement('div', { className: 'text-sm' }, 'Materials with LOW STOCK')
+        )
+      )
+    ),
+
+    // Purchase Suggestions Table
+    React.createElement(Section, { title: '🛒 Purchase Suggestions' },
+      React.createElement('div', { className: 'overflow-x-auto' },
+        React.createElement('table', { className: 'min-w-full border-collapse' },
+          React.createElement('thead', null,
+            React.createElement('tr', { className: 'bg-gray-100' },
+              ['Material', 'Status', 'Current', 'Committed', 'Available', 'Required', 'Shortage', 'Suggested Purchase', 'Actions'].map(h =>
+                React.createElement('th', { key: h, className: 'p-3 border text-left font-semibold' }, h)
+              )
+            )
+          ),
+          React.createElement('tbody', null,
+            purchaseSuggestions.map(sug => {
+              const statusColors = {
+                'SHORTAGE': 'bg-red-100 text-red-800',
+                'LOW_STOCK': 'bg-yellow-100 text-yellow-800',
+                'SUFFICIENT': 'bg-green-100 text-green-800'
+              };
+              const statusLabels = {
+                'SHORTAGE': '🚨 SHORTAGE',
+                'LOW_STOCK': '⚠️ LOW STOCK',
+                'SUFFICIENT': '✅ SUFFICIENT'
+              };
+
+              return React.createElement(React.Fragment, { key: sug.material },
+                React.createElement('tr', { className: 'border-b hover:bg-gray-50' },
+                  React.createElement('td', { className: 'p-3 border font-semibold' }, sug.material),
+                  React.createElement('td', { className: 'p-3 border' },
+                    React.createElement('span', { className: `px-3 py-1 rounded-full text-xs font-bold ${statusColors[sug.status]}` },
+                      statusLabels[sug.status]
+                    )
+                  ),
+                  React.createElement('td', { className: 'p-3 border text-right' }, formatQuantity(sug.current_stock) + ' kg'),
+                  React.createElement('td', { className: 'p-3 border text-right text-gray-600' }, formatQuantity(sug.committed_stock) + ' kg'),
+                  React.createElement('td', { className: 'p-3 border text-right font-semibold' }, formatQuantity(sug.available_stock) + ' kg'),
+                  React.createElement('td', { className: 'p-3 border text-right font-semibold text-blue-600' }, formatQuantity(sug.total_required) + ' kg'),
+                  React.createElement('td', { className: 'p-3 border text-right' },
+                    sug.shortage > 0 ?
+                      React.createElement('span', { className: 'font-bold text-red-600' }, formatQuantity(sug.shortage) + ' kg') :
+                      React.createElement('span', { className: 'text-gray-400' }, '-')
+                  ),
+                  React.createElement('td', { className: 'p-3 border text-right' },
+                    sug.suggested_purchase > 0 ?
+                      React.createElement('span', { className: 'font-bold text-green-600 text-lg' }, formatQuantity(sug.suggested_purchase) + ' kg') :
+                      React.createElement('span', { className: 'text-gray-400' }, 'No purchase needed')
+                  ),
+                  React.createElement('td', { className: 'p-3 border text-center' },
+                    React.createElement('button', {
+                      onClick: () => setExpandedMaterial(expandedMaterial === sug.material ? null : sug.material),
+                      className: 'px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700'
+                    }, expandedMaterial === sug.material ? 'Hide Details' : 'View Orders')
+                  )
+                ),
+                expandedMaterial === sug.material && React.createElement('tr', { className: 'bg-blue-50' },
+                  React.createElement('td', { colSpan: 9, className: 'p-4 border' },
+                    React.createElement('h4', { className: 'font-semibold mb-3 text-blue-800' }, 'Orders Requiring ' + sug.material + ':'),
+                    React.createElement('table', { className: 'min-w-full border-collapse text-sm' },
+                      React.createElement('thead', null,
+                        React.createElement('tr', { className: 'bg-blue-200' },
+                          ['PO ID', 'Product', 'Quantity', 'Material Required', 'Due Date'].map(h =>
+                            React.createElement('th', { key: h, className: 'p-2 border' }, h)
+                          )
+                        )
+                      ),
+                      React.createElement('tbody', null,
+                        sug.orders.map((order, idx) =>
+                          React.createElement('tr', { key: idx, className: 'border-b' },
+                            React.createElement('td', { className: 'p-2 border font-mono' }, order.po_id),
+                            React.createElement('td', { className: 'p-2 border' }, order.product_id + ' - ' + order.product_description),
+                            React.createElement('td', { className: 'p-2 border text-right' }, formatQuantity(order.quantity)),
+                            React.createElement('td', { className: 'p-2 border text-right font-semibold' }, formatQuantity(order.required_material) + ' kg'),
+                            React.createElement('td', { className: 'p-2 border' }, order.due_date || 'Not specified')
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              );
+            })
+          )
+        )
+      )
+    )
+  );
+}
+
+function ProductionSchedule({ onRefresh }) {
+  const [scheduleData, setScheduleData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    fetchScheduleData();
+  }, []);
+
+  async function fetchScheduleData() {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/analytics/production-schedule`);
+      if (res.ok) {
+        const data = await res.json();
+        setScheduleData(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch production schedule:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (loading) {
+    return React.createElement('div', { className: 'flex items-center justify-center py-12' },
+      React.createElement('div', { className: 'text-center' },
+        React.createElement('div', { className: 'animate-spin rounded-full h-12 w-12 border-b-4 border-blue-500 mx-auto' }),
+        React.createElement('p', { className: 'mt-4 text-gray-600' }, 'Loading Production Schedule...')
+      )
+    );
+  }
+
+  if (!scheduleData || scheduleData.schedule.length === 0) {
+    return React.createElement('div', { className: 'text-center py-12' },
+      React.createElement('div', { className: 'text-6xl mb-4' }, '✅'),
+      React.createElement('h2', { className: 'text-2xl font-bold text-gray-700 mb-2' }, 'No Active Orders!'),
+      React.createElement('p', { className: 'text-gray-600' }, 'All customer orders have been completed.')
+    );
+  }
+
+  const { schedule, summary } = scheduleData;
+
+  return React.createElement('div', { className: 'space-y-6' },
+    React.createElement('div', { className: 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg shadow-lg p-6' },
+      React.createElement('div', { className: 'flex items-center justify-between mb-6' },
+        React.createElement('div', null,
+          React.createElement('h1', { className: 'text-3xl font-bold mb-2' }, '📅 Production Schedule'),
+          React.createElement('p', { className: 'text-indigo-100' }, 'Track production status for all open customer orders')
+        ),
+        React.createElement('button', {
+          onClick: () => { fetchScheduleData(); if (onRefresh) onRefresh(); },
+          className: 'px-4 py-2 bg-white text-indigo-600 rounded-lg font-semibold hover:bg-indigo-50 transition'
+        }, '🔄 Refresh')
+      ),
+      React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-4' },
+        React.createElement('div', { className: 'bg-white bg-opacity-20 backdrop-blur rounded-lg p-4' },
+          React.createElement('div', { className: 'text-4xl font-bold' }, summary.total),
+          React.createElement('div', { className: 'text-sm' }, 'Total Orders')
+        ),
+        React.createElement('div', { className: 'bg-green-500 bg-opacity-90 rounded-lg p-4' },
+          React.createElement('div', { className: 'text-4xl font-bold' }, summary.ready),
+          React.createElement('div', { className: 'text-sm' }, 'Ready to Ship')
+        ),
+        React.createElement('div', { className: 'bg-yellow-500 bg-opacity-90 rounded-lg p-4' },
+          React.createElement('div', { className: 'text-4xl font-bold' }, summary.atRisk),
+          React.createElement('div', { className: 'text-sm' }, 'At Risk')
+        ),
+        React.createElement('div', { className: 'bg-red-500 bg-opacity-90 rounded-lg p-4' },
+          React.createElement('div', { className: 'text-4xl font-bold' }, summary.overdue),
+          React.createElement('div', { className: 'text-sm' }, 'Overdue')
+        )
+      )
+    ),
+
+    React.createElement(Section, { title: '📋 Production Status by Order' },
+      React.createElement('div', { className: 'overflow-x-auto' },
+        React.createElement('table', { className: 'min-w-full border-collapse' },
+          React.createElement('thead', null,
+            React.createElement('tr', { className: 'bg-gray-100' },
+              ['PO ID', 'Customer', 'Product', 'Pending Qty', 'Finished Stock', 'Shortage', 'Progress', 'Due Date', 'Days Until Due', 'Status', 'Urgency'].map(h =>
+                React.createElement('th', { key: h, className: 'p-3 border text-left font-semibold text-sm' }, h)
+              )
+            )
+          ),
+          React.createElement('tbody', null,
+            schedule.map(item => {
+              const statusColors = {
+                'READY': 'bg-green-100 text-green-800',
+                'IN_PROGRESS': 'bg-blue-100 text-blue-800',
+                'NOT_STARTED': 'bg-gray-100 text-gray-800'
+              };
+              const urgencyColors = {
+                'ON_TRACK': 'bg-green-100 text-green-800',
+                'AT_RISK': 'bg-yellow-100 text-yellow-800',
+                'OVERDUE': 'bg-red-100 text-red-800'
+              };
+
+              return React.createElement('tr', { key: item.po_id + item.product_id, className: 'border-b hover:bg-gray-50' },
+                React.createElement('td', { className: 'p-3 border font-mono text-sm' }, item.po_id),
+                React.createElement('td', { className: 'p-3 border text-sm' }, item.customer_name),
+                React.createElement('td', { className: 'p-3 border text-sm' }, item.product_id),
+                React.createElement('td', { className: 'p-3 border text-right font-semibold' }, formatQuantity(item.pending_qty)),
+                React.createElement('td', { className: 'p-3 border text-right' }, formatQuantity(item.finished_stock)),
+                React.createElement('td', { className: 'p-3 border text-right' },
+                  item.shortage > 0 ?
+                    React.createElement('span', { className: 'text-red-600 font-bold' }, formatQuantity(item.shortage)) :
+                    React.createElement('span', { className: 'text-green-600' }, '✓')
+                ),
+                React.createElement('td', { className: 'p-3 border' },
+                  React.createElement('div', { className: 'w-full bg-gray-200 rounded-full h-6' },
+                    React.createElement('div', {
+                      className: `h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${item.completion_pct >= 100 ? 'bg-green-500' : item.completion_pct > 0 ? 'bg-blue-500' : 'bg-gray-400'}`,
+                      style: { width: item.completion_pct + '%' }
+                    }, item.completion_pct > 0 ? item.completion_pct + '%' : '')
+                  )
+                ),
+                React.createElement('td', { className: 'p-3 border text-sm' }, item.expected_delivery_date || '-'),
+                React.createElement('td', { className: 'p-3 border text-center' },
+                  item.days_until_due !== null ?
+                    React.createElement('span', {
+                      className: `px-2 py-1 rounded ${item.days_until_due < 0 ? 'bg-red-100 text-red-800' : item.days_until_due <= 7 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`
+                    }, item.days_until_due + ' days') :
+                    React.createElement('span', { className: 'text-gray-400' }, '-')
+                ),
+                React.createElement('td', { className: 'p-3 border' },
+                  React.createElement('span', { className: `px-2 py-1 rounded-full text-xs font-bold ${statusColors[item.status]}` }, item.status_label)
+                ),
+                React.createElement('td', { className: 'p-3 border' },
+                  React.createElement('span', { className: `px-2 py-1 rounded-full text-xs font-bold ${urgencyColors[item.urgency]}` }, item.urgency_label)
+                )
+              );
+            })
+          )
+        )
+      )
+    )
+  );
+}
+
+function DeliveryPerformance({ onRefresh }) {
+  const [performanceData, setPerformanceData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    fetchPerformanceData();
+  }, []);
+
+  async function fetchPerformanceData() {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/analytics/delivery-performance`);
+      if (res.ok) {
+        const data = await res.json();
+        setPerformanceData(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch delivery performance:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (loading) {
+    return React.createElement('div', { className: 'flex items-center justify-center py-12' },
+      React.createElement('div', { className: 'text-center' },
+        React.createElement('div', { className: 'animate-spin rounded-full h-12 w-12 border-b-4 border-blue-500 mx-auto' }),
+        React.createElement('p', { className: 'mt-4 text-gray-600' }, 'Loading Delivery Performance...')
+      )
+    );
+  }
+
+  if (!performanceData || performanceData.deliveries.length === 0) {
+    return React.createElement('div', { className: 'text-center py-12' },
+      React.createElement('div', { className: 'text-6xl mb-4' }, '📦'),
+      React.createElement('h2', { className: 'text-2xl font-bold text-gray-700 mb-2' }, 'No Delivery Data'),
+      React.createElement('p', { className: 'text-gray-600' }, 'No completed deliveries with expected dates found.')
+    );
+  }
+
+  const { deliveries, summary } = performanceData;
+
+  return React.createElement('div', { className: 'space-y-6' },
+    React.createElement('div', { className: 'bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-lg shadow-lg p-6' },
+      React.createElement('div', { className: 'flex items-center justify-between mb-6' },
+        React.createElement('div', null,
+          React.createElement('h1', { className: 'text-3xl font-bold mb-2' }, '🚚 Delivery Performance'),
+          React.createElement('p', { className: 'text-green-100' }, 'Track on-time delivery metrics')
+        ),
+        React.createElement('button', {
+          onClick: () => { fetchPerformanceData(); if (onRefresh) onRefresh(); },
+          className: 'px-4 py-2 bg-white text-green-600 rounded-lg font-semibold hover:bg-green-50 transition'
+        }, '🔄 Refresh')
+      ),
+      React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-4 gap-4' },
+        React.createElement('div', { className: 'bg-white bg-opacity-20 backdrop-blur rounded-lg p-4' },
+          React.createElement('div', { className: 'text-4xl font-bold' }, summary.total),
+          React.createElement('div', { className: 'text-sm' }, 'Total Deliveries')
+        ),
+        React.createElement('div', { className: 'bg-green-600 bg-opacity-90 rounded-lg p-4' },
+          React.createElement('div', { className: 'text-4xl font-bold' }, summary.onTime),
+          React.createElement('div', { className: 'text-sm' }, 'On Time')
+        ),
+        React.createElement('div', { className: 'bg-red-500 bg-opacity-90 rounded-lg p-4' },
+          React.createElement('div', { className: 'text-4xl font-bold' }, summary.late),
+          React.createElement('div', { className: 'text-sm' }, 'Late')
+        ),
+        React.createElement('div', { className: 'bg-white bg-opacity-30 backdrop-blur rounded-lg p-4' },
+          React.createElement('div', { className: 'text-4xl font-bold' }, summary.onTimePercentage + '%'),
+          React.createElement('div', { className: 'text-sm' }, 'On-Time Rate')
+        )
+      )
+    ),
+
+    React.createElement(Section, { title: '📊 Recent Deliveries' },
+      React.createElement('div', { className: 'overflow-x-auto' },
+        React.createElement('table', { className: 'min-w-full border-collapse' },
+          React.createElement('thead', null,
+            React.createElement('tr', { className: 'bg-gray-100' },
+              ['PO ID', 'Customer', 'Product', 'Quantity', 'Expected Date', 'Actual Date', 'Difference', 'Status'].map(h =>
+                React.createElement('th', { key: h, className: 'p-3 border text-left font-semibold' }, h)
+              )
+            )
+          ),
+          React.createElement('tbody', null,
+            deliveries.map((del, idx) =>
+              React.createElement('tr', { key: idx, className: 'border-b hover:bg-gray-50' },
+                React.createElement('td', { className: 'p-3 border font-mono text-sm' }, del.po_id),
+                React.createElement('td', { className: 'p-3 border' }, del.customer_name),
+                React.createElement('td', { className: 'p-3 border text-sm' }, del.product_id),
+                React.createElement('td', { className: 'p-3 border text-right' }, formatQuantity(del.delivered)),
+                React.createElement('td', { className: 'p-3 border' }, del.expected_delivery_date),
+                React.createElement('td', { className: 'p-3 border' }, del.actual_delivery_date || 'N/A'),
+                React.createElement('td', { className: 'p-3 border text-center' },
+                  del.days_difference !== null ?
+                    React.createElement('span', {
+                      className: `px-2 py-1 rounded ${del.days_difference <= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`
+                    }, del.days_difference > 0 ? '+' + del.days_difference + ' days' : del.days_difference + ' days') :
+                    '-'
+                ),
+                React.createElement('td', { className: 'p-3 border' },
+                  React.createElement('span', {
+                    className: `px-3 py-1 rounded-full text-xs font-bold ${del.on_time ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`
+                  }, del.status)
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+function CustomerAnalytics({ onRefresh }) {
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    fetchAnalyticsData();
+  }, []);
+
+  async function fetchAnalyticsData() {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/analytics/customers`);
+      if (res.ok) {
+        const data = await res.json();
+        setAnalyticsData(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch customer analytics:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (loading) {
+    return React.createElement('div', { className: 'flex items-center justify-center py-12' },
+      React.createElement('div', { className: 'text-center' },
+        React.createElement('div', { className: 'animate-spin rounded-full h-12 w-12 border-b-4 border-blue-500 mx-auto' }),
+        React.createElement('p', { className: 'mt-4 text-gray-600' }, 'Loading Customer Analytics...')
+      )
+    );
+  }
+
+  if (!analyticsData || analyticsData.customers.length === 0) {
+    return React.createElement('div', { className: 'text-center py-12' },
+      React.createElement('div', { className: 'text-6xl mb-4' }, '👥'),
+      React.createElement('h2', { className: 'text-2xl font-bold text-gray-700 mb-2' }, 'No Customer Data'),
+      React.createElement('p', { className: 'text-gray-600' }, 'No orders found yet.')
+    );
+  }
+
+  const { customers, summary } = analyticsData;
+
+  return React.createElement('div', { className: 'space-y-6' },
+    React.createElement('div', { className: 'bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg shadow-lg p-6' },
+      React.createElement('div', { className: 'flex items-center justify-between mb-6' },
+        React.createElement('div', null,
+          React.createElement('h1', { className: 'text-3xl font-bold mb-2' }, '📊 Customer Analytics'),
+          React.createElement('p', { className: 'text-purple-100' }, 'Revenue analysis and customer insights')
+        ),
+        React.createElement('button', {
+          onClick: () => { fetchAnalyticsData(); if (onRefresh) onRefresh(); },
+          className: 'px-4 py-2 bg-white text-purple-600 rounded-lg font-semibold hover:bg-purple-50 transition'
+        }, '🔄 Refresh')
+      ),
+      React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-4' },
+        React.createElement('div', { className: 'bg-white bg-opacity-20 backdrop-blur rounded-lg p-4' },
+          React.createElement('div', { className: 'text-4xl font-bold' }, summary.totalCustomers),
+          React.createElement('div', { className: 'text-sm' }, 'Active Customers')
+        ),
+        React.createElement('div', { className: 'bg-white bg-opacity-30 backdrop-blur rounded-lg p-4' },
+          React.createElement('div', { className: 'text-3xl font-bold' }, '₹' + formatQuantity(summary.totalRevenue)),
+          React.createElement('div', { className: 'text-sm' }, 'Total Revenue')
+        ),
+        React.createElement('div', { className: 'bg-white bg-opacity-30 backdrop-blur rounded-lg p-4' },
+          React.createElement('div', { className: 'text-3xl font-bold' }, '₹' + formatQuantity(summary.avgRevenuePerCustomer)),
+          React.createElement('div', { className: 'text-sm' }, 'Avg Revenue/Customer')
+        )
+      )
+    ),
+
+    React.createElement(Section, { title: '💰 Top Customers by Revenue' },
+      React.createElement('div', { className: 'overflow-x-auto' },
+        React.createElement('table', { className: 'min-w-full border-collapse' },
+          React.createElement('thead', null,
+            React.createElement('tr', { className: 'bg-gray-100' },
+              ['Rank', 'Customer', 'Total Orders', 'Total Revenue', 'Avg Order Value', 'Last Order', 'Products Ordered'].map(h =>
+                React.createElement('th', { key: h, className: 'p-3 border text-left font-semibold' }, h)
+              )
+            )
+          ),
+          React.createElement('tbody', null,
+            customers.map((cust, idx) =>
+              React.createElement('tr', { key: cust.customer_id, className: 'border-b hover:bg-gray-50' },
+                React.createElement('td', { className: 'p-3 border text-center font-bold' },
+                  idx < 3 ?
+                    React.createElement('span', { className: 'text-2xl' }, idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉') :
+                    idx + 1
+                ),
+                React.createElement('td', { className: 'p-3 border font-semibold' }, cust.customer_name),
+                React.createElement('td', { className: 'p-3 border text-center' }, cust.total_orders),
+                React.createElement('td', { className: 'p-3 border text-right font-bold text-green-600' }, '₹' + formatQuantity(cust.total_revenue)),
+                React.createElement('td', { className: 'p-3 border text-right' }, '₹' + formatQuantity(cust.avg_order_value)),
+                React.createElement('td', { className: 'p-3 border' }, cust.last_order_date || 'N/A'),
+                React.createElement('td', { className: 'p-3 border text-sm text-gray-600' }, cust.products_ordered.length + ' products')
+              )
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+function MaterialVariance({ onRefresh }) {
+  const [varianceData, setVarianceData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    fetchVarianceData();
+  }, []);
+
+  async function fetchVarianceData() {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/analytics/material-variance`);
+      if (res.ok) {
+        const data = await res.json();
+        setVarianceData(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch variance data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (loading) {
+    return React.createElement('div', { className: 'p-8 text-center' },
+      React.createElement('div', { className: 'text-gray-600' }, 'Loading material variance data...')
+    );
+  }
+
+  if (!varianceData || !varianceData.variances || varianceData.variances.length === 0) {
+    return React.createElement('div', { className: 'p-8' },
+      React.createElement('div', { className: 'bg-white rounded-lg shadow-md p-8 text-center' },
+        React.createElement('div', { className: 'text-6xl mb-4' }, '📊'),
+        React.createElement('h3', { className: 'text-xl font-bold text-gray-700 mb-2' }, 'No Material Variance Data'),
+        React.createElement('p', { className: 'text-gray-600' }, 'Material consumption variance will appear here once production is recorded.')
+      )
+    );
+  }
+
+  const { variances, summary } = varianceData;
+
+  return React.createElement('div', { className: 'p-4 max-w-7xl mx-auto' },
+    React.createElement('div', { className: 'flex items-center justify-between mb-6' },
+      React.createElement('h2', { className: 'text-2xl font-bold text-gray-800' }, '⚠️ Material Consumption Variance'),
+      React.createElement('button', {
+        onClick: () => { fetchVarianceData(); onRefresh(); },
+        className: 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition'
+      }, '🔄 Refresh')
+    ),
+
+    // Summary Cards
+    React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-4 mb-6' },
+      React.createElement('div', { className: 'bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500' },
+        React.createElement('div', { className: 'text-sm text-gray-600 mb-1' }, 'Total Variances (30 days)'),
+        React.createElement('div', { className: 'text-3xl font-bold text-gray-800' }, summary.total)
+      ),
+      React.createElement('div', { className: 'bg-white rounded-lg shadow-md p-4 border-l-4 border-red-500' },
+        React.createElement('div', { className: 'text-sm text-gray-600 mb-1' }, 'High Variance Count (>5%)'),
+        React.createElement('div', { className: 'text-3xl font-bold text-red-600' }, summary.highVariance)
+      ),
+      React.createElement('div', { className: 'bg-white rounded-lg shadow-md p-4 border-l-4 border-yellow-500' },
+        React.createElement('div', { className: 'text-sm text-gray-600 mb-1' }, 'Average Variance'),
+        React.createElement('div', { className: 'text-3xl font-bold text-gray-800' },
+          summary.avgVariance > 0 ? '+' + summary.avgVariance.toFixed(1) + '%' : summary.avgVariance.toFixed(1) + '%'
+        )
+      )
+    ),
+
+    // Variance Table
+    React.createElement('div', { className: 'bg-white rounded-lg shadow-md overflow-hidden' },
+      React.createElement('div', { className: 'overflow-x-auto' },
+        React.createElement('table', { className: 'w-full border-collapse' },
+          React.createElement('thead', null,
+            React.createElement('tr', { className: 'bg-gray-100' },
+              React.createElement('th', { className: 'p-3 text-left border font-semibold text-gray-700' }, 'Date'),
+              React.createElement('th', { className: 'p-3 text-left border font-semibold text-gray-700' }, 'Product'),
+              React.createElement('th', { className: 'p-3 text-left border font-semibold text-gray-700' }, 'Material'),
+              React.createElement('th', { className: 'p-3 text-center border font-semibold text-gray-700' }, 'Qty Produced'),
+              React.createElement('th', { className: 'p-3 text-right border font-semibold text-gray-700' }, 'Expected (kg)'),
+              React.createElement('th', { className: 'p-3 text-right border font-semibold text-gray-700' }, 'Actual (kg)'),
+              React.createElement('th', { className: 'p-3 text-right border font-semibold text-gray-700' }, 'Variance (kg)'),
+              React.createElement('th', { className: 'p-3 text-right border font-semibold text-gray-700' }, 'Variance %'),
+              React.createElement('th', { className: 'p-3 text-center border font-semibold text-gray-700' }, 'Status')
+            )
+          ),
+          React.createElement('tbody', null,
+            variances.map((v, idx) =>
+              React.createElement('tr', {
+                key: idx,
+                className: v.status === 'HIGH_VARIANCE' ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'
+              },
+                React.createElement('td', { className: 'p-3 border text-sm' },
+                  new Date(v.production_date).toLocaleDateString('en-IN')
+                ),
+                React.createElement('td', { className: 'p-3 border font-semibold' }, v.product_name),
+                React.createElement('td', { className: 'p-3 border' }, v.material),
+                React.createElement('td', { className: 'p-3 border text-center font-semibold' },
+                  formatQuantity(v.qty_produced) + ' pcs'
+                ),
+                React.createElement('td', { className: 'p-3 border text-right' },
+                  formatQuantity(v.expected_consumption) + ' kg'
+                ),
+                React.createElement('td', { className: 'p-3 border text-right font-semibold' },
+                  formatQuantity(v.actual_consumption) + ' kg'
+                ),
+                React.createElement('td', {
+                  className: 'p-3 border text-right font-bold ' + (v.variance > 0 ? 'text-red-600' : v.variance < 0 ? 'text-green-600' : 'text-gray-600')
+                },
+                  (v.variance > 0 ? '+' : '') + formatQuantity(v.variance) + ' kg'
+                ),
+                React.createElement('td', {
+                  className: 'p-3 border text-right font-bold text-lg ' + (v.variance_pct > 0 ? 'text-red-600' : v.variance_pct < 0 ? 'text-green-600' : 'text-gray-600')
+                },
+                  (v.variance_pct > 0 ? '+' : '') + v.variance_pct.toFixed(1) + '%'
+                ),
+                React.createElement('td', { className: 'p-3 border text-center' },
+                  React.createElement('span', {
+                    className: 'px-2 py-1 rounded text-xs font-bold ' +
+                      (v.status === 'HIGH_VARIANCE' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800')
+                  }, v.status === 'HIGH_VARIANCE' ? '⚠️ HIGH' : '✓ NORMAL')
+                )
+              )
+            )
+          )
+        )
+      ),
+
+      // Legend
+      React.createElement('div', { className: 'p-4 bg-gray-50 border-t text-sm text-gray-600' },
+        React.createElement('p', { className: 'mb-2' },
+          React.createElement('strong', null, 'Legend:'),
+          ' Variance = Actual Consumption - Expected Consumption (from BOM)'
+        ),
+        React.createElement('p', null,
+          React.createElement('span', { className: 'text-red-600 font-semibold' }, 'Positive variance'),
+          ' = overconsumption/waste. ',
+          React.createElement('span', { className: 'text-green-600 font-semibold' }, 'Negative variance'),
+          ' = underconsumption/efficiency. ',
+          React.createElement('span', { className: 'font-semibold' }, 'HIGH_VARIANCE'),
+          ' flagged when |variance| > 5%.'
+        )
+      )
+    )
+  );
+}
+
+// ============================================================================
+// MOBILE INTERFACE
+// ============================================================================
+
+function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrders, onRefresh }) {
+  const [mobileView, setMobileView] = useState('home');
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  // Production Entry State
+  const [prodForm, setProdForm] = useState({
+    product_id: '',
+    production_date: new Date().toISOString().split('T')[0],
+    quantity: '',
+    notes: ''
+  });
+
+  // Quick stats
+  const lowStockCount = inventory.filter(i => i.current_stock < i.reorder_level).length;
+  const rawMaterialAlerts = rawMaterials.filter(rm => rm.current_stock < 500).length;
+  const openOrders = clientPurchaseOrders.filter(po => po.status !== 'Completed').length;
+  const urgentOrders = clientPurchaseOrders.filter(po => {
+    const daysUntilDue = Math.ceil((new Date(po.expected_delivery_date) - new Date()) / (1000 * 60 * 60 * 24));
+    return po.status !== 'Completed' && daysUntilDue <= 7;
+  }).length;
+
+  async function handleProductionSubmit() {
+    if (!prodForm.product_id || !prodForm.quantity) {
+      alert('⚠️ Please select product and enter quantity');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/inventory`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: prodForm.product_id,
+          production_date: prodForm.production_date,
+          quantity: Number(prodForm.quantity),
+          notes: prodForm.notes || ''
+        })
+      });
+
+      if (response.ok) {
+        setToastMessage('✅ Production recorded successfully!');
+        setShowSuccessToast(true);
+        setTimeout(() => setShowSuccessToast(false), 3000);
+
+        setProdForm({
+          product_id: prodForm.product_id, // Keep same product selected
+          production_date: new Date().toISOString().split('T')[0],
+          quantity: '',
+          notes: ''
+        });
+
+        onRefresh();
+      } else {
+        const error = await response.json();
+        alert('❌ Error: ' + (error.error || 'Failed to record production'));
+      }
+    } catch (err) {
+      alert('❌ Network error: ' + err.message);
+    }
+  }
+
+  const selectedProduct = products.find(p => p.id === prodForm.product_id);
+
+  // Home Dashboard View
+  if (mobileView === 'home') {
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-20' },
+      // Header
+      React.createElement('div', { className: 'bg-blue-600 text-white p-4 shadow-lg' },
+        React.createElement('h1', { className: 'text-2xl font-bold' }, '⚡ GroundRod ERP'),
+        React.createElement('p', { className: 'text-sm text-blue-100 mt-1' }, 'Mobile Production Center')
+      ),
+
+      // Alert Banner
+      (lowStockCount > 0 || rawMaterialAlerts > 0 || urgentOrders > 0) && React.createElement('div', {
+        className: 'bg-red-600 text-white p-3 flex items-center gap-2',
+        onClick: () => setMobileView('alerts')
+      },
+        React.createElement('span', { className: 'text-xl' }, '⚠️'),
+        React.createElement('div', { className: 'flex-1' },
+          React.createElement('div', { className: 'font-semibold' }, 'Alerts Active'),
+          React.createElement('div', { className: 'text-xs' },
+            [
+              lowStockCount > 0 && `${lowStockCount} low stock`,
+              rawMaterialAlerts > 0 && `${rawMaterialAlerts} material alerts`,
+              urgentOrders > 0 && `${urgentOrders} urgent orders`
+            ].filter(Boolean).join(' • ')
+          )
+        ),
+        React.createElement('span', { className: 'text-2xl' }, '→')
+      ),
+
+      // Quick Stats Grid
+      React.createElement('div', { className: 'p-4 grid grid-cols-2 gap-3' },
+        React.createElement('div', {
+          className: 'bg-white rounded-xl shadow-md p-4 border-l-4 border-blue-500',
+          onClick: () => setMobileView('orders')
+        },
+          React.createElement('div', { className: 'text-3xl mb-2' }, '📋'),
+          React.createElement('div', { className: 'text-2xl font-bold text-gray-800' }, openOrders),
+          React.createElement('div', { className: 'text-sm text-gray-600' }, 'Open Orders'),
+          urgentOrders > 0 && React.createElement('div', { className: 'text-xs text-red-600 font-semibold mt-1' },
+            `${urgentOrders} urgent`
+          )
+        ),
+        React.createElement('div', {
+          className: 'bg-white rounded-xl shadow-md p-4 border-l-4 border-green-500',
+          onClick: () => setMobileView('inventory')
+        },
+          React.createElement('div', { className: 'text-3xl mb-2' }, '📦'),
+          React.createElement('div', { className: 'text-2xl font-bold text-gray-800' }, inventory.length),
+          React.createElement('div', { className: 'text-sm text-gray-600' }, 'Products'),
+          lowStockCount > 0 && React.createElement('div', { className: 'text-xs text-orange-600 font-semibold mt-1' },
+            `${lowStockCount} low stock`
+          )
+        ),
+        React.createElement('div', {
+          className: 'bg-white rounded-xl shadow-md p-4 border-l-4 border-purple-500',
+          onClick: () => setMobileView('materials')
+        },
+          React.createElement('div', { className: 'text-3xl mb-2' }, '🔩'),
+          React.createElement('div', { className: 'text-2xl font-bold text-gray-800' }, rawMaterials.length),
+          React.createElement('div', { className: 'text-sm text-gray-600' }, 'Raw Materials'),
+          rawMaterialAlerts > 0 && React.createElement('div', { className: 'text-xs text-red-600 font-semibold mt-1' },
+            `${rawMaterialAlerts} alerts`
+          )
+        ),
+        React.createElement('div', {
+          className: 'bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-md p-4 text-white',
+          onClick: () => setMobileView('production')
+        },
+          React.createElement('div', { className: 'text-3xl mb-2' }, '⚙️'),
+          React.createElement('div', { className: 'text-lg font-bold' }, 'Production'),
+          React.createElement('div', { className: 'text-sm opacity-90' }, 'Record Output')
+        )
+      ),
+
+      // Recent Activity / Quick Actions
+      React.createElement('div', { className: 'p-4' },
+        React.createElement('h2', { className: 'text-lg font-bold text-gray-800 mb-3' }, '⚡ Quick Actions'),
+        React.createElement('div', { className: 'space-y-2' },
+          React.createElement('button', {
+            className: 'w-full bg-white rounded-lg shadow p-4 flex items-center gap-3 active:bg-gray-50',
+            onClick: () => setMobileView('production')
+          },
+            React.createElement('div', { className: 'text-2xl' }, '➕'),
+            React.createElement('div', { className: 'flex-1 text-left' },
+              React.createElement('div', { className: 'font-semibold text-gray-800' }, 'Record Production'),
+              React.createElement('div', { className: 'text-xs text-gray-500' }, 'Add finished goods to inventory')
+            ),
+            React.createElement('div', { className: 'text-xl text-gray-400' }, '→')
+          ),
+          React.createElement('button', {
+            className: 'w-full bg-white rounded-lg shadow p-4 flex items-center gap-3 active:bg-gray-50',
+            onClick: () => setMobileView('orders')
+          },
+            React.createElement('div', { className: 'text-2xl' }, '📋'),
+            React.createElement('div', { className: 'flex-1 text-left' },
+              React.createElement('div', { className: 'font-semibold text-gray-800' }, 'View Orders'),
+              React.createElement('div', { className: 'text-xs text-gray-500' }, 'Check customer orders & status')
+            ),
+            React.createElement('div', { className: 'text-xl text-gray-400' }, '→')
+          )
+        )
+      )
+    );
+  }
+
+  // Production Entry View
+  if (mobileView === 'production') {
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-20' },
+      // Header
+      React.createElement('div', { className: 'bg-blue-600 text-white p-4 shadow-lg flex items-center gap-3' },
+        React.createElement('button', {
+          className: 'text-2xl',
+          onClick: () => setMobileView('home')
+        }, '←'),
+        React.createElement('div', { className: 'flex-1' },
+          React.createElement('h1', { className: 'text-xl font-bold' }, '⚙️ Production Entry'),
+          React.createElement('p', { className: 'text-xs text-blue-100' }, 'Record finished goods')
+        )
+      ),
+
+      // Success Toast
+      showSuccessToast && React.createElement('div', {
+        className: 'fixed top-20 left-4 right-4 bg-green-600 text-white p-4 rounded-lg shadow-xl z-50 animate-bounce'
+      }, toastMessage),
+
+      // Form
+      React.createElement('div', { className: 'p-4 space-y-4' },
+        // Product Selection
+        React.createElement('div', { className: 'bg-white rounded-lg shadow-md p-4' },
+          React.createElement('label', { className: 'block text-sm font-bold text-gray-700 mb-2' },
+            '📦 Product *'
+          ),
+          React.createElement('select', {
+            className: 'w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200',
+            value: prodForm.product_id,
+            onChange: e => setProdForm({...prodForm, product_id: e.target.value})
+          },
+            React.createElement('option', { value: '' }, '-- Select Product --'),
+            products.map(p =>
+              React.createElement('option', { key: p.id, value: p.id },
+                `${p.product_name} (${p.marking})`
+              )
+            )
+          ),
+          selectedProduct && React.createElement('div', { className: 'mt-3 p-3 bg-blue-50 rounded-lg text-sm' },
+            React.createElement('div', { className: 'font-semibold text-blue-900' }, selectedProduct.product_name),
+            React.createElement('div', { className: 'text-blue-700 text-xs mt-1' },
+              `Marking: ${selectedProduct.marking} • ${selectedProduct.length_mm}mm • ${selectedProduct.steel_diameter}mm steel • ${selectedProduct.copper_coating}µm copper`
+            )
+          )
+        ),
+
+        // Date
+        React.createElement('div', { className: 'bg-white rounded-lg shadow-md p-4' },
+          React.createElement('label', { className: 'block text-sm font-bold text-gray-700 mb-2' },
+            '📅 Production Date *'
+          ),
+          React.createElement('input', {
+            type: 'date',
+            className: 'w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200',
+            value: prodForm.production_date,
+            onChange: e => setProdForm({...prodForm, production_date: e.target.value})
+          })
+        ),
+
+        // Quantity - BIG INPUT
+        React.createElement('div', { className: 'bg-white rounded-lg shadow-md p-4' },
+          React.createElement('label', { className: 'block text-sm font-bold text-gray-700 mb-2' },
+            '🔢 Quantity (pieces) *'
+          ),
+          React.createElement('input', {
+            type: 'number',
+            inputMode: 'numeric',
+            pattern: '[0-9]*',
+            className: 'w-full border-2 border-gray-300 rounded-lg px-4 py-4 text-3xl font-bold text-center focus:border-blue-500 focus:ring-2 focus:ring-blue-200',
+            placeholder: '0',
+            value: prodForm.quantity,
+            onChange: e => setProdForm({...prodForm, quantity: e.target.value})
+          }),
+          React.createElement('div', { className: 'mt-2 text-center text-xs text-gray-500' },
+            'Enter number of pieces produced'
+          )
+        ),
+
+        // Notes
+        React.createElement('div', { className: 'bg-white rounded-lg shadow-md p-4' },
+          React.createElement('label', { className: 'block text-sm font-bold text-gray-700 mb-2' },
+            '📝 Notes (Optional)'
+          ),
+          React.createElement('textarea', {
+            className: 'w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200',
+            rows: 3,
+            placeholder: 'Any remarks...',
+            value: prodForm.notes,
+            onChange: e => setProdForm({...prodForm, notes: e.target.value})
+          })
+        ),
+
+        // Submit Button - LARGE
+        React.createElement('button', {
+          className: 'w-full bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl shadow-lg py-5 text-xl font-bold active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed',
+          onClick: handleProductionSubmit,
+          disabled: !prodForm.product_id || !prodForm.quantity
+        }, '✅ Record Production')
+      )
+    );
+  }
+
+  // Customer Orders View
+  if (mobileView === 'orders') {
+    const sortedOrders = [...clientPurchaseOrders]
+      .filter(po => po.status !== 'Completed')
+      .sort((a, b) => new Date(a.expected_delivery_date) - new Date(b.expected_delivery_date));
+
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-20' },
+      // Header
+      React.createElement('div', { className: 'bg-blue-600 text-white p-4 shadow-lg flex items-center gap-3' },
+        React.createElement('button', {
+          className: 'text-2xl',
+          onClick: () => setMobileView('home')
+        }, '←'),
+        React.createElement('div', { className: 'flex-1' },
+          React.createElement('h1', { className: 'text-xl font-bold' }, '📋 Customer Orders'),
+          React.createElement('p', { className: 'text-xs text-blue-100' }, `${sortedOrders.length} open orders`)
+        )
+      ),
+
+      // Orders List
+      React.createElement('div', { className: 'p-4 space-y-3' },
+        sortedOrders.length === 0 && React.createElement('div', { className: 'text-center py-12' },
+          React.createElement('div', { className: 'text-6xl mb-4' }, '✅'),
+          React.createElement('div', { className: 'text-gray-600 font-semibold' }, 'No open orders'),
+          React.createElement('div', { className: 'text-sm text-gray-500 mt-2' }, 'All orders completed!')
+        ),
+        sortedOrders.map(po => {
+          const daysUntilDue = Math.ceil((new Date(po.expected_delivery_date) - new Date()) / (1000 * 60 * 60 * 24));
+          const isUrgent = daysUntilDue <= 7;
+          const isOverdue = daysUntilDue < 0;
+
+          return React.createElement('div', {
+            key: po.id,
+            className: `bg-white rounded-lg shadow-md p-4 ${isOverdue ? 'border-l-4 border-red-600' : isUrgent ? 'border-l-4 border-orange-500' : 'border-l-4 border-blue-500'}`
+          },
+            // Customer & Status
+            React.createElement('div', { className: 'flex items-start justify-between mb-2' },
+              React.createElement('div', { className: 'flex-1' },
+                React.createElement('div', { className: 'font-bold text-gray-800' }, po.customer_name),
+                React.createElement('div', { className: 'text-xs text-gray-500 mt-1' }, `PO #${po.id}`)
+              ),
+              React.createElement('div', {
+                className: `px-2 py-1 rounded text-xs font-bold ${
+                  isOverdue ? 'bg-red-100 text-red-800' :
+                  isUrgent ? 'bg-orange-100 text-orange-800' :
+                  'bg-blue-100 text-blue-800'
+                }`
+              }, po.status)
+            ),
+
+            // Due Date
+            React.createElement('div', { className: 'flex items-center gap-2 mb-2' },
+              React.createElement('span', { className: 'text-lg' }, '📅'),
+              React.createElement('div', { className: 'text-sm' },
+                React.createElement('span', { className: 'text-gray-600' }, 'Due: '),
+                React.createElement('span', {
+                  className: `font-semibold ${isOverdue ? 'text-red-600' : isUrgent ? 'text-orange-600' : 'text-gray-800'}`
+                }, new Date(po.expected_delivery_date).toLocaleDateString('en-IN')),
+                React.createElement('span', {
+                  className: `ml-2 text-xs ${isOverdue ? 'text-red-600' : isUrgent ? 'text-orange-600' : 'text-gray-500'}`
+                }, isOverdue ? `${Math.abs(daysUntilDue)}d overdue` : `${daysUntilDue}d left`)
+              )
+            ),
+
+            // Order Total
+            React.createElement('div', { className: 'flex items-center gap-2 mb-2' },
+              React.createElement('span', { className: 'text-lg' }, '💰'),
+              React.createElement('div', { className: 'text-sm' },
+                React.createElement('span', { className: 'text-gray-600' }, 'Value: '),
+                React.createElement('span', { className: 'font-bold text-gray-800' },
+                  '₹' + formatQuantity(po.order_total || 0)
+                )
+              )
+            ),
+
+            // Products count
+            po.products_count && React.createElement('div', { className: 'text-xs text-gray-600 mt-2 pt-2 border-t' },
+              `📦 ${po.products_count} product${po.products_count !== 1 ? 's' : ''}`
+            )
+          );
+        })
+      )
+    );
+  }
+
+  // Inventory View
+  if (mobileView === 'inventory') {
+    const sortedInventory = [...inventory].sort((a, b) => {
+      const aLow = a.current_stock < a.reorder_level;
+      const bLow = b.current_stock < b.reorder_level;
+      if (aLow && !bLow) return -1;
+      if (!aLow && bLow) return 1;
+      return 0;
+    });
+
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-20' },
+      // Header
+      React.createElement('div', { className: 'bg-blue-600 text-white p-4 shadow-lg flex items-center gap-3' },
+        React.createElement('button', {
+          className: 'text-2xl',
+          onClick: () => setMobileView('home')
+        }, '←'),
+        React.createElement('div', { className: 'flex-1' },
+          React.createElement('h1', { className: 'text-xl font-bold' }, '📦 Inventory'),
+          React.createElement('p', { className: 'text-xs text-blue-100' }, `${inventory.length} products`)
+        )
+      ),
+
+      // Inventory List
+      React.createElement('div', { className: 'p-4 space-y-3' },
+        sortedInventory.map(item => {
+          const isLowStock = item.current_stock < item.reorder_level;
+          const stockPercentage = (item.current_stock / item.reorder_level) * 100;
+
+          return React.createElement('div', {
+            key: item.id,
+            className: `bg-white rounded-lg shadow-md p-4 ${isLowStock ? 'border-l-4 border-red-500' : 'border-l-4 border-green-500'}`
+          },
+            // Product Name
+            React.createElement('div', { className: 'font-bold text-gray-800 mb-1' }, item.product_name),
+            React.createElement('div', { className: 'text-xs text-gray-500 mb-3' }, item.marking),
+
+            // Stock Level
+            React.createElement('div', { className: 'mb-2' },
+              React.createElement('div', { className: 'flex justify-between items-center mb-1' },
+                React.createElement('span', { className: 'text-sm text-gray-600' }, 'Current Stock'),
+                React.createElement('span', {
+                  className: `font-bold text-lg ${isLowStock ? 'text-red-600' : 'text-green-600'}`
+                }, formatQuantity(item.current_stock) + ' pcs')
+              ),
+              // Progress Bar
+              React.createElement('div', { className: 'w-full bg-gray-200 rounded-full h-2' },
+                React.createElement('div', {
+                  className: `h-2 rounded-full ${isLowStock ? 'bg-red-500' : 'bg-green-500'}`,
+                  style: { width: Math.min(stockPercentage, 100) + '%' }
+                })
+              )
+            ),
+
+            // Reorder Level
+            React.createElement('div', { className: 'flex justify-between text-xs text-gray-600' },
+              React.createElement('span', null, 'Reorder Level: ' + formatQuantity(item.reorder_level)),
+              isLowStock && React.createElement('span', { className: 'text-red-600 font-semibold' }, '⚠️ LOW STOCK')
+            )
+          );
+        })
+      )
+    );
+  }
+
+  // Raw Materials View
+  if (mobileView === 'materials') {
+    const sortedMaterials = [...rawMaterials].sort((a, b) => {
+      const aLow = a.current_stock < 500;
+      const bLow = b.current_stock < 500;
+      if (aLow && !bLow) return -1;
+      if (!aLow && bLow) return 1;
+      return 0;
+    });
+
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-20' },
+      // Header
+      React.createElement('div', { className: 'bg-blue-600 text-white p-4 shadow-lg flex items-center gap-3' },
+        React.createElement('button', {
+          className: 'text-2xl',
+          onClick: () => setMobileView('home')
+        }, '←'),
+        React.createElement('div', { className: 'flex-1' },
+          React.createElement('h1', { className: 'text-xl font-bold' }, '🔩 Raw Materials'),
+          React.createElement('p', { className: 'text-xs text-blue-100' }, `${rawMaterials.length} materials`)
+        )
+      ),
+
+      // Materials List
+      React.createElement('div', { className: 'p-4 space-y-3' },
+        sortedMaterials.map(mat => {
+          const isLow = mat.current_stock < 500;
+          const isCritical = mat.current_stock < 100;
+
+          return React.createElement('div', {
+            key: mat.id,
+            className: `bg-white rounded-lg shadow-md p-4 ${isCritical ? 'border-l-4 border-red-600' : isLow ? 'border-l-4 border-orange-500' : 'border-l-4 border-green-500'}`
+          },
+            // Material Name
+            React.createElement('div', { className: 'font-bold text-gray-800 mb-3' }, mat.material),
+
+            // Stock Info
+            React.createElement('div', { className: 'grid grid-cols-2 gap-3 mb-2' },
+              React.createElement('div', null,
+                React.createElement('div', { className: 'text-xs text-gray-500' }, 'Current Stock'),
+                React.createElement('div', {
+                  className: `text-xl font-bold ${isCritical ? 'text-red-600' : isLow ? 'text-orange-600' : 'text-green-600'}`
+                }, formatQuantity(mat.current_stock) + ' kg')
+              ),
+              React.createElement('div', null,
+                React.createElement('div', { className: 'text-xs text-gray-500' }, 'Available'),
+                React.createElement('div', { className: 'text-xl font-bold text-gray-800' },
+                  formatQuantity(mat.available_stock || mat.current_stock) + ' kg'
+                )
+              )
+            ),
+
+            // Committed if any
+            mat.committed_stock > 0 && React.createElement('div', { className: 'text-xs text-gray-600 mb-2' },
+              `🔒 Committed: ${formatQuantity(mat.committed_stock)} kg`
+            ),
+
+            // Alert
+            (isLow || isCritical) && React.createElement('div', {
+              className: `text-xs font-semibold px-2 py-1 rounded ${isCritical ? 'bg-red-100 text-red-800' : 'bg-orange-100 text-orange-800'}`
+            }, isCritical ? '🚨 CRITICAL - Reorder immediately!' : '⚠️ LOW - Plan to reorder')
+          );
+        })
+      )
+    );
+  }
+
+  // Alerts View
+  if (mobileView === 'alerts') {
+    const lowStockProducts = inventory.filter(i => i.current_stock < i.reorder_level);
+    const lowMaterials = rawMaterials.filter(rm => rm.current_stock < 500);
+    const urgentOrdersList = clientPurchaseOrders.filter(po => {
+      const daysUntilDue = Math.ceil((new Date(po.expected_delivery_date) - new Date()) / (1000 * 60 * 60 * 24));
+      return po.status !== 'Completed' && daysUntilDue <= 7;
+    });
+
+    return React.createElement('div', { className: 'min-h-screen bg-gray-100 pb-20' },
+      // Header
+      React.createElement('div', { className: 'bg-red-600 text-white p-4 shadow-lg flex items-center gap-3' },
+        React.createElement('button', {
+          className: 'text-2xl',
+          onClick: () => setMobileView('home')
+        }, '←'),
+        React.createElement('div', { className: 'flex-1' },
+          React.createElement('h1', { className: 'text-xl font-bold' }, '⚠️ Alerts & Warnings'),
+          React.createElement('p', { className: 'text-xs text-red-100' },
+            `${lowStockProducts.length + lowMaterials.length + urgentOrdersList.length} active alerts`
+          )
+        )
+      ),
+
+      React.createElement('div', { className: 'p-4 space-y-4' },
+        // Urgent Orders
+        urgentOrdersList.length > 0 && React.createElement('div', null,
+          React.createElement('h3', { className: 'font-bold text-gray-800 mb-2 flex items-center gap-2' },
+            React.createElement('span', { className: 'text-xl' }, '🔥'),
+            `Urgent Orders (${urgentOrdersList.length})`
+          ),
+          React.createElement('div', { className: 'space-y-2' },
+            urgentOrdersList.map(po => {
+              const daysUntilDue = Math.ceil((new Date(po.expected_delivery_date) - new Date()) / (1000 * 60 * 60 * 24));
+              const isOverdue = daysUntilDue < 0;
+
+              return React.createElement('div', {
+                key: po.id,
+                className: 'bg-white rounded-lg shadow p-3 border-l-4 border-red-500'
+              },
+                React.createElement('div', { className: 'font-semibold text-gray-800' }, po.customer_name),
+                React.createElement('div', { className: 'text-sm text-gray-600 mt-1' },
+                  `Due: ${new Date(po.expected_delivery_date).toLocaleDateString('en-IN')}`
+                ),
+                React.createElement('div', {
+                  className: `text-xs font-bold mt-1 ${isOverdue ? 'text-red-600' : 'text-orange-600'}`
+                }, isOverdue ? `⚠️ ${Math.abs(daysUntilDue)}d OVERDUE` : `⏰ ${daysUntilDue}d left`)
+              );
+            })
+          )
+        ),
+
+        // Low Stock Products
+        lowStockProducts.length > 0 && React.createElement('div', null,
+          React.createElement('h3', { className: 'font-bold text-gray-800 mb-2 flex items-center gap-2' },
+            React.createElement('span', { className: 'text-xl' }, '📦'),
+            `Low Stock Products (${lowStockProducts.length})`
+          ),
+          React.createElement('div', { className: 'space-y-2' },
+            lowStockProducts.map(item =>
+              React.createElement('div', {
+                key: item.id,
+                className: 'bg-white rounded-lg shadow p-3 border-l-4 border-orange-500'
+              },
+                React.createElement('div', { className: 'font-semibold text-gray-800' }, item.product_name),
+                React.createElement('div', { className: 'text-sm text-gray-600 mt-1' },
+                  `Stock: ${formatQuantity(item.current_stock)} / Reorder: ${formatQuantity(item.reorder_level)}`
+                ),
+                React.createElement('div', { className: 'text-xs text-orange-600 font-bold mt-1' },
+                  '⚠️ Below reorder level'
+                )
+              )
+            )
+          )
+        ),
+
+        // Low Materials
+        lowMaterials.length > 0 && React.createElement('div', null,
+          React.createElement('h3', { className: 'font-bold text-gray-800 mb-2 flex items-center gap-2' },
+            React.createElement('span', { className: 'text-xl' }, '🔩'),
+            `Low Raw Materials (${lowMaterials.length})`
+          ),
+          React.createElement('div', { className: 'space-y-2' },
+            lowMaterials.map(mat => {
+              const isCritical = mat.current_stock < 100;
+              return React.createElement('div', {
+                key: mat.id,
+                className: `bg-white rounded-lg shadow p-3 border-l-4 ${isCritical ? 'border-red-600' : 'border-orange-500'}`
+              },
+                React.createElement('div', { className: 'font-semibold text-gray-800' }, mat.material),
+                React.createElement('div', { className: 'text-sm text-gray-600 mt-1' },
+                  `Stock: ${formatQuantity(mat.current_stock)} kg`
+                ),
+                React.createElement('div', {
+                  className: `text-xs font-bold mt-1 ${isCritical ? 'text-red-600' : 'text-orange-600'}`
+                }, isCritical ? '🚨 CRITICAL - Reorder now!' : '⚠️ LOW - Plan reorder')
+              );
+            })
+          )
+        ),
+
+        // No alerts
+        (lowStockProducts.length === 0 && lowMaterials.length === 0 && urgentOrdersList.length === 0) &&
+        React.createElement('div', { className: 'text-center py-12' },
+          React.createElement('div', { className: 'text-6xl mb-4' }, '✅'),
+          React.createElement('div', { className: 'text-gray-600 font-semibold' }, 'All Clear!'),
+          React.createElement('div', { className: 'text-sm text-gray-500 mt-2' }, 'No alerts at this time')
+        )
+      )
+    );
+  }
+
+  // Bottom Navigation Bar
+  return React.createElement('div', { className: 'fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg' },
+    React.createElement('div', { className: 'grid grid-cols-5 gap-1' },
+      React.createElement('button', {
+        className: `p-3 text-center ${mobileView === 'home' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`,
+        onClick: () => setMobileView('home')
+      },
+        React.createElement('div', { className: 'text-2xl' }, '🏠'),
+        React.createElement('div', { className: 'text-xs font-semibold mt-1' }, 'Home')
+      ),
+      React.createElement('button', {
+        className: `p-3 text-center ${mobileView === 'production' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`,
+        onClick: () => setMobileView('production')
+      },
+        React.createElement('div', { className: 'text-2xl' }, '⚙️'),
+        React.createElement('div', { className: 'text-xs font-semibold mt-1' }, 'Production')
+      ),
+      React.createElement('button', {
+        className: `p-3 text-center ${mobileView === 'orders' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`,
+        onClick: () => setMobileView('orders')
+      },
+        React.createElement('div', { className: 'text-2xl' }, '📋'),
+        React.createElement('div', { className: 'text-xs font-semibold mt-1' }, 'Orders')
+      ),
+      React.createElement('button', {
+        className: `p-3 text-center ${mobileView === 'inventory' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`,
+        onClick: () => setMobileView('inventory')
+      },
+        React.createElement('div', { className: 'text-2xl' }, '📦'),
+        React.createElement('div', { className: 'text-xs font-semibold mt-1' }, 'Stock')
+      ),
+      React.createElement('button', {
+        className: `p-3 text-center ${mobileView === 'alerts' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'} relative`,
+        onClick: () => setMobileView('alerts')
+      },
+        React.createElement('div', { className: 'text-2xl' }, '⚠️'),
+        React.createElement('div', { className: 'text-xs font-semibold mt-1' }, 'Alerts'),
+        (lowStockCount + rawMaterialAlerts + urgentOrders) > 0 && React.createElement('div', {
+          className: 'absolute top-2 right-2 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold'
+        }, Math.min(lowStockCount + rawMaterialAlerts + urgentOrders, 9))
       )
     )
   );
@@ -2581,7 +3905,7 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
   const [items, setItems] = useState({});
   const [form, setForm] = useState({
     id:'', vendor_id:'', jw_date:'', due_date:'', job_type:'Steel Rod Production', status:'Open', notes:'',
-    raw_steel_material: '', steel_consumed: 0, cores_produced: 0, cores_rejected: 0, core_product_id: ''
+    raw_steel_material: '', steel_consumed: 0, cores_produced: 0, cores_rejected: 0, core_product_id: '', unit_rate: 0, total_cost: 0
   });
   const [editing, setEditing] = useState(null);
   const listSectionRef = React.useRef(null);
@@ -2621,7 +3945,7 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
     if (res.ok) {
       setForm({
         id:'', vendor_id:'', jw_date:'', due_date:'', job_type:'Steel Rod Production', status:'Open', notes:'',
-        raw_steel_material: '', steel_consumed: 0, cores_produced: 0, cores_rejected: 0, core_product_id: ''
+        raw_steel_material: '', steel_consumed: 0, cores_produced: 0, cores_rejected: 0, core_product_id: '', unit_rate: 0, total_cost: 0
       });
       await refreshOrders();
       if (onRefresh) await onRefresh();
@@ -2726,7 +4050,7 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
           // Conditional Steel Rod Production fields
           form.job_type === 'Steel Rod Production' && React.createElement('div', { className: 'bg-blue-50 p-4 rounded border border-blue-200' },
             React.createElement('h4', { className: 'font-semibold text-sm text-blue-800 mb-3' }, 'Steel Rod Production Details'),
-            React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-5 gap-3' },
+            React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-5 gap-3 mb-3' },
               React.createElement('select', {
                 className: 'border rounded px-3 py-2',
                 value: form.raw_steel_material,
@@ -2768,6 +4092,38 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
                 value: form.cores_rejected || '',
                 onChange: e => setForm({...form, cores_rejected: Number(e.target.value)})
               })
+            ),
+            React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-3' },
+              React.createElement('div', null,
+                React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Unit Rate (₹/piece)'),
+                React.createElement('input', {
+                  type: 'number',
+                  step: '0.01',
+                  className: 'border rounded px-3 py-2 w-full',
+                  placeholder: '0.00',
+                  value: form.unit_rate || '',
+                  onChange: e => {
+                    const rate = Number(e.target.value);
+                    const cost = rate * (form.cores_produced || 0);
+                    setForm({...form, unit_rate: rate, total_cost: cost});
+                  }
+                })
+              ),
+              React.createElement('div', null,
+                React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Total Cost (₹)'),
+                React.createElement('input', {
+                  type: 'number',
+                  step: '0.01',
+                  className: 'border rounded px-3 py-2 w-full bg-gray-100',
+                  value: form.total_cost || 0,
+                  readOnly: true
+                })
+              ),
+              React.createElement('div', { className: 'flex items-end' },
+                React.createElement('div', { className: 'text-sm text-gray-600 italic' },
+                  'Auto-calculated: Unit Rate × Steel Rods Produced'
+                )
+              )
             )
           )
         )
@@ -2786,7 +4142,7 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
           React.createElement('div', { className: 'overflow-x-auto' },
             React.createElement('table', { className:'min-w-full border-collapse' },
               React.createElement('thead', null,
-                React.createElement('tr', { className:'bg-gray-100' }, ['JW ID','Vendor','Date','Due Date','Job Type','Status','Actions'].map(h => React.createElement('th', { key:h, className:'p-2 border' }, h)))
+                React.createElement('tr', { className:'bg-gray-100' }, ['JW ID','Vendor','Date','Due Date','Job Type','Status','Unit Rate','Total Cost','Actions'].map(h => React.createElement('th', { key:h, className:'p-2 border' }, h)))
               ),
               React.createElement('tbody', null,
                 orders.length > 0 ? orders.map(order => {
@@ -2799,6 +4155,8 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
                       React.createElement('td', { className:'p-2 border' }, order.due_date || '-'),
                       React.createElement('td', { className:'p-2 border' }, order.job_type || 'Rod Making'),
                       React.createElement('td', { className:'p-2 border' }, order.status),
+                      React.createElement('td', { className:'p-2 border text-right' }, order.unit_rate > 0 ? '₹' + formatQuantity(order.unit_rate) : '-'),
+                      React.createElement('td', { className:'p-2 border text-right font-semibold' }, order.total_cost > 0 ? '₹' + formatQuantity(order.total_cost) : '-'),
                       React.createElement('td', { className:'p-2 border text-right space-x-2' },
                         React.createElement('button', {
                           className:'px-2 py-1 bg-blue-600 text-white rounded text-sm',
@@ -2811,7 +4169,7 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
                       )
                     ),
                     openDetails[order.id] && React.createElement('tr', { className:'bg-gray-50' },
-                      React.createElement('td', { colSpan:7, className:'p-3 border' },
+                      React.createElement('td', { colSpan:9, className:'p-3 border' },
                         React.createElement('div', { className:'space-y-3' },
                           React.createElement('h4', { className:'font-semibold' }, 'Job Work Items'),
                           items[order.id] && items[order.id].length > 0 ?
@@ -2875,7 +4233,7 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
                     )
                   );
                 }) : React.createElement('tr', null,
-                  React.createElement('td', { colSpan:7, className:'p-4 text-center text-gray-500' }, 'No job work orders found')
+                  React.createElement('td', { colSpan:9, className:'p-4 text-center text-gray-500' }, 'No job work orders found')
                 )
               )
             )
@@ -5103,6 +6461,10 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
           columns: [
             { key: 'material', label: 'Material' },
             { key: 'current_stock', label: 'Current Stock', render: (val) => formatQuantity(val || 0) + ' kg' },
+            { key: 'committed_stock', label: 'Committed', render: (val) => formatQuantity(val || 0) + ' kg' },
+            { key: 'available_stock', label: 'Available', render: (val) => formatQuantity(val || 0) + ' kg' },
+            { key: 'average_cost_per_unit', label: 'Avg Cost/kg', render: (val) => val > 0 ? '₹' + formatQuantity(val) : '-' },
+            { key: 'total_value', label: 'Total Value', render: (val) => val > 0 ? '₹' + formatQuantity(val) : '-' },
             { key: 'reorder_level', label: 'Reorder Level', render: (val) => formatQuantity(val || 0) + ' kg' },
             { key: 'last_purchase_date', label: 'Last Purchase', render: (val) => val || '-' }
           ],
@@ -5111,7 +6473,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
           onDelete: delRM,
           onExport: (data, cols) => downloadCSV('raw-materials.csv', cols.map(c=>({key:c.key,label:c.label})), data),
           filterOptions: [],
-          defaultVisibleColumns: { material: true, current_stock: true, reorder_level: true, last_purchase_date: true }
+          defaultVisibleColumns: { material: true, current_stock: true, committed_stock: true, available_stock: true, average_cost_per_unit: true, total_value: true, reorder_level: true, last_purchase_date: true }
         }),
 
         React.createElement(EditModal, {

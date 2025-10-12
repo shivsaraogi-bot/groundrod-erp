@@ -407,6 +407,10 @@ function initializeDatabase() {
 
     // Add columns to vendor_po_line_items for product purchasing
     db.run("ALTER TABLE vendor_po_line_items ADD COLUMN item_type TEXT DEFAULT 'Raw Material'", (err) => { /* ignore if already exists */ });
+
+    // NEW: Weighted Average Costing - Add cost tracking to raw materials inventory
+    db.run("ALTER TABLE raw_materials_inventory ADD COLUMN total_value REAL DEFAULT 0", (_err) => { /* ignore if already exists */ });
+    db.run("ALTER TABLE raw_materials_inventory ADD COLUMN average_cost_per_unit REAL DEFAULT 0", (_err) => { /* ignore if already exists */ });
     db.run("ALTER TABLE vendor_po_line_items ADD COLUMN product_id TEXT", (err) => { /* ignore if already exists */ });
     db.run("ALTER TABLE vendor_po_line_items ADD COLUMN product_stage TEXT", (err) => { /* ignore if already exists */ });
 
@@ -774,7 +778,7 @@ function initializeDatabase() {
     db.all("PRAGMA table_info(shipments)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE shipments ADD COLUMN is_deleted INTEGER", ()=>{}); if(!n.includes('carrier')) db.run("ALTER TABLE shipments ADD COLUMN carrier TEXT", ()=>{}); if(!n.includes('destination')) db.run("ALTER TABLE shipments ADD COLUMN destination TEXT", ()=>{}); if(!n.includes('tracking_number')) db.run("ALTER TABLE shipments ADD COLUMN tracking_number TEXT", ()=>{}); if(!n.includes('tracking_status')) db.run("ALTER TABLE shipments ADD COLUMN tracking_status TEXT", ()=>{}); if(!n.includes('tracking_last_updated')) db.run("ALTER TABLE shipments ADD COLUMN tracking_last_updated DATETIME", ()=>{}); if(!n.includes('estimated_delivery')) db.run("ALTER TABLE shipments ADD COLUMN estimated_delivery TEXT", ()=>{}); if(!n.includes('carrier_detected')) db.run("ALTER TABLE shipments ADD COLUMN carrier_detected TEXT", ()=>{}); } });
     db.all("PRAGMA table_info(production_history)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE production_history ADD COLUMN is_deleted INTEGER", ()=>{}); if(!n.includes('marking_type')) db.run("ALTER TABLE production_history ADD COLUMN marking_type TEXT DEFAULT 'unmarked'", ()=>{}); if(!n.includes('marking_text')) db.run("ALTER TABLE production_history ADD COLUMN marking_text TEXT", ()=>{}); if(!n.includes('allocated_po_id')) db.run("ALTER TABLE production_history ADD COLUMN allocated_po_id TEXT", ()=>{}); } });
     db.all("PRAGMA table_info(client_po_line_items)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('marking_type')) db.run("ALTER TABLE client_po_line_items ADD COLUMN marking_type TEXT DEFAULT 'unmarked'", ()=>{}); if(!n.includes('marking_text')) db.run("ALTER TABLE client_po_line_items ADD COLUMN marking_text TEXT", ()=>{}); } });
-    db.all("PRAGMA table_info(job_work_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('raw_steel_material')) db.run("ALTER TABLE job_work_orders ADD COLUMN raw_steel_material TEXT", ()=>{}); if(!n.includes('steel_consumed')) db.run("ALTER TABLE job_work_orders ADD COLUMN steel_consumed REAL", ()=>{}); if(!n.includes('cores_produced')) db.run("ALTER TABLE job_work_orders ADD COLUMN cores_produced INTEGER", ()=>{}); if(!n.includes('cores_rejected')) db.run("ALTER TABLE job_work_orders ADD COLUMN cores_rejected INTEGER", ()=>{}); if(!n.includes('core_product_id')) db.run("ALTER TABLE job_work_orders ADD COLUMN core_product_id TEXT", ()=>{}); } });
+    db.all("PRAGMA table_info(job_work_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('raw_steel_material')) db.run("ALTER TABLE job_work_orders ADD COLUMN raw_steel_material TEXT", ()=>{}); if(!n.includes('steel_consumed')) db.run("ALTER TABLE job_work_orders ADD COLUMN steel_consumed REAL", ()=>{}); if(!n.includes('cores_produced')) db.run("ALTER TABLE job_work_orders ADD COLUMN cores_produced INTEGER", ()=>{}); if(!n.includes('cores_rejected')) db.run("ALTER TABLE job_work_orders ADD COLUMN cores_rejected INTEGER", ()=>{}); if(!n.includes('core_product_id')) db.run("ALTER TABLE job_work_orders ADD COLUMN core_product_id TEXT", ()=>{}); if(!n.includes('unit_rate')) db.run("ALTER TABLE job_work_orders ADD COLUMN unit_rate REAL DEFAULT 0", ()=>{}); if(!n.includes('total_cost')) db.run("ALTER TABLE job_work_orders ADD COLUMN total_cost REAL DEFAULT 0", ()=>{}); } });
 
     // Inventory allocations table for tracking marked/branded inventory
     db.run(`CREATE TABLE IF NOT EXISTS inventory_allocations (
@@ -1547,35 +1551,127 @@ app.post('/api/client-purchase-orders/:id/items', (req, res) => {
   const { id } = req.params; const { product_id, quantity=0, unit_price=0, currency='INR' } = req.body;
   if (!product_id) return res.status(400).json({ error: 'product_id required' });
   const qty = Number(quantity||0); const up = Number(unit_price||0);
-  db.run(`INSERT INTO client_po_line_items (po_id, product_id, quantity, unit_price, line_total, delivered, currency) VALUES (?, ?, ?, ?, ?, 0, ?)`, [id, product_id, qty, up, qty*up, currency], function(err){
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ message: 'Item added', id: this.lastID });
+
+  db.serialize(() => {
+    db.run('BEGIN');
+
+    // Insert PO line item
+    db.run(`INSERT INTO client_po_line_items (po_id, product_id, quantity, unit_price, line_total, delivered, currency) VALUES (?, ?, ?, ?, ?, 0, ?)`, [id, product_id, qty, up, qty*up, currency], function(err){
+      if (err) {
+        try { db.run('ROLLBACK'); } catch(_) {}
+        return res.status(500).json({ error: err.message });
+      }
+
+      // Commit raw materials based on BOM
+      db.all('SELECT material, qty_per_unit FROM bom WHERE product_id = ?', [product_id], (bomErr, bomRows) => {
+        if (bomErr) {
+          try { db.run('ROLLBACK'); } catch(_) {}
+          return res.status(500).json({ error: bomErr.message });
+        }
+
+        if (bomRows && bomRows.length > 0) {
+          bomRows.forEach(bom => {
+            const requiredQty = qty * Number(bom.qty_per_unit || 0);
+            db.run(`UPDATE raw_materials_inventory SET committed_stock = committed_stock + ? WHERE material = ?`, [requiredQty, bom.material]);
+          });
+        }
+
+        db.run('COMMIT', (commitErr) => {
+          if (commitErr) return res.status(500).json({ error: commitErr.message });
+          res.json({ message: 'Item added and materials committed', id: this.lastID });
+        });
+      });
+    });
   });
 });
 
 app.put('/api/client-purchase-orders/:id/items/:itemId', (req, res) => {
   const { id, itemId } = req.params; const { product_id, quantity, unit_price, currency, due_date } = req.body;
-  db.get(`SELECT delivered FROM client_po_line_items WHERE id=? AND po_id=?`, [itemId, id], (e, row)=>{
+  db.get(`SELECT product_id, quantity, delivered FROM client_po_line_items WHERE id=? AND po_id=?`, [itemId, id], (e, row)=>{
     if (e) return res.status(500).json({ error: e.message });
     if (!row) return res.status(404).json({ error: 'Item not found' });
-    const qty = Number(quantity||0); if (qty < (row.delivered||0)) return res.status(400).json({ error: 'Quantity cannot be less than delivered' });
+    const newQty = Number(quantity||0);
+    if (newQty < (row.delivered||0)) return res.status(400).json({ error: 'Quantity cannot be less than delivered' });
     const up = Number(unit_price||0);
-    db.run(`UPDATE client_po_line_items SET product_id=?, quantity=?, unit_price=?, currency=?, due_date=?, line_total=? WHERE id=? AND po_id=?`, [product_id, qty, up, currency || 'INR', due_date || null, qty*up, itemId, id], function(err){
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ message: 'Item updated' });
+    const oldQty = Number(row.quantity || 0);
+    const qtyDiff = newQty - oldQty;
+
+    db.serialize(() => {
+      db.run('BEGIN');
+
+      db.run(`UPDATE client_po_line_items SET product_id=?, quantity=?, unit_price=?, currency=?, due_date=?, line_total=? WHERE id=? AND po_id=?`, [product_id, newQty, up, currency || 'INR', due_date || null, newQty*up, itemId, id], function(err){
+        if (err) {
+          try { db.run('ROLLBACK'); } catch(_) {}
+          return res.status(500).json({ error: err.message });
+        }
+
+        // Adjust committed stock if quantity changed
+        if (qtyDiff !== 0) {
+          db.all('SELECT material, qty_per_unit FROM bom WHERE product_id = ?', [product_id], (bomErr, bomRows) => {
+            if (bomErr) {
+              try { db.run('ROLLBACK'); } catch(_) {}
+              return res.status(500).json({ error: bomErr.message });
+            }
+
+            if (bomRows && bomRows.length > 0) {
+              bomRows.forEach(bom => {
+                const adjustQty = qtyDiff * Number(bom.qty_per_unit || 0);
+                db.run(`UPDATE raw_materials_inventory SET committed_stock = MAX(0, committed_stock + ?) WHERE material = ?`, [adjustQty, bom.material]);
+              });
+            }
+
+            db.run('COMMIT', (commitErr) => {
+              if (commitErr) return res.status(500).json({ error: commitErr.message });
+              res.json({ message: 'Item updated and materials adjusted' });
+            });
+          });
+        } else {
+          db.run('COMMIT', (commitErr) => {
+            if (commitErr) return res.status(500).json({ error: commitErr.message });
+            res.json({ message: 'Item updated' });
+          });
+        }
+      });
     });
   });
 });
 
 app.delete('/api/client-purchase-orders/:id/items/:itemId', (req, res) => {
   const { id, itemId } = req.params;
-  db.get(`SELECT delivered FROM client_po_line_items WHERE id=? AND po_id=?`, [itemId, id], (e,row)=>{
+  db.get(`SELECT product_id, quantity, delivered FROM client_po_line_items WHERE id=? AND po_id=?`, [itemId, id], (e,row)=>{
     if (e) return res.status(500).json({ error: e.message });
     if (!row) return res.status(404).json({ error: 'Item not found' });
     if ((row.delivered||0) > 0) return res.status(400).json({ error: 'Cannot delete item with delivered quantity' });
-    db.run(`DELETE FROM client_po_line_items WHERE id=? AND po_id=?`, [itemId, id], function(err){
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ message: 'Item deleted' });
+
+    db.serialize(() => {
+      db.run('BEGIN');
+
+      db.run(`DELETE FROM client_po_line_items WHERE id=? AND po_id=?`, [itemId, id], function(err){
+        if (err) {
+          try { db.run('ROLLBACK'); } catch(_) {}
+          return res.status(500).json({ error: err.message });
+        }
+
+        // Release committed materials
+        db.all('SELECT material, qty_per_unit FROM bom WHERE product_id = ?', [row.product_id], (bomErr, bomRows) => {
+          if (bomErr) {
+            try { db.run('ROLLBACK'); } catch(_) {}
+            return res.status(500).json({ error: bomErr.message });
+          }
+
+          if (bomRows && bomRows.length > 0) {
+            bomRows.forEach(bom => {
+              const releaseQty = Number(row.quantity || 0) * Number(bom.qty_per_unit || 0);
+              db.run(`UPDATE raw_materials_inventory SET committed_stock = MAX(0, committed_stock - ?) WHERE material = ?`, [releaseQty, bom.material]);
+            });
+          }
+
+          db.run('COMMIT', (commitErr) => {
+            if (commitErr) return res.status(500).json({ error: commitErr.message });
+            res.json({ message: 'Item deleted and materials released' });
+          });
+        });
+      });
     });
   });
 });
@@ -2049,8 +2145,8 @@ app.delete('/api/vendor-purchase-orders/:id', (req, res) => {
 // Receive vendor PO items into raw materials inventory (simple GRN)
 app.post('/api/vendor-purchase-orders/:id/receive', (req, res) => {
   const { id } = req.params;
-  // Load items from our items table
-  db.all('SELECT item, description, qty, unit FROM vendor_po_items WHERE vpo_id=?', [id], (err, items) => {
+  // Load items from vendor_po_line_items with unit_price for weighted average costing
+  db.all('SELECT material_type, quantity, unit, unit_price FROM vendor_po_line_items WHERE po_id=?', [id], (err, items) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'No items to receive' });
     const receiveUnit = (u)=> String(u||'kg').toLowerCase();
@@ -2059,19 +2155,39 @@ app.post('/api/vendor-purchase-orders/:id/receive', (req, res) => {
       db.run('BEGIN');
       try{
         items.forEach(it => {
-          const mat = it.item || (it.description||'').split(' ')[0];
-          const qty = Number(it.qty||0);
+          const mat = it.material_type;
+          const qty = Number(it.quantity||0);
+          const unitPrice = Number(it.unit_price||0);
           if (!mat || !(qty>0)) return;
           const unit = receiveUnit(it.unit);
           const qtyKg = isKg(unit) ? qty : qty; // extend here for other units
-          db.run(`INSERT INTO raw_materials_inventory (material, current_stock, reorder_level, last_purchase_date, updated_at)
-                  VALUES (?, ?, 0, DATE('now'), CURRENT_TIMESTAMP)
-                  ON CONFLICT(material) DO UPDATE SET current_stock = current_stock + excluded.current_stock, last_purchase_date = DATE('now'), updated_at = CURRENT_TIMESTAMP`, [mat, qtyKg]);
-          db.run(`INSERT INTO vendor_po_receipts (vpo_id, material, qty, unit) VALUES (?, ?, ?, ?)`, [id, mat, qtyKg, unit]);
+          const receivedValue = qtyKg * unitPrice;
+
+          // Weighted average costing: Get current inventory to calculate new average
+          db.get('SELECT current_stock, total_value FROM raw_materials_inventory WHERE material = ?', [mat], (err2, existing) => {
+            if (err2) { console.error('Error fetching existing inventory:', err2); return; }
+
+            const oldStock = Number(existing?.current_stock || 0);
+            const oldValue = Number(existing?.total_value || 0);
+            const newStock = oldStock + qtyKg;
+            const newValue = oldValue + receivedValue;
+            const newAvgCost = newStock > 0 ? newValue / newStock : 0;
+
+            db.run(`INSERT INTO raw_materials_inventory (material, current_stock, total_value, average_cost_per_unit, reorder_level, last_purchase_date, updated_at)
+                    VALUES (?, ?, ?, ?, 0, DATE('now'), CURRENT_TIMESTAMP)
+                    ON CONFLICT(material) DO UPDATE SET
+                      current_stock = current_stock + excluded.current_stock,
+                      total_value = total_value + excluded.total_value,
+                      average_cost_per_unit = excluded.average_cost_per_unit,
+                      last_purchase_date = DATE('now'),
+                      updated_at = CURRENT_TIMESTAMP`,
+                    [mat, qtyKg, receivedValue, newAvgCost]);
+            db.run(`INSERT INTO vendor_po_receipts (vpo_id, material, qty, unit) VALUES (?, ?, ?, ?)`, [id, mat, qtyKg, unit]);
+          });
         });
         db.run('COMMIT', (e)=>{
           if (e) return res.status(500).json({ error: e.message });
-          res.json({ message: 'Received to raw materials', received: items.length });
+          res.json({ message: 'Received to raw materials with cost tracking', received: items.length });
         });
       } catch(ex){ try{ db.run('ROLLBACK'); }catch(_){}; res.status(500).json({ error: 'Receive failed' }); }
     });
@@ -2100,15 +2216,35 @@ app.post('/api/vendor-purchase-orders/:id/receive-items', (req, res) => {
       items.forEach(it => {
         const mat = it.material || it.item;
         const qtyKg = toKg(it.qty, it.unit);
+        const unitPrice = Number(it.unit_price || 0);
         if (!mat || !(qtyKg>0)) return;
-        db.run(`INSERT INTO raw_materials_inventory (material, current_stock, reorder_level, last_purchase_date, updated_at)
-                VALUES (?, ?, 0, DATE('now'), CURRENT_TIMESTAMP)
-                ON CONFLICT(material) DO UPDATE SET current_stock = current_stock + excluded.current_stock, last_purchase_date = DATE('now'), updated_at = CURRENT_TIMESTAMP`, [mat, qtyKg]);
-        db.run(`INSERT INTO vendor_po_receipts (vpo_id, material, qty, unit) VALUES (?, ?, ?, ?)`, [id, mat, qtyKg, normUnit(it.unit)]);
+        const receivedValue = qtyKg * unitPrice;
+
+        // Weighted average costing
+        db.get('SELECT current_stock, total_value FROM raw_materials_inventory WHERE material = ?', [mat], (err2, existing) => {
+          if (err2) { console.error('Error fetching existing inventory:', err2); return; }
+
+          const oldStock = Number(existing?.current_stock || 0);
+          const oldValue = Number(existing?.total_value || 0);
+          const newStock = oldStock + qtyKg;
+          const newValue = oldValue + receivedValue;
+          const newAvgCost = newStock > 0 ? newValue / newStock : 0;
+
+          db.run(`INSERT INTO raw_materials_inventory (material, current_stock, total_value, average_cost_per_unit, reorder_level, last_purchase_date, updated_at)
+                  VALUES (?, ?, ?, ?, 0, DATE('now'), CURRENT_TIMESTAMP)
+                  ON CONFLICT(material) DO UPDATE SET
+                    current_stock = current_stock + excluded.current_stock,
+                    total_value = total_value + excluded.total_value,
+                    average_cost_per_unit = excluded.average_cost_per_unit,
+                    last_purchase_date = DATE('now'),
+                    updated_at = CURRENT_TIMESTAMP`,
+                  [mat, qtyKg, receivedValue, newAvgCost]);
+          db.run(`INSERT INTO vendor_po_receipts (vpo_id, material, qty, unit) VALUES (?, ?, ?, ?)`, [id, mat, qtyKg, normUnit(it.unit)]);
+        });
       });
       db.run('COMMIT', (e)=>{
         if (e) return res.status(500).json({ error: e.message });
-        res.json({ message:'Receipt posted', received: items.length });
+        res.json({ message:'Receipt posted with cost tracking', received: items.length });
       });
     } catch(ex){ try{ db.run('ROLLBACK'); }catch(_){}; res.status(500).json({ error: 'Receive failed' }); }
   });
@@ -2123,12 +2259,12 @@ app.get('/api/jobwork/orders', (req, res) => {
   });
 });
 app.post('/api/jobwork/orders', (req, res) => {
-  const { id, vendor_id, jw_date, due_date, job_type='Steel Core Production', status='Open', notes='', raw_steel_material, steel_consumed, cores_produced, cores_rejected, core_product_id } = req.body||{};
+  const { id, vendor_id, jw_date, due_date, job_type='Steel Core Production', status='Open', notes='', raw_steel_material, steel_consumed, cores_produced, cores_rejected, core_product_id, unit_rate, total_cost } = req.body||{};
   if (!id || !jw_date) return res.status(400).json({ error:'id and jw_date required' });
 
-  db.run(`INSERT INTO job_work_orders (id, vendor_id, jw_date, due_date, job_type, status, notes, raw_steel_material, steel_consumed, cores_produced, cores_rejected, core_product_id, created_at, updated_at)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`,
-          [id, vendor_id||'', jw_date, due_date||'', job_type, status, notes, raw_steel_material||null, steel_consumed||null, cores_produced||null, cores_rejected||null, core_product_id||null],
+  db.run(`INSERT INTO job_work_orders (id, vendor_id, jw_date, due_date, job_type, status, notes, raw_steel_material, steel_consumed, cores_produced, cores_rejected, core_product_id, unit_rate, total_cost, created_at, updated_at)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`,
+          [id, vendor_id||'', jw_date, due_date||'', job_type, status, notes, raw_steel_material||null, steel_consumed||null, cores_produced||null, cores_rejected||null, core_product_id||null, unit_rate||0, total_cost||0],
           function(err){
     if (err) return res.status(500).json({ error: err.message });
     res.json({ message:'JWO created' });
@@ -2136,9 +2272,9 @@ app.post('/api/jobwork/orders', (req, res) => {
 });
 app.put('/api/jobwork/orders/:id', (req, res) => {
   const { id } = req.params;
-  const { vendor_id, jw_date, due_date, job_type, status, notes, raw_steel_material, steel_consumed, cores_produced, cores_rejected, core_product_id } = req.body||{};
-  db.run(`UPDATE job_work_orders SET vendor_id=?, jw_date=?, due_date=?, job_type=?, status=?, notes=?, raw_steel_material=?, steel_consumed=?, cores_produced=?, cores_rejected=?, core_product_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-    [vendor_id||'', jw_date||'', due_date||'', job_type||'Steel Core Production', status||'Open', notes||'', raw_steel_material||null, steel_consumed||null, cores_produced||null, cores_rejected||null, core_product_id||null, id], function(err){
+  const { vendor_id, jw_date, due_date, job_type, status, notes, raw_steel_material, steel_consumed, cores_produced, cores_rejected, core_product_id, unit_rate, total_cost } = req.body||{};
+  db.run(`UPDATE job_work_orders SET vendor_id=?, jw_date=?, due_date=?, job_type=?, status=?, notes=?, raw_steel_material=?, steel_consumed=?, cores_produced=?, cores_rejected=?, core_product_id=?, unit_rate=?, total_cost=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+    [vendor_id||'', jw_date||'', due_date||'', job_type||'Steel Core Production', status||'Open', notes||'', raw_steel_material||null, steel_consumed||null, cores_produced||null, cores_rejected||null, core_product_id||null, unit_rate||0, total_cost||0, id], function(err){
       if (err) return res.status(500).json({ error: err.message });
       res.json({ message:'JWO updated' });
     });
@@ -2201,10 +2337,18 @@ app.post('/api/jobwork/orders/:id/receive', (req,res)=>{
             db.run(`INSERT INTO inventory (product_id, cores, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
                     ON CONFLICT(product_id) DO UPDATE SET cores = cores + excluded.cores, updated_at=CURRENT_TIMESTAMP`, [pid, coresProduced]);
 
-            // Consume raw steel from raw materials inventory
-            db.run(`UPDATE raw_materials_inventory
-                    SET current_stock = MAX(0, current_stock - ?), updated_at = CURRENT_TIMESTAMP
-                    WHERE material = ?`, [steelConsumed, rawSteelMaterial]);
+            // Weighted average costing: Calculate cost of consumed steel
+            db.get('SELECT average_cost_per_unit FROM raw_materials_inventory WHERE material = ?', [rawSteelMaterial], (_err5, costRow) => {
+              const avgCost = Number(costRow?.average_cost_per_unit || 0);
+              const consumedValue = steelConsumed * avgCost;
+
+              // Consume raw steel from raw materials inventory
+              db.run(`UPDATE raw_materials_inventory
+                      SET current_stock = MAX(0, current_stock - ?),
+                          total_value = MAX(0, total_value - ?),
+                          updated_at = CURRENT_TIMESTAMP
+                      WHERE material = ?`, [steelConsumed, consumedValue, rawSteelMaterial]);
+            });
 
             // Record receipt
             db.run(`INSERT INTO job_work_receipts (order_id, product_id, qty, received_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)`, [id, pid, coresProduced]);
@@ -2227,11 +2371,19 @@ app.post('/api/jobwork/orders/:id/receive', (req,res)=>{
             db.run(`INSERT INTO inventory (product_id, steel_rods, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
                     ON CONFLICT(product_id) DO UPDATE SET steel_rods = steel_rods + excluded.steel_rods, updated_at=CURRENT_TIMESTAMP`, [pid, qty]);
 
-            // Consume raw steel based on BOM
+            // Consume raw steel based on BOM with weighted average costing
             db.get('SELECT qty_per_unit FROM bom WHERE product_id=? AND material=?', [pid, 'Steel'], (e, bom)=>{
               if (!e && bom) {
                 const steelConsumed = qty * Number(bom.qty_per_unit || 0);
-                db.run(`UPDATE raw_materials_inventory SET current_stock = current_stock - ? WHERE material = ?`, [steelConsumed, 'Steel']);
+                db.get('SELECT average_cost_per_unit FROM raw_materials_inventory WHERE material = ?', ['Steel'], (_err6, costRow) => {
+                  const avgCost = Number(costRow?.average_cost_per_unit || 0);
+                  const consumedValue = steelConsumed * avgCost;
+                  db.run(`UPDATE raw_materials_inventory
+                          SET current_stock = current_stock - ?,
+                              total_value = MAX(0, total_value - ?),
+                              updated_at = CURRENT_TIMESTAMP
+                          WHERE material = ?`, [steelConsumed, consumedValue, 'Steel']);
+                });
               }
             });
           } else if (jobType === 'Plating') {
@@ -2240,11 +2392,19 @@ app.post('/api/jobwork/orders/:id/receive', (req,res)=>{
             db.run(`INSERT INTO inventory (product_id, plated, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
                     ON CONFLICT(product_id) DO UPDATE SET plated = plated + excluded.plated, steel_rods = steel_rods - ?, updated_at=CURRENT_TIMESTAMP`, [pid, qty, qty]);
 
-            // Consume copper anode based on BOM
+            // Consume copper anode based on BOM with weighted average costing
             db.get('SELECT qty_per_unit FROM bom WHERE product_id=? AND material=?', [pid, 'Copper Anode'], (e, bom)=>{
               if (!e && bom) {
                 const copperConsumed = qty * Number(bom.qty_per_unit || 0);
-                db.run(`UPDATE raw_materials_inventory SET current_stock = current_stock - ? WHERE material = ?`, [copperConsumed, 'Copper Anode']);
+                db.get('SELECT average_cost_per_unit FROM raw_materials_inventory WHERE material = ?', ['Copper Anode'], (_err7, costRow) => {
+                  const avgCost = Number(costRow?.average_cost_per_unit || 0);
+                  const consumedValue = copperConsumed * avgCost;
+                  db.run(`UPDATE raw_materials_inventory
+                          SET current_stock = current_stock - ?,
+                              total_value = MAX(0, total_value - ?),
+                              updated_at = CURRENT_TIMESTAMP
+                          WHERE material = ?`, [copperConsumed, consumedValue, 'Copper Anode']);
+                });
               }
             });
           }
@@ -3432,20 +3592,27 @@ app.post('/api/production', (req, res) => {
                   // Only deduct copper and other plating/finishing materials
                   const totalRequired = stampedUnits * Number(bom.qty_per_unit || 0);
                   if (totalRequired > 0) {
-                    db.run(`UPDATE raw_materials_inventory
-                            SET current_stock = MAX(0, current_stock - ?),
-                                updated_at = CURRENT_TIMESTAMP
-                            WHERE material = ?`,
-                            [totalRequired, bom.material], (matErr) => {
-                      if (matErr) {
-                        console.warn(`Raw material deduction warning for ${bom.material}:`, matErr.message);
-                      } else {
-                        // Log the material consumption
-                        logAudit('raw_materials_inventory', bom.material, 'CONSUMED',
-                          null,
-                          { product_id: entry.product_id, quantity: totalRequired, production_date: date }
-                        );
-                      }
+                    // Weighted average costing: Calculate cost of consumed material
+                    db.get('SELECT average_cost_per_unit FROM raw_materials_inventory WHERE material = ?', [bom.material], (_err3, costRow) => {
+                      const avgCost = Number(costRow?.average_cost_per_unit || 0);
+                      const consumedValue = totalRequired * avgCost;
+
+                      db.run(`UPDATE raw_materials_inventory
+                              SET current_stock = MAX(0, current_stock - ?),
+                                  total_value = MAX(0, total_value - ?),
+                                  updated_at = CURRENT_TIMESTAMP
+                              WHERE material = ?`,
+                              [totalRequired, consumedValue, bom.material], (matErr) => {
+                        if (matErr) {
+                          console.warn(`Raw material deduction warning for ${bom.material}:`, matErr.message);
+                        } else {
+                          // Log the material consumption with cost
+                          logAudit('raw_materials_inventory', bom.material, 'CONSUMED',
+                            null,
+                            { product_id: entry.product_id, quantity: totalRequired, cost: consumedValue, production_date: date }
+                          );
+                        }
+                      });
                     });
                   }
                 });
@@ -3660,6 +3827,450 @@ app.get('/api/inventory/:productId/production-trace', (req, res) => {
   });
 });
 
+// ============= MRP / Purchase Planning Analytics =============
+app.get('/api/analytics/mrp', (_req, res) => {
+  // Get all open client POs with undelivered quantities
+  db.all(`
+    SELECT
+      po.id as po_id,
+      po.customer_id,
+      po.po_date,
+      po.expected_delivery_date,
+      li.id as line_item_id,
+      li.product_id,
+      li.quantity,
+      li.delivered,
+      (li.quantity - li.delivered) as pending_quantity,
+      p.description as product_description
+    FROM client_purchase_orders po
+    JOIN client_po_line_items li ON po.id = li.po_id
+    JOIN products p ON li.product_id = p.id
+    WHERE po.status != 'Completed' AND po.status != 'Cancelled'
+      AND (li.quantity - li.delivered) > 0
+      AND (po.is_deleted IS NULL OR po.is_deleted = 0)
+    ORDER BY po.expected_delivery_date ASC, po.po_date ASC
+  `, (err, openOrders) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    // Calculate material requirements for all pending orders
+    const materialRequirements = {};
+    let processedCount = 0;
+
+    if (!openOrders || openOrders.length === 0) {
+      return res.json({
+        openOrders: [],
+        materialRequirements: [],
+        purchaseSuggestions: []
+      });
+    }
+
+    openOrders.forEach((order) => {
+      // Get BOM for this product
+      db.all('SELECT material, qty_per_unit FROM bom WHERE product_id = ?', [order.product_id], (bomErr, bomRows) => {
+        if (!bomErr && bomRows) {
+          bomRows.forEach(bom => {
+            const requiredQty = order.pending_quantity * Number(bom.qty_per_unit || 0);
+            if (!materialRequirements[bom.material]) {
+              materialRequirements[bom.material] = {
+                material: bom.material,
+                totalRequired: 0,
+                orders: []
+              };
+            }
+            materialRequirements[bom.material].totalRequired += requiredQty;
+            materialRequirements[bom.material].orders.push({
+              po_id: order.po_id,
+              product_id: order.product_id,
+              product_description: order.product_description,
+              quantity: order.pending_quantity,
+              required_material: requiredQty,
+              due_date: order.expected_delivery_date
+            });
+          });
+        }
+
+        processedCount++;
+        if (processedCount === openOrders.length) {
+          // Get current raw materials inventory
+          db.all('SELECT material, current_stock, committed_stock, available_stock, reorder_level FROM raw_materials_inventory', (invErr, inventory) => {
+            if (invErr) return res.status(500).json({ error: invErr.message });
+
+            const inventoryMap = {};
+            (inventory || []).forEach(inv => {
+              inventoryMap[inv.material] = inv;
+            });
+
+            // Generate purchase suggestions
+            const purchaseSuggestions = [];
+            Object.keys(materialRequirements).forEach(material => {
+              const required = materialRequirements[material].totalRequired;
+              const inv = inventoryMap[material] || { current_stock: 0, committed_stock: 0, available_stock: 0, reorder_level: 0 };
+              const available = Number(inv.available_stock || 0);
+              const shortage = required - available;
+              const reorderLevel = Number(inv.reorder_level || 0);
+
+              purchaseSuggestions.push({
+                material,
+                current_stock: Number(inv.current_stock || 0),
+                committed_stock: Number(inv.committed_stock || 0),
+                available_stock: available,
+                total_required: required,
+                shortage: shortage > 0 ? shortage : 0,
+                reorder_level: reorderLevel,
+                suggested_purchase: shortage > 0 ? Math.ceil(shortage + reorderLevel) : 0,
+                status: shortage > 0 ? 'SHORTAGE' : (available < reorderLevel ? 'LOW_STOCK' : 'SUFFICIENT'),
+                orders: materialRequirements[material].orders
+              });
+            });
+
+            // Sort by status priority: SHORTAGE first, then LOW_STOCK, then SUFFICIENT
+            purchaseSuggestions.sort((a, b) => {
+              const statusOrder = { SHORTAGE: 0, LOW_STOCK: 1, SUFFICIENT: 2 };
+              return statusOrder[a.status] - statusOrder[b.status];
+            });
+
+            res.json({
+              openOrders,
+              materialRequirements: Object.values(materialRequirements),
+              purchaseSuggestions
+            });
+          });
+        }
+      });
+    });
+  });
+});
+
+// ============= Production Scheduling Analytics =============
+app.get('/api/analytics/production-schedule', (_req, res) => {
+  // Get all open client POs with their line items and current production status
+  db.all(`
+    SELECT
+      po.id as po_id,
+      po.customer_id,
+      po.po_date,
+      po.expected_delivery_date,
+      po.status as po_status,
+      li.id as line_item_id,
+      li.product_id,
+      li.quantity as ordered_qty,
+      li.delivered as delivered_qty,
+      (li.quantity - li.delivered) as pending_qty,
+      p.description as product_description,
+      c.name as customer_name,
+      i.stamped as finished_stock
+    FROM client_purchase_orders po
+    JOIN client_po_line_items li ON po.id = li.po_id
+    JOIN products p ON li.product_id = p.id
+    LEFT JOIN customers c ON po.customer_id = c.id
+    LEFT JOIN inventory i ON li.product_id = i.product_id
+    WHERE po.status != 'Completed' AND po.status != 'Cancelled'
+      AND (li.quantity - li.delivered) > 0
+      AND (po.is_deleted IS NULL OR po.is_deleted = 0)
+    ORDER BY po.expected_delivery_date ASC, po.po_date ASC
+  `, (err, orders) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    if (!orders || orders.length === 0) {
+      return res.json({ schedule: [], summary: { total: 0, ready: 0, inProgress: 0, notStarted: 0, onTrack: 0, atRisk: 0, overdue: 0 } });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const schedule = orders.map(order => {
+      const finishedStock = Number(order.finished_stock || 0);
+      const pendingQty = Number(order.pending_qty);
+      const deliveryDate = order.expected_delivery_date;
+      const daysUntilDue = deliveryDate ? Math.ceil((new Date(deliveryDate) - new Date(today)) / (1000 * 60 * 60 * 24)) : null;
+
+      // Determine status
+      let status = 'NOT_STARTED';
+      let statusLabel = 'Not Started';
+      let statusColor = 'gray';
+
+      if (finishedStock >= pendingQty) {
+        status = 'READY';
+        statusLabel = 'Ready to Ship';
+        statusColor = 'green';
+      } else if (finishedStock > 0) {
+        status = 'IN_PROGRESS';
+        statusLabel = 'In Progress';
+        statusColor = 'blue';
+      }
+
+      // Determine urgency
+      let urgency = 'ON_TRACK';
+      let urgencyLabel = 'On Track';
+      let urgencyColor = 'green';
+
+      if (daysUntilDue !== null) {
+        if (daysUntilDue < 0) {
+          urgency = 'OVERDUE';
+          urgencyLabel = 'Overdue';
+          urgencyColor = 'red';
+        } else if (daysUntilDue <= 7 && finishedStock < pendingQty) {
+          urgency = 'AT_RISK';
+          urgencyLabel = 'At Risk';
+          urgencyColor = 'yellow';
+        }
+      }
+
+      return {
+        po_id: order.po_id,
+        customer_id: order.customer_id,
+        customer_name: order.customer_name || order.customer_id,
+        product_id: order.product_id,
+        product_description: order.product_description,
+        ordered_qty: Number(order.ordered_qty),
+        delivered_qty: Number(order.delivered_qty),
+        pending_qty: pendingQty,
+        finished_stock: finishedStock,
+        shortage: Math.max(0, pendingQty - finishedStock),
+        completion_pct: finishedStock > 0 ? Math.min(100, Math.round((finishedStock / pendingQty) * 100)) : 0,
+        expected_delivery_date: deliveryDate,
+        days_until_due: daysUntilDue,
+        status,
+        status_label: statusLabel,
+        status_color: statusColor,
+        urgency,
+        urgency_label: urgencyLabel,
+        urgency_color: urgencyColor
+      };
+    });
+
+    // Calculate summary
+    const summary = {
+      total: schedule.length,
+      ready: schedule.filter(s => s.status === 'READY').length,
+      inProgress: schedule.filter(s => s.status === 'IN_PROGRESS').length,
+      notStarted: schedule.filter(s => s.status === 'NOT_STARTED').length,
+      onTrack: schedule.filter(s => s.urgency === 'ON_TRACK').length,
+      atRisk: schedule.filter(s => s.urgency === 'AT_RISK').length,
+      overdue: schedule.filter(s => s.urgency === 'OVERDUE').length
+    };
+
+    res.json({ schedule, summary });
+  });
+});
+
+// ============= Delivery Performance Analytics =============
+app.get('/api/analytics/delivery-performance', (_req, res) => {
+  // Get delivery performance metrics
+  db.all(`
+    SELECT
+      po.id as po_id,
+      po.customer_id,
+      po.expected_delivery_date,
+      li.product_id,
+      li.quantity,
+      li.delivered,
+      s.shipment_date as actual_delivery_date,
+      c.name as customer_name,
+      p.description as product_description
+    FROM client_purchase_orders po
+    JOIN client_po_line_items li ON po.id = li.po_id
+    JOIN products p ON li.product_id = p.id
+    LEFT JOIN customers c ON po.customer_id = c.id
+    LEFT JOIN shipments s ON po.id = s.po_id
+    WHERE li.delivered > 0 AND po.expected_delivery_date IS NOT NULL
+    ORDER BY s.shipment_date DESC, po.expected_delivery_date DESC
+    LIMIT 100
+  `, (err, deliveries) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    if (!deliveries || deliveries.length === 0) {
+      return res.json({
+        deliveries: [],
+        summary: { total: 0, onTime: 0, late: 0, onTimePercentage: 0, avgLeadTime: 0 }
+      });
+    }
+
+    const deliveryPerformance = deliveries.map(d => {
+      const expectedDate = new Date(d.expected_delivery_date);
+      const actualDate = d.actual_delivery_date ? new Date(d.actual_delivery_date) : null;
+      const daysDifference = actualDate ? Math.ceil((actualDate - expectedDate) / (1000 * 60 * 60 * 24)) : null;
+      const onTime = daysDifference !== null && daysDifference <= 0;
+
+      return {
+        po_id: d.po_id,
+        customer_id: d.customer_id,
+        customer_name: d.customer_name || d.customer_id,
+        product_id: d.product_id,
+        product_description: d.product_description,
+        quantity: d.quantity,
+        delivered: d.delivered,
+        expected_delivery_date: d.expected_delivery_date,
+        actual_delivery_date: d.actual_delivery_date,
+        days_difference: daysDifference,
+        on_time: onTime,
+        status: onTime ? 'On Time' : 'Late'
+      };
+    });
+
+    const onTimeCount = deliveryPerformance.filter(d => d.on_time).length;
+    const summary = {
+      total: deliveryPerformance.length,
+      onTime: onTimeCount,
+      late: deliveryPerformance.length - onTimeCount,
+      onTimePercentage: deliveryPerformance.length > 0 ? Math.round((onTimeCount / deliveryPerformance.length) * 100) : 0,
+      avgLeadTime: 0 // Can calculate if needed
+    };
+
+    res.json({ deliveries: deliveryPerformance, summary });
+  });
+});
+
+// ============= Customer Analytics =============
+app.get('/api/analytics/customers', (_req, res) => {
+  // Get customer revenue and order analytics
+  db.all(`
+    SELECT
+      c.id as customer_id,
+      c.name as customer_name,
+      COUNT(DISTINCT po.id) as total_orders,
+      SUM(li.quantity * li.unit_price) as total_revenue,
+      AVG(li.quantity * li.unit_price) as avg_order_value,
+      MAX(po.po_date) as last_order_date,
+      GROUP_CONCAT(DISTINCT li.product_id) as products_ordered
+    FROM customers c
+    LEFT JOIN client_purchase_orders po ON c.id = po.customer_id AND (po.is_deleted IS NULL OR po.is_deleted = 0)
+    LEFT JOIN client_po_line_items li ON po.id = li.po_id
+    GROUP BY c.id, c.name
+    HAVING total_orders > 0
+    ORDER BY total_revenue DESC
+  `, (err, customers) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    const customerAnalytics = (customers || []).map(c => ({
+      customer_id: c.customer_id,
+      customer_name: c.customer_name,
+      total_orders: Number(c.total_orders || 0),
+      total_revenue: Number(c.total_revenue || 0),
+      avg_order_value: Number(c.avg_order_value || 0),
+      last_order_date: c.last_order_date,
+      products_ordered: c.products_ordered ? c.products_ordered.split(',') : []
+    }));
+
+    const summary = {
+      totalCustomers: customerAnalytics.length,
+      totalRevenue: customerAnalytics.reduce((sum, c) => sum + c.total_revenue, 0),
+      avgRevenuePerCustomer: customerAnalytics.length > 0 ?
+        customerAnalytics.reduce((sum, c) => sum + c.total_revenue, 0) / customerAnalytics.length : 0
+    };
+
+    res.json({ customers: customerAnalytics, summary });
+  });
+});
+
+// ============= Material Consumption Variance Analytics =============
+app.get('/api/analytics/material-variance', (_req, res) => {
+  // Get production history with material consumption from audit logs
+  db.all(`
+    SELECT
+      json_extract(new_values, '$.product_id') as product_id,
+      json_extract(new_values, '$.production_date') as production_date,
+      json_extract(new_values, '$.quantity') as quantity_produced,
+      json_extract(new_values, '$.stamped') as stamped_qty,
+      action,
+      old_values,
+      new_values,
+      timestamp
+    FROM audit_log
+    WHERE table_name = 'raw_materials_inventory'
+      AND action = 'CONSUMED'
+      AND timestamp >= date('now', '-30 days')
+    ORDER BY timestamp DESC
+    LIMIT 100
+  `, (err, consumptionLogs) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    if (!consumptionLogs || consumptionLogs.length === 0) {
+      return res.json({ variances: [], summary: { total: 0, highVariance: 0, avgVariance: 0 } });
+    }
+
+    // Group by product and date, then calculate variance
+    const varianceData = [];
+    consumptionLogs.forEach(log => {
+      try {
+        const newVals = typeof log.new_values === 'string' ? JSON.parse(log.new_values) : log.new_values;
+        const productId = newVals.product_id;
+        const material = log.record_id; // material name is stored in record_id for raw_materials_inventory
+        const actualConsumed = Number(newVals.quantity || 0);
+        const cost = Number(newVals.cost || 0);
+
+        varianceData.push({
+          product_id: productId,
+          production_date: newVals.production_date,
+          material,
+          actual_consumed: actualConsumed,
+          cost,
+          timestamp: log.timestamp
+        });
+      } catch (e) {
+        console.error('Error parsing variance data:', e);
+      }
+    });
+
+    // Now get expected consumption from BOM for comparison
+    const variancePromises = varianceData.map(v => {
+      return new Promise((resolve) => {
+        db.get('SELECT qty_per_unit FROM bom WHERE product_id = ? AND material = ?',
+          [v.product_id, v.material], (bomErr, bom) => {
+            if (bomErr || !bom) {
+              resolve(null);
+              return;
+            }
+
+            // Get the quantity produced from production_history
+            db.get('SELECT stamped FROM production_history WHERE product_id = ? AND production_date = ? ORDER BY id DESC LIMIT 1',
+              [v.product_id, v.production_date], (prodErr, prod) => {
+                if (prodErr || !prod) {
+                  resolve(null);
+                  return;
+                }
+
+                const qtyProduced = Number(prod.stamped || 0);
+                const expectedConsumption = qtyProduced * Number(bom.qty_per_unit || 0);
+                const variance = v.actual_consumed - expectedConsumption;
+                const variancePct = expectedConsumption > 0 ? (variance / expectedConsumption) * 100 : 0;
+
+                resolve({
+                  product_id: v.product_id,
+                  production_date: v.production_date,
+                  material: v.material,
+                  quantity_produced: qtyProduced,
+                  expected_consumption: expectedConsumption,
+                  actual_consumption: v.actual_consumed,
+                  variance,
+                  variance_pct: variancePct,
+                  cost: v.cost,
+                  status: Math.abs(variancePct) > 5 ? 'HIGH_VARIANCE' : 'NORMAL',
+                  timestamp: v.timestamp
+                });
+              });
+          });
+      });
+    });
+
+    Promise.all(variancePromises).then(results => {
+      const validVariances = results.filter(v => v !== null);
+      const highVarianceCount = validVariances.filter(v => v.status === 'HIGH_VARIANCE').length;
+      const avgVariance = validVariances.length > 0 ?
+        validVariances.reduce((sum, v) => sum + Math.abs(v.variance_pct), 0) / validVariances.length : 0;
+
+      validVariances.sort((a, b) => Math.abs(b.variance_pct) - Math.abs(a.variance_pct));
+
+      res.json({
+        variances: validVariances,
+        summary: {
+          total: validVariances.length,
+          highVariance: highVarianceCount,
+          avgVariance: Math.round(avgVariance * 10) / 10
+        }
+      });
+    });
+  });
+});
+
 // ============= Stock Adjustments API =============
 // Get all stock adjustments
 app.get('/api/stock-adjustments', (req, res) => {
@@ -3836,25 +4447,32 @@ app.post('/api/drawing-operations', (req, res) => {
         }
 
         // Consume raw steel from raw materials inventory
-        db.run(`
-          UPDATE raw_materials_inventory
-          SET current_stock = MAX(0, current_stock - ?),
-              updated_at = CURRENT_TIMESTAMP
-          WHERE material = ?
-        `, [Number(steel_consumed), raw_steel_material], (matErr) => {
-          if (matErr) {
-            console.warn('Raw material deduction warning:', matErr.message);
-          }
+        // Weighted average costing: Calculate cost of consumed steel
+        db.get('SELECT average_cost_per_unit FROM raw_materials_inventory WHERE material = ?', [raw_steel_material], (_err4, costRow) => {
+          const avgCost = Number(costRow?.average_cost_per_unit || 0);
+          const consumedValue = Number(steel_consumed) * avgCost;
 
-          db.run('COMMIT', (commitErr) => {
-            if (commitErr) {
-              return res.status(500).json({ error: commitErr.message });
+          db.run(`
+            UPDATE raw_materials_inventory
+            SET current_stock = MAX(0, current_stock - ?),
+                total_value = MAX(0, total_value - ?),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE material = ?
+          `, [Number(steel_consumed), consumedValue, raw_steel_material], (matErr) => {
+            if (matErr) {
+              console.warn('Raw material deduction warning:', matErr.message);
             }
-            res.json({
-              message: 'Drawing operation recorded successfully',
-              id: this.lastID,
-              cores_produced: Number(cores_produced),
-              steel_consumed: Number(steel_consumed)
+
+            db.run('COMMIT', (commitErr) => {
+              if (commitErr) {
+                return res.status(500).json({ error: commitErr.message });
+              }
+              res.json({
+                message: 'Drawing operation recorded successfully',
+                id: this.lastID,
+                cores_produced: Number(cores_produced),
+                steel_consumed: Number(steel_consumed)
+              });
             });
           });
         });
