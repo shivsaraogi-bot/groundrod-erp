@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#3B82F6" rx="80"/>
+
+  <!-- Ground Rod Icon (stylized lightning bolt + ground symbol) -->
+  <g fill="#ffffff">
+    <!-- Lightning bolt representing electrical grounding -->
+    <path d="M280 80L160 280h80l-40 152 120-200h-80L280 80z" stroke="#FCD34D" stroke-width="8" fill="#FCD34D"/>
+
+    <!-- Ground symbol (three horizontal lines) -->
+    <rect x="200" y="400" width="112" height="12" rx="6"/>
+    <rect x="220" y="430" width="72" height="10" rx="5"/>
+    <rect x="240" y="456" width="32" height="8" rx="4"/>
+  </g>
+
+  <!-- Title -->
+  <text x="256" y="490" font-family="Arial, sans-serif" font-size="40" font-weight="bold" fill="#ffffff" text-anchor="middle">ERP</text>
+</svg>

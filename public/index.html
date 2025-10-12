@@ -67,6 +67,25 @@
     .hover\:bg-blue-50:hover{ background-color: rgba(22,125,183,0.06) !important; }
   </style>
   
-  <script type="text/babel" src="app.restored.js?v=29.2"></script>
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#3B82F6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="GroundRod ERP">
+  <link rel="apple-touch-icon" href="/icon.svg">
+
+  <script type="text/babel" src="app.restored.js?v=30.0"></script>
+
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('Service Worker registered'))
+          .catch(err => console.log('Service Worker registration failed:', err));
+      });
+    }
+  </script>
 </body>
 </html>

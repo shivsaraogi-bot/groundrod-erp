@@ -1,0 +1,19 @@
+{
+  "name": "GroundRod ERP - Manufacturing & Export Management",
+  "short_name": "GroundRod ERP",
+  "description": "Complete ERP system for Copper Bonded Ground Rod Manufacturing and Export",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3B82F6",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"]
+}

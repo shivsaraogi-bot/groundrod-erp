@@ -480,38 +480,143 @@ function Header({ onRefresh }){
 }
 
 function NavTabs({ activeTab, setActiveTab }){
-  const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'mobile', label: 'Mobile', icon: '📱' },
-    { id: 'mrp', label: 'Purchase Planning', icon: '📈' },
-    { id: 'production-schedule', label: 'Production Schedule', icon: '📅' },
-    { id: 'material-variance', label: 'Material Variance', icon: '⚠️' },
-    { id: 'delivery-performance', label: 'Delivery Performance', icon: '🚚' },
-    { id: 'customer-analytics', label: 'Customer Analytics', icon: '📊' },
-    { id: 'production', label: 'Production', icon: '⚙️' },
-    { id: 'client-orders', label: 'Client Orders', icon: '📋' },
-    { id: 'invoices', label: 'Invoices', icon: '💰' },
-    { id: 'vendor-orders', label: 'Vendor Orders', icon: '📦' },
-    { id: 'job-work', label: 'Job Work', icon: '🔧' },
-    { id: 'shipments', label: 'Shipments', icon: '🚚' },
-    { id: 'inventory', label: 'Inventory', icon: '📦' },
-    { id: 'products', label: 'Products', icon: '🏭' },
-    { id: 'customers', label: 'Customers', icon: '👥' },
-    { id: 'vendors', label: 'Vendors', icon: '🏢' },
+  const [openDropdown, setOpenDropdown] = useState(null);
+
+  // Grouped navigation structure
+  const navGroups = [
+    {
+      id: 'main',
+      items: [
+        { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+        { id: 'mobile', label: 'Mobile View', icon: '📱' }
+      ]
+    },
+    {
+      id: 'operations',
+      label: 'Operations',
+      icon: '⚙️',
+      items: [
+        { id: 'production', label: 'Production Entry', icon: '⚙️' },
+        { id: 'job-work', label: 'Job Work Orders', icon: '🔧' },
+        { id: 'inventory', label: 'Inventory', icon: '📦' }
+      ]
+    },
+    {
+      id: 'sales',
+      label: 'Sales & Orders',
+      icon: '📋',
+      items: [
+        { id: 'client-orders', label: 'Client Orders', icon: '📋' },
+        { id: 'invoices', label: 'Invoices & Payments', icon: '💰' },
+        { id: 'shipments', label: 'Shipments', icon: '🚚' }
+      ]
+    },
+    {
+      id: 'procurement',
+      label: 'Procurement',
+      icon: '📦',
+      items: [
+        { id: 'vendor-orders', label: 'Vendor Orders', icon: '📦' },
+        { id: 'mrp', label: 'Purchase Planning (MRP)', icon: '📈' }
+      ]
+    },
+    {
+      id: 'analytics',
+      label: 'Analytics',
+      icon: '📊',
+      items: [
+        { id: 'production-schedule', label: 'Production Schedule', icon: '📅' },
+        { id: 'material-variance', label: 'Material Variance', icon: '⚠️' },
+        { id: 'delivery-performance', label: 'Delivery Performance', icon: '🚚' },
+        { id: 'customer-analytics', label: 'Customer Analytics', icon: '📊' }
+      ]
+    },
+    {
+      id: 'masters',
+      label: 'Master Data',
+      icon: '🏭',
+      items: [
+        { id: 'products', label: 'Products', icon: '🏭' },
+        { id: 'customers', label: 'Customers', icon: '👥' },
+        { id: 'vendors', label: 'Vendors', icon: '🏢' }
+      ]
+    }
   ];
+
+  // Find active item label for display
+  const getActiveLabel = () => {
+    for (const group of navGroups) {
+      const item = group.items.find(i => i.id === activeTab);
+      if (item) return item.label;
+    }
+    return 'Dashboard';
+  };
+
   return (
-    React.createElement('nav', { className: 'bg-white shadow-md border-b-2 border-gray-200' },
+    React.createElement('nav', { className: 'bg-white shadow-md border-b-2 border-gray-200 sticky top-0 z-40' },
       React.createElement('div', { className: 'max-w-7xl mx-auto px-6' },
-        React.createElement('div', { className: 'flex gap-1 overflow-x-auto' },
-          tabs.map(tab => (
-            React.createElement('button', {
-              key: tab.id, onClick: () => setActiveTab(tab.id),
-              className: `px-5 py-3 font-semibold transition-all whitespace-nowrap rounded-t-lg flex items-center gap-2 ${activeTab === tab.id ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'}`
+        React.createElement('div', { className: 'flex gap-2' },
+          // Render main tabs and dropdown groups
+          navGroups.map(group => {
+            // Main items (no dropdown)
+            if (group.id === 'main') {
+              return group.items.map(item =>
+                React.createElement('button', {
+                  key: item.id,
+                  onClick: () => setActiveTab(item.id),
+                  className: `px-4 py-3 font-semibold transition-all whitespace-nowrap rounded-t-lg flex items-center gap-2 ${
+                    activeTab === item.id ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'
+                  }`
+                },
+                  React.createElement('span', { className: 'text-xl' }, item.icon),
+                  React.createElement('span', null, item.label)
+                )
+              );
+            }
+
+            // Dropdown groups
+            const isActive = group.items.some(i => i.id === activeTab);
+            const isOpen = openDropdown === group.id;
+
+            return React.createElement('div', {
+              key: group.id,
+              className: 'relative',
+              onMouseEnter: () => setOpenDropdown(group.id),
+              onMouseLeave: () => setOpenDropdown(null)
             },
-              React.createElement('span', { className: 'text-xl' }, tab.icon),
-              React.createElement('span', null, tab.label)
-            )
-          ))
+              // Dropdown trigger button
+              React.createElement('button', {
+                className: `px-4 py-3 font-semibold transition-all whitespace-nowrap rounded-t-lg flex items-center gap-2 ${
+                  isActive ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'
+                }`
+              },
+                React.createElement('span', { className: 'text-xl' }, group.icon),
+                React.createElement('span', null, group.label),
+                React.createElement('span', { className: 'text-sm ml-1' }, isOpen ? '▲' : '▼')
+              ),
+
+              // Dropdown menu
+              isOpen && React.createElement('div', {
+                className: 'absolute left-0 top-full bg-white border border-gray-200 rounded-b-lg shadow-xl min-w-[220px] z-50'
+              },
+                group.items.map(item =>
+                  React.createElement('button', {
+                    key: item.id,
+                    onClick: () => {
+                      setActiveTab(item.id);
+                      setOpenDropdown(null);
+                    },
+                    className: `w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors flex items-center gap-3 ${
+                      activeTab === item.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-700'
+                    }`
+                  },
+                    React.createElement('span', { className: 'text-lg' }, item.icon),
+                    React.createElement('span', null, item.label)
+                  )
+                )
+              )
+            );
+          })
         )
       )
     )
