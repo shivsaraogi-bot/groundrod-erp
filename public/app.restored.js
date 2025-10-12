@@ -2398,7 +2398,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
 
   // Bottom Navigation Bar
   return React.createElement('div', { className: 'fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg' },
-    React.createElement('div', { className: 'grid grid-cols-5 gap-1' },
+    React.createElement('div', { className: 'grid grid-cols-6 gap-1' },
       React.createElement('button', {
         className: `p-3 text-center ${mobileView === 'home' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`,
         onClick: () => setMobileView('home')
@@ -2411,7 +2411,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
         onClick: () => setMobileView('production')
       },
         React.createElement('div', { className: 'text-2xl' }, '⚙️'),
-        React.createElement('div', { className: 'text-xs font-semibold mt-1' }, 'Production')
+        React.createElement('div', { className: 'text-xs font-semibold mt-1' }, 'Produce')
       ),
       React.createElement('button', {
         className: `p-3 text-center ${mobileView === 'orders' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`,
@@ -2436,6 +2436,13 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
         (lowStockCount + rawMaterialAlerts + urgentOrders) > 0 && React.createElement('div', {
           className: 'absolute top-2 right-2 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold'
         }, Math.min(lowStockCount + rawMaterialAlerts + urgentOrders, 9))
+      ),
+      React.createElement('button', {
+        className: `p-3 text-center ${mobileView === 'menu' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'}`,
+        onClick: () => setMobileView('menu')
+      },
+        React.createElement('div', { className: 'text-2xl' }, '☰'),
+        React.createElement('div', { className: 'text-xs font-semibold mt-1' }, 'Menu')
       )
     )
   );
