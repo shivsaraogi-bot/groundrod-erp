@@ -45,6 +45,182 @@
     .nav-scroll::-webkit-scrollbar { display: none; }
     /* Give the ribbon a tiny bottom padding to avoid cutoff */
     .ribbon-wrap { padding-bottom: 6px; margin-bottom: -6px; }
+
+    /* ========================================
+       MOBILE-RESPONSIVE DESIGN FOR ALL MODULES
+       ======================================== */
+
+    /* Mobile viewport optimizations */
+    @media (max-width: 768px) {
+      /* Navigation - Mobile friendly dropdowns */
+      nav button {
+        font-size: 14px;
+        padding: 10px 12px !important;
+      }
+
+      /* Tables - Horizontal scroll with better UX */
+      table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        white-space: nowrap;
+      }
+
+      thead tr {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+      }
+
+      tbody {
+        display: table;
+        width: 100%;
+      }
+
+      th, td {
+        padding: 8px 6px !important;
+        font-size: 12px !important;
+        min-width: 80px;
+      }
+
+      /* Forms - Stack vertically on mobile */
+      .grid {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* Buttons - Full width on mobile for easier tapping */
+      .md\:flex button {
+        width: 100%;
+        margin-bottom: 8px;
+      }
+
+      /* Cards - Better spacing on mobile */
+      .rounded-xl, .rounded-lg {
+        border-radius: 12px;
+        margin-bottom: 16px;
+      }
+
+      /* Header - Compact on mobile */
+      header h1 {
+        font-size: 18px !important;
+      }
+
+      header p {
+        font-size: 11px !important;
+      }
+
+      /* Modal/Dialog - Full screen on mobile */
+      .fixed.inset-0 > div {
+        max-width: 100% !important;
+        margin: 0 !important;
+        height: 100vh;
+        border-radius: 0 !important;
+      }
+
+      /* Input fields - Larger touch targets */
+      input, select, textarea, button {
+        min-height: 44px;
+        font-size: 16px !important; /* Prevents iOS zoom */
+      }
+
+      /* Padding adjustments */
+      .px-6 {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+      }
+
+      .py-6 {
+        padding-top: 16px !important;
+        padding-bottom: 16px !important;
+      }
+
+      /* Charts - Responsive */
+      canvas {
+        max-width: 100% !important;
+        height: auto !important;
+      }
+
+      /* Hide unnecessary columns on very small screens */
+      @media (max-width: 480px) {
+        .mobile-hide {
+          display: none !important;
+        }
+      }
+
+      /* Dropdown menus - Better mobile positioning */
+      .absolute.left-0.top-full {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        bottom: 0 !important;
+        border-radius: 16px 16px 0 0 !important;
+        max-height: 60vh;
+        overflow-y: auto;
+      }
+
+      /* Bottom sheet style for mobile dropdowns */
+      nav .absolute.z-50 {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        top: auto !important;
+        border-radius: 16px 16px 0 0;
+        max-height: 70vh;
+        overflow-y: auto;
+        animation: slideUp 0.3s ease-out;
+      }
+
+      @keyframes slideUp {
+        from {
+          transform: translateY(100%);
+        }
+        to {
+          transform: translateY(0);
+        }
+      }
+
+      /* Touch feedback */
+      button:active, a:active {
+        opacity: 0.7;
+        transform: scale(0.98);
+      }
+
+      /* Improved scrolling */
+      body {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: none;
+      }
+
+      /* Status badges - Smaller on mobile */
+      .px-2.py-1 {
+        padding: 4px 8px !important;
+        font-size: 10px !important;
+      }
+    }
+
+    /* Tablet optimizations */
+    @media (min-width: 769px) and (max-width: 1024px) {
+      .grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+
+      table {
+        font-size: 14px;
+      }
+    }
+
+    /* Print styles */
+    @media print {
+      nav, .no-print {
+        display: none !important;
+      }
+
+      body {
+        background: white !important;
+      }
+    }
   </style>
 </head>
 <body class="bg-gray-50">
@@ -75,7 +251,7 @@
   <meta name="apple-mobile-web-app-title" content="GroundRod ERP">
   <link rel="apple-touch-icon" href="/icon.svg">
 
-  <script type="text/babel" src="app.restored.js?v=30.0"></script>
+  <script type="text/babel" src="app.restored.js?v=30.1"></script>
 
   <!-- PWA Service Worker Registration -->
   <script>
