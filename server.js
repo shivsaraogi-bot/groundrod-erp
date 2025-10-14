@@ -4925,7 +4925,7 @@ app.get('/api/dashboard/stats', (req, res) => {
 app.get('/api/dashboard/risk-analysis', (req, res) => {
   // Calculate material requirements vs availability
   db.all(`
-    SELECT 
+    SELECT
       p.id,
       p.steel_diameter,
       p.copper_coating,
@@ -4933,7 +4933,9 @@ app.get('/api/dashboard/risk-analysis', (req, res) => {
       SUM(li.quantity - li.delivered) as pending_qty
     FROM client_po_line_items li
     JOIN products p ON li.product_id = p.id
+    JOIN client_purchase_orders po ON li.po_id = po.id
     WHERE li.delivered < li.quantity
+      AND po.status NOT IN ('Completed', 'Cancelled')
     GROUP BY p.id
   `, (err, pendingOrders) => {
     if (err) {
