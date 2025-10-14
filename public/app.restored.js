@@ -8941,7 +8941,19 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
         // Check if it's a foreign key constraint error with specific references
         if (error.references && error.references.length > 0) {
           const refList = error.references.map(ref => `• ${ref}`).join('\n');
-          alert(`❌ Cannot delete product "${id}"\n\nThis product is being used in:\n${refList}\n\nYou must remove or reassign all references to this product before deleting it.`);
+          const forceDelete = confirm(`❌ Cannot delete product "${id}"\n\nThis product is being used in:\n${refList}\n\n⚠️ FORCE DELETE?\nThis will permanently delete:\n- The product\n- ALL references in orders, inventory, production history, etc.\n\nClick OK to FORCE DELETE (cannot be undone)\nClick Cancel to keep the product`);
+
+          if (forceDelete) {
+            // Call force delete endpoint
+            const forceRes = await fetch(`${API_URL}/products/${id}/force`, { method:'DELETE' });
+            if (forceRes.ok) {
+              alert('✅ Product and all references deleted successfully');
+              if (onRefresh) await onRefresh();
+            } else {
+              const forceError = await forceRes.json();
+              alert('❌ Force delete failed: ' + (forceError.error || 'Unknown error'));
+            }
+          }
         } else if (error.error && error.error.includes('FOREIGN KEY constraint failed')) {
           alert(`❌ Cannot delete product "${id}"\n\nThis product is being used elsewhere in the system.\n\nYou must remove or reassign all references to this product before deleting it.`);
         } else {

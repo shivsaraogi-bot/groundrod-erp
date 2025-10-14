@@ -1454,6 +1454,57 @@ app.delete('/api/products/:id', (req, res) => {
   checkNext();
 });
 
+// Force delete product - removes all references first
+app.delete('/api/products/:id/force', (req, res) => {
+  const { id } = req.params;
+
+  db.serialize(() => {
+    db.run('BEGIN');
+
+    const fail = (err) => {
+      try { db.run('ROLLBACK'); } catch(_){};
+      res.status(500).json({ error: err.message || String(err) });
+    };
+
+    // Delete all references in order
+    db.run('DELETE FROM bom WHERE product_id=?', [id], (e1) => {
+      if (e1) return fail(e1);
+      db.run('DELETE FROM client_po_line_items WHERE product_id=?', [id], (e2) => {
+        if (e2) return fail(e2);
+        db.run('DELETE FROM inventory WHERE product_id=?', [id], (e3) => {
+          if (e3) return fail(e3);
+          db.run('DELETE FROM production_history WHERE product_id=?', [id], (e4) => {
+            if (e4) return fail(e4);
+            db.run('DELETE FROM shipment_items WHERE product_id=?', [id], (e5) => {
+              if (e5) return fail(e5);
+              db.run('DELETE FROM job_work_items WHERE product_id=?', [id], (e6) => {
+                if (e6) return fail(e6);
+                db.run('DELETE FROM stock_adjustments WHERE product_id=?', [id], (e7) => {
+                  if (e7) return fail(e7);
+                  db.run('DELETE FROM drawing_operations WHERE product_id=?', [id], (e8) => {
+                    if (e8) return fail(e8);
+                    db.run('DELETE FROM inventory_allocations WHERE product_id=?', [id], (e9) => {
+                      if (e9) return fail(e9);
+                      // Finally delete the product itself
+                      db.run('DELETE FROM products WHERE id=?', [id], (e10) => {
+                        if (e10) return fail(e10);
+                        db.run('COMMIT', (e11) => {
+                          if (e11) return fail(e11);
+                          res.json({ message: 'Product and all references deleted successfully' });
+                        });
+                      });
+                    });
+                  });
+                });
+              });
+            });
+          });
+        });
+      });
+    });
+  });
+});
+
 // Rename product ID and cascade to referencing tables
 app.post('/api/products/rename', (req, res) => {
   const oldId = (req.body?.old_id || '').toString().trim();
