@@ -8928,9 +8928,20 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
   }
 
   async function deleteProduct(id){
-    if (!confirm('Delete product?')) return;
-    await fetch(`${API_URL}/products/${id}`, { method:'DELETE' });
-    onRefresh?.();
+    if (!confirm(`⚠️ Delete product "${id}"?\n\nThis action cannot be undone.`)) return;
+
+    try {
+      const res = await fetch(`${API_URL}/products/${id}`, { method:'DELETE' });
+      if (res.ok) {
+        alert('✅ Product deleted successfully');
+        if (onRefresh) await onRefresh();
+      } else {
+        const error = await res.json();
+        alert('❌ Error: ' + (error.error || 'Failed to delete product'));
+      }
+    } catch (err) {
+      alert('❌ Network error: ' + err.message);
+    }
   }
 
   const columns = [
