@@ -2446,7 +2446,22 @@ function Dashboard({ stats, riskAnalysis, clientPurchaseOrders, inventory, setAc
           React.createElement('button', {
             className: 'px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300',
             onClick: () => setShowResetButton(!showResetButton)
-          }, showResetButton ? 'Hide Reset' : 'Show Admin'),
+          }, showResetButton ? 'Hide Admin' : 'Show Admin'),
+          showResetButton && React.createElement('button', {
+            className: 'px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 font-semibold',
+            onClick: async () => {
+              if (confirm('Clean up orphaned line items from completed/cancelled orders?')) {
+                try {
+                  const res = await fetch(`${API_URL}/dashboard/cleanup-orphaned-items`, { method: 'DELETE' });
+                  const result = await res.json();
+                  alert(`✅ Cleaned up ${result.totalDeleted} orphaned line items.\n\nOrphaned: ${result.orphanedDeleted}\nCompleted/Cancelled: ${result.completedCancelledDeleted}\n\nRefreshing data...`);
+                  fetchAllData();
+                } catch (err) {
+                  alert('❌ Cleanup failed: ' + err.message);
+                }
+              }
+            }
+          }, '🧹 Clean Orphaned Data'),
           showResetButton && React.createElement('button', {
             className: 'px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-semibold',
             onClick: handleDatabaseReset
