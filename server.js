@@ -5057,6 +5057,17 @@ app.delete('/api/dashboard/cleanup-orphaned-items', (req, res) => {
   });
 });
 
+// Emergency cleanup - delete ALL line items (use when you have 0 orders)
+app.delete('/api/dashboard/emergency-cleanup-all-line-items', (req, res) => {
+  db.run(`DELETE FROM client_po_line_items`, function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({
+      message: 'Emergency cleanup: ALL line items deleted',
+      deletedCount: this.changes
+    });
+  });
+});
+
 // Update raw materials inventory (for setting starting amounts or manual adjustments)
 app.put('/api/raw-materials/:material', (req, res) => {
   const { material } = req.params;

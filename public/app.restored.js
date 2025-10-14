@@ -2463,6 +2463,21 @@ function Dashboard({ stats, riskAnalysis, clientPurchaseOrders, inventory, setAc
             }
           }, '🧹 Clean Orphaned Data'),
           showResetButton && React.createElement('button', {
+            className: 'px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 font-semibold',
+            onClick: async () => {
+              if (confirm('⚠️ EMERGENCY CLEANUP\n\nThis will delete ALL line items from the database.\nOnly use this if you have 0 client orders.\n\nAre you sure?')) {
+                try {
+                  const res = await fetch(`${API_URL}/dashboard/emergency-cleanup-all-line-items`, { method: 'DELETE' });
+                  const result = await res.json();
+                  alert(`✅ Emergency cleanup complete!\n\nDeleted ${result.deletedCount} line items.\n\nThe page will now refresh.`);
+                  window.location.reload();
+                } catch (err) {
+                  alert('❌ Emergency cleanup failed: ' + err.message);
+                }
+              }
+            }
+          }, '⚠️ Emergency Cleanup'),
+          showResetButton && React.createElement('button', {
             className: 'px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-semibold',
             onClick: handleDatabaseReset
           }, '🗑️ Reset Database')
