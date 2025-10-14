@@ -801,9 +801,142 @@ function initializeDatabase() {
     // DELETE FROM inventory_allocations WHERE stage = 'packed';
     // This is optional and can be done during a maintenance window.
 
+    // Copper Anode Scrap Sales table
+    db.run(`CREATE TABLE IF NOT EXISTS copper_scrap_sales (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sale_date DATE NOT NULL,
+      quantity_kg REAL NOT NULL,
+      rate_per_kg REAL NOT NULL,
+      currency TEXT DEFAULT 'INR',
+      buyer_name TEXT,
+      invoice_number TEXT,
+      total_value REAL GENERATED ALWAYS AS (quantity_kg * rate_per_kg) STORED,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
     insertSampleData();
   });
 }
+
+// ============= Copper Scrap Sales API =============
+app.get('/api/copper-scrap-sales', (req, res) => {
+  db.all(`SELECT * FROM copper_scrap_sales ORDER BY sale_date DESC`, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+app.post('/api/copper-scrap-sales', (req, res) => {
+  const { sale_date, quantity_kg, rate_per_kg, currency, buyer_name, invoice_number, notes } = req.body;
+
+  if (!sale_date || !quantity_kg || !rate_per_kg) {
+    return res.status(400).json({ error: 'Date, quantity, and rate are required' });
+  }
+
+  const normalizedDate = normalizeDateInput(sale_date);
+
+  db.run(
+    `INSERT INTO copper_scrap_sales (sale_date, quantity_kg, rate_per_kg, currency, buyer_name, invoice_number, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [normalizedDate, quantity_kg, rate_per_kg, currency || 'INR', buyer_name, invoice_number, notes],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+
+      // Deduct from Copper Anode inventory
+      db.run(
+        `UPDATE raw_materials_inventory
+         SET current_stock = current_stock - ?
+         WHERE material = 'Copper Anode'`,
+        [quantity_kg],
+        (updateErr) => {
+          if (updateErr) {
+            console.error('Warning: Could not update Copper Anode inventory:', updateErr.message);
+          }
+          res.json({ id: this.lastID, message: 'Scrap sale recorded and inventory updated' });
+        }
+      );
+    }
+  );
+});
+
+app.put('/api/copper-scrap-sales/:id', (req, res) => {
+  const { id } = req.params;
+  const { sale_date, quantity_kg, rate_per_kg, currency, buyer_name, invoice_number, notes } = req.body;
+
+  if (!sale_date || !quantity_kg || !rate_per_kg) {
+    return res.status(400).json({ error: 'Date, quantity, and rate are required' });
+  }
+
+  const normalizedDate = normalizeDateInput(sale_date);
+
+  // Get old quantity to adjust inventory
+  db.get(`SELECT quantity_kg FROM copper_scrap_sales WHERE id = ?`, [id], (err, oldRow) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!oldRow) return res.status(404).json({ error: 'Scrap sale not found' });
+
+    const oldQuantity = oldRow.quantity_kg;
+    const quantityDiff = quantity_kg - oldQuantity;
+
+    db.run(
+      `UPDATE copper_scrap_sales
+       SET sale_date = ?, quantity_kg = ?, rate_per_kg = ?, currency = ?,
+           buyer_name = ?, invoice_number = ?, notes = ?
+       WHERE id = ?`,
+      [normalizedDate, quantity_kg, rate_per_kg, currency || 'INR', buyer_name, invoice_number, notes, id],
+      function(updateErr) {
+        if (updateErr) return res.status(500).json({ error: updateErr.message });
+
+        // Adjust inventory by the difference
+        if (quantityDiff !== 0) {
+          db.run(
+            `UPDATE raw_materials_inventory
+             SET current_stock = current_stock - ?
+             WHERE material = 'Copper Anode'`,
+            [quantityDiff],
+            (invErr) => {
+              if (invErr) {
+                console.error('Warning: Could not adjust Copper Anode inventory:', invErr.message);
+              }
+            }
+          );
+        }
+
+        res.json({ message: 'Scrap sale updated successfully' });
+      }
+    );
+  });
+});
+
+app.delete('/api/copper-scrap-sales/:id', (req, res) => {
+  const { id } = req.params;
+
+  // Get quantity to restore inventory
+  db.get(`SELECT quantity_kg FROM copper_scrap_sales WHERE id = ?`, [id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Scrap sale not found' });
+
+    const quantity = row.quantity_kg;
+
+    db.run(`DELETE FROM copper_scrap_sales WHERE id = ?`, [id], function(deleteErr) {
+      if (deleteErr) return res.status(500).json({ error: deleteErr.message });
+
+      // Restore inventory
+      db.run(
+        `UPDATE raw_materials_inventory
+         SET current_stock = current_stock + ?
+         WHERE material = 'Copper Anode'`,
+        [quantity],
+        (restoreErr) => {
+          if (restoreErr) {
+            console.error('Warning: Could not restore Copper Anode inventory:', restoreErr.message);
+          }
+          res.json({ message: 'Scrap sale deleted and inventory restored' });
+        }
+      );
+    });
+  });
+});
 
 // ============= Company Settings API =============
 app.get('/api/company', (req, res) => {

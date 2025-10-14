@@ -478,6 +478,7 @@ function GroundRodERP() {
         activeTab === 'invoices' && React.createElement(InvoiceManagement, { invoices, payments, clientPurchaseOrders, onRefresh: fetchAllData }),
         activeTab === 'vendor-orders' && React.createElement(VendorPurchaseOrdersEx, { purchaseOrders: vendorPurchaseOrders, vendors, onRefresh: fetchAllData }),
         activeTab === 'job-work' && React.createElement(JobWorkOrders, { vendors, products, rawMaterials, onRefresh: fetchAllData }),
+        activeTab === 'copper-scrap' && React.createElement(CopperScrapSales, { onRefresh: fetchAllData }),
         activeTab === 'shipments' && React.createElement(Shipments, { shipments, purchaseOrders: clientPurchaseOrders, products, onRefresh: fetchAllData }),
         activeTab === 'inventory' && React.createElement(InventoryViewEx, { inventory, rawMaterials, products, customers, onRefresh: fetchAllData, filter, setFilter, rangeMode, setRangeMode }),
         activeTab === 'products' && React.createElement(ProductMasterEx, { products, calculateWeights, onRefresh: fetchAllData }),
@@ -528,7 +529,8 @@ function NavTabs({ activeTab, setActiveTab }){
       items: [
         { id: 'production', label: 'Production Entry', icon: '⚙️' },
         { id: 'job-work', label: 'Job Work Orders', icon: '🔧' },
-        { id: 'inventory', label: 'Inventory', icon: '📦' }
+        { id: 'inventory', label: 'Inventory', icon: '📦' },
+        { id: 'copper-scrap', label: 'Copper Scrap Sales', icon: '♻️' }
       ]
     },
     {
@@ -2327,7 +2329,8 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
         items: [
           { id: 'production', label: 'Production Entry', icon: '⚙️', color: 'blue' },
           { id: 'inventory', label: 'Inventory', icon: '📦', color: 'green' },
-          { id: 'materials', label: 'Raw Materials', icon: '🔩', color: 'purple' }
+          { id: 'materials', label: 'Raw Materials', icon: '🔩', color: 'purple' },
+          { id: 'copper-scrap', label: 'Copper Scrap Sales', icon: '♻️', color: 'orange' }
         ]
       },
       {
@@ -7180,6 +7183,259 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
         })
       )
     )
+  );
+}
+
+// Copper Anode Scrap Sales Component
+function CopperScrapSales({ onRefresh }) {
+  const [scrapSales, setScrapSales] = useState([]);
+  const [form, setForm] = useState({
+    sale_date: new Date().toISOString().split('T')[0],
+    quantity_kg: '',
+    rate_per_kg: '',
+    currency: 'INR',
+    buyer_name: '',
+    invoice_number: '',
+    notes: ''
+  });
+  const [editingId, setEditingId] = useState(null);
+
+  useEffect(() => {
+    fetchScrapSales();
+  }, []);
+
+  async function fetchScrapSales() {
+    try {
+      const res = await fetch(`${API_URL}/copper-scrap-sales`);
+      const data = await res.json();
+      setScrapSales(data);
+    } catch (err) {
+      console.error('Error fetching scrap sales:', err);
+    }
+  }
+
+  async function handleSubmit() {
+    if (!form.quantity_kg || !form.rate_per_kg) {
+      alert('⚠️ Please enter quantity and rate');
+      return;
+    }
+
+    try {
+      const url = editingId
+        ? `${API_URL}/copper-scrap-sales/${editingId}`
+        : `${API_URL}/copper-scrap-sales`;
+
+      const res = await fetch(url, {
+        method: editingId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+
+      if (res.ok) {
+        alert(`✅ Scrap sale ${editingId ? 'updated' : 'recorded'} successfully!`);
+        setForm({
+          sale_date: new Date().toISOString().split('T')[0],
+          quantity_kg: '',
+          rate_per_kg: '',
+          currency: 'INR',
+          buyer_name: '',
+          invoice_number: '',
+          notes: ''
+        });
+        setEditingId(null);
+        fetchScrapSales();
+        if (onRefresh) onRefresh();
+      } else {
+        const error = await res.json();
+        alert('❌ Error: ' + (error.error || 'Failed to save'));
+      }
+    } catch (err) {
+      alert('❌ Network error: ' + err.message);
+    }
+  }
+
+  function handleEdit(sale) {
+    setForm({
+      sale_date: sale.sale_date,
+      quantity_kg: sale.quantity_kg,
+      rate_per_kg: sale.rate_per_kg,
+      currency: sale.currency,
+      buyer_name: sale.buyer_name || '',
+      invoice_number: sale.invoice_number || '',
+      notes: sale.notes || ''
+    });
+    setEditingId(sale.id);
+  }
+
+  async function handleDelete(id) {
+    if (!confirm('⚠️ Delete this scrap sale? This will restore the copper anode to inventory.')) return;
+
+    try {
+      const res = await fetch(`${API_URL}/copper-scrap-sales/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('✅ Scrap sale deleted and inventory restored');
+        fetchScrapSales();
+        if (onRefresh) onRefresh();
+      } else {
+        const error = await res.json();
+        alert('❌ Error: ' + (error.error || 'Failed to delete'));
+      }
+    } catch (err) {
+      alert('❌ Network error: ' + err.message);
+    }
+  }
+
+  const totalKg = scrapSales.reduce((sum, s) => sum + s.quantity_kg, 0);
+  const totalValueINR = scrapSales.filter(s => s.currency === 'INR').reduce((sum, s) => sum + s.total_value, 0);
+  const totalValueUSD = scrapSales.filter(s => s.currency === 'USD').reduce((sum, s) => sum + s.total_value, 0);
+  const totalValueEUR = scrapSales.filter(s => s.currency === 'EUR').reduce((sum, s) => sum + s.total_value, 0);
+
+  return React.createElement('div', { className: 'space-y-6' },
+    // Stats Cards
+    React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-4 gap-4' },
+      React.createElement('div', { className: 'bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-md p-4 text-white' },
+        React.createElement('div', { className: 'text-sm opacity-90' }, 'Total Scrap Sold'),
+        React.createElement('div', { className: 'text-3xl font-bold mt-1' }, `${formatQuantity(totalKg)} kg`)
+      ),
+      React.createElement('div', { className: 'bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-md p-4 text-white' },
+        React.createElement('div', { className: 'text-sm opacity-90' }, 'Revenue (INR)'),
+        React.createElement('div', { className: 'text-2xl font-bold mt-1' }, `₹${formatQuantity(totalValueINR)}`)
+      ),
+      totalValueUSD > 0 && React.createElement('div', { className: 'bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md p-4 text-white' },
+        React.createElement('div', { className: 'text-sm opacity-90' }, 'Revenue (USD)'),
+        React.createElement('div', { className: 'text-2xl font-bold mt-1' }, `$${formatQuantity(totalValueUSD)}`)
+      ),
+      totalValueEUR > 0 && React.createElement('div', { className: 'bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-md p-4 text-white' },
+        React.createElement('div', { className: 'text-sm opacity-90' }, 'Revenue (EUR)'),
+        React.createElement('div', { className: 'text-2xl font-bold mt-1' }, `€${formatQuantity(totalValueEUR)}`)
+      )
+    ),
+
+    // Add/Edit Form
+    React.createElement(Section, { title: editingId ? '✏️ Edit Scrap Sale' : '➕ Record Scrap Sale' },
+      React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-4 gap-3 mb-3' },
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Sale Date *'),
+          React.createElement('input', {
+            type: 'date',
+            className: 'border rounded px-2 py-1 w-full',
+            value: form.sale_date,
+            onChange: e => setForm({ ...form, sale_date: e.target.value })
+          })
+        ),
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Quantity (kg) *'),
+          React.createElement('input', {
+            type: 'number',
+            step: '0.01',
+            className: 'border rounded px-2 py-1 w-full',
+            placeholder: '0.00',
+            value: form.quantity_kg,
+            onChange: e => setForm({ ...form, quantity_kg: e.target.value })
+          })
+        ),
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Rate/kg *'),
+          React.createElement('input', {
+            type: 'number',
+            step: '0.01',
+            className: 'border rounded px-2 py-1 w-full',
+            placeholder: '0.00',
+            value: form.rate_per_kg,
+            onChange: e => setForm({ ...form, rate_per_kg: e.target.value })
+          })
+        ),
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Currency'),
+          React.createElement('select', {
+            className: 'border rounded px-2 py-1 w-full',
+            value: form.currency,
+            onChange: e => setForm({ ...form, currency: e.target.value })
+          },
+            React.createElement('option', { value: 'INR' }, 'INR (₹)'),
+            React.createElement('option', { value: 'USD' }, 'USD ($)'),
+            React.createElement('option', { value: 'EUR' }, 'EUR (€)')
+          )
+        )
+      ),
+      React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-3 mb-3' },
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Buyer Name'),
+          React.createElement('input', {
+            className: 'border rounded px-2 py-1 w-full',
+            placeholder: 'Customer/Buyer',
+            value: form.buyer_name,
+            onChange: e => setForm({ ...form, buyer_name: e.target.value })
+          })
+        ),
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Invoice Number'),
+          React.createElement('input', {
+            className: 'border rounded px-2 py-1 w-full',
+            placeholder: 'Reference #',
+            value: form.invoice_number,
+            onChange: e => setForm({ ...form, invoice_number: e.target.value })
+          })
+        ),
+        React.createElement('div', null,
+          React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Notes'),
+          React.createElement('input', {
+            className: 'border rounded px-2 py-1 w-full',
+            placeholder: 'Additional notes',
+            value: form.notes,
+            onChange: e => setForm({ ...form, notes: e.target.value })
+          })
+        )
+      ),
+      React.createElement('div', { className: 'flex gap-2' },
+        React.createElement('button', {
+          onClick: handleSubmit,
+          className: 'px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700'
+        }, editingId ? '✅ Update Sale' : '➕ Record Sale'),
+        editingId && React.createElement('button', {
+          onClick: () => {
+            setEditingId(null);
+            setForm({
+              sale_date: new Date().toISOString().split('T')[0],
+              quantity_kg: '',
+              rate_per_kg: '',
+              currency: 'INR',
+              buyer_name: '',
+              invoice_number: '',
+              notes: ''
+            });
+          },
+          className: 'px-4 py-2 bg-gray-600 text-white rounded font-semibold hover:bg-gray-700'
+        }, '❌ Cancel')
+      )
+    ),
+
+    // Sales History Table
+    React.createElement(EnhancedTable, {
+      title: '📊 Scrap Sales History',
+      data: scrapSales,
+      columns: [
+        { key: 'id', label: 'ID', render: val => `#${val}` },
+        { key: 'sale_date', label: 'Date', render: val => new Date(val).toLocaleDateString('en-IN') },
+        { key: 'quantity_kg', label: 'Quantity (kg)', render: val => formatQuantity(val) },
+        { key: 'rate_per_kg', label: 'Rate/kg', render: (val, row) => {
+          const symbol = row.currency === 'USD' ? '$' : row.currency === 'EUR' ? '€' : '₹';
+          return `${symbol}${formatQuantity(val)}`;
+        }},
+        { key: 'total_value', label: 'Total Value', render: (val, row) => {
+          const symbol = row.currency === 'USD' ? '$' : row.currency === 'EUR' ? '€' : '₹';
+          return `${symbol}${formatQuantity(val)}`;
+        }},
+        { key: 'buyer_name', label: 'Buyer', render: val => val || '-' },
+        { key: 'invoice_number', label: 'Invoice #', render: val => val || '-' },
+        { key: 'notes', label: 'Notes', render: val => val || '-' }
+      ],
+      primaryKey: 'id',
+      onRowClick: handleEdit,
+      onDelete: handleDelete,
+      onExport: (data, cols) => downloadCSV('copper-scrap-sales.csv', cols.map(c => ({ key: c.key, label: c.label })), data),
+      defaultVisibleColumns: { id: true, sale_date: true, quantity_kg: true, rate_per_kg: true, total_value: true, buyer_name: true, invoice_number: true, notes: false }
+    })
   );
 }
 
