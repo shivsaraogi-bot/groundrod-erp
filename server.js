@@ -1401,14 +1401,57 @@ app.put('/api/products/:id', (req, res) => {
 
 app.delete('/api/products/:id', (req, res) => {
   const { id } = req.params;
-  
-  db.run("DELETE FROM products WHERE id=?", [id], function(err) {
-    if (err) {
-      res.status(500).json({ error: err.message });
+
+  // First check if product is referenced in other tables
+  const checks = [
+    { query: "SELECT COUNT(*) as count FROM client_po_line_items WHERE product_id=?", name: "Client Purchase Orders" },
+    { query: "SELECT COUNT(*) as count FROM inventory WHERE product_id=?", name: "Inventory" },
+    { query: "SELECT COUNT(*) as count FROM production_history WHERE product_id=?", name: "Production History" },
+    { query: "SELECT COUNT(*) as count FROM shipment_items WHERE product_id=?", name: "Shipments" },
+    { query: "SELECT COUNT(*) as count FROM job_work_items WHERE product_id=?", name: "Job Work Orders" },
+    { query: "SELECT COUNT(*) as count FROM stock_adjustments WHERE product_id=?", name: "Stock Adjustments" },
+    { query: "SELECT COUNT(*) as count FROM drawing_operations WHERE product_id=?", name: "Drawing Operations" },
+    { query: "SELECT COUNT(*) as count FROM inventory_allocations WHERE product_id=?", name: "Inventory Allocations" }
+  ];
+
+  let checkIndex = 0;
+  const references = [];
+
+  function checkNext() {
+    if (checkIndex >= checks.length) {
+      // All checks done
+      if (references.length > 0) {
+        return res.status(400).json({
+          error: 'FOREIGN KEY constraint failed',
+          references: references,
+          message: `Cannot delete product ${id}. It is being used in: ${references.join(', ')}`
+        });
+      }
+
+      // No references found, safe to delete. First delete BOM entries, then the product
+      db.run("DELETE FROM bom WHERE product_id=?", [id], function(bomErr) {
+        // Ignore BOM delete errors, continue with product deletion
+        db.run("DELETE FROM products WHERE id=?", [id], function(err) {
+          if (err) {
+            res.status(500).json({ error: err.message });
+          } else {
+            res.json({ message: 'Product deleted successfully' });
+          }
+        });
+      });
     } else {
-      res.json({ message: 'Product deleted successfully' });
+      const check = checks[checkIndex];
+      db.get(check.query, [id], (err, row) => {
+        if (!err && row && row.count > 0) {
+          references.push(`${check.name} (${row.count})`);
+        }
+        checkIndex++;
+        checkNext();
+      });
     }
-  });
+  }
+
+  checkNext();
 });
 
 // Rename product ID and cascade to referencing tables

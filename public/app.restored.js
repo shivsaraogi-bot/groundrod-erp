@@ -8938,9 +8938,12 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
       } else {
         const error = await res.json();
 
-        // Check if it's a foreign key constraint error
-        if (error.error && error.error.includes('FOREIGN KEY constraint failed')) {
-          alert(`❌ Cannot delete product "${id}"\n\nThis product is being used in:\n• Client Purchase Orders\n• Inventory records\n• Production history\n• Shipments\n\nYou must remove or reassign all references to this product before deleting it.`);
+        // Check if it's a foreign key constraint error with specific references
+        if (error.references && error.references.length > 0) {
+          const refList = error.references.map(ref => `• ${ref}`).join('\n');
+          alert(`❌ Cannot delete product "${id}"\n\nThis product is being used in:\n${refList}\n\nYou must remove or reassign all references to this product before deleting it.`);
+        } else if (error.error && error.error.includes('FOREIGN KEY constraint failed')) {
+          alert(`❌ Cannot delete product "${id}"\n\nThis product is being used elsewhere in the system.\n\nYou must remove or reassign all references to this product before deleting it.`);
         } else {
           alert('❌ Error: ' + (error.error || 'Failed to delete product'));
         }
