@@ -32,7 +32,13 @@
       "Bash(Start-Sleep 5)",
       "Bash(npm info:*)",
       "Bash(npm uninstall:*)",
-      "Bash(Stop-Process -Id 58804 -Force)"
+      "Bash(Stop-Process -Id 58804 -Force)",
+      "Bash(__NEW_LINE__ This product is being used in:)",
+      "Bash(• Client Purchase Orders)",
+      "Bash(• Inventory records)",
+      "Bash(• Production history)",
+      "Bash(• Shipments)",
+      "Bash(__NEW_LINE__ You must remove or reassign all references to this product before deleting it.\"\n\nThis helps users understand WHY deletion failed and WHAT to do about it.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []
