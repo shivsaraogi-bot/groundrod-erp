@@ -4986,6 +4986,73 @@ app.get('/api/dashboard/risk-analysis', (req, res) => {
   });
 });
 
+// Diagnostic endpoint to check line items
+app.get('/api/dashboard/diagnostic', (req, res) => {
+  db.all(`
+    SELECT
+      li.id as line_item_id,
+      li.po_id,
+      li.product_id,
+      li.quantity,
+      li.delivered,
+      po.id as po_exists,
+      po.status as po_status,
+      p.id as product_exists
+    FROM client_po_line_items li
+    LEFT JOIN client_purchase_orders po ON li.po_id = po.id
+    LEFT JOIN products p ON li.product_id = p.id
+    WHERE li.delivered < li.quantity
+  `, (err, items) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({
+      items,
+      count: items.length,
+      orphaned: items.filter(i => !i.po_exists).length,
+      withDeletedOrders: items.filter(i => i.po_exists && (i.po_status === 'Completed' || i.po_status === 'Cancelled')).length
+    });
+  });
+});
+
+// Cleanup endpoint to delete orphaned and completed/cancelled order line items
+app.delete('/api/dashboard/cleanup-orphaned-items', (req, res) => {
+  let orphanedCount = 0;
+  let completedCount = 0;
+
+  db.serialize(() => {
+    // Delete line items with no parent order
+    db.run(`
+      DELETE FROM client_po_line_items
+      WHERE po_id NOT IN (SELECT id FROM client_purchase_orders)
+    `, function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      orphanedCount = this.changes;
+
+      // Delete line items from Completed or Cancelled orders
+      db.run(`
+        DELETE FROM client_po_line_items
+        WHERE po_id IN (
+          SELECT id FROM client_purchase_orders
+          WHERE status IN ('Completed', 'Cancelled')
+        )
+      `, function(err) {
+        if (err) {
+          return res.status(500).json({ error: err.message });
+        }
+        completedCount = this.changes;
+
+        res.json({
+          message: 'Line items cleaned up',
+          orphanedDeleted: orphanedCount,
+          completedCancelledDeleted: completedCount,
+          totalDeleted: orphanedCount + completedCount
+        });
+      });
+    });
+  });
+});
+
 // Update raw materials inventory (for setting starting amounts or manual adjustments)
 app.put('/api/raw-materials/:material', (req, res) => {
   const { material } = req.params;
