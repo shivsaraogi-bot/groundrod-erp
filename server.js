@@ -4901,17 +4901,21 @@ app.get('/api/dashboard/stats', (req, res) => {
       stats.total_finished = row ? row.total_finished || 0 : 0;
       
       db.get(`
-        SELECT SUM(li.quantity - li.delivered) as pending 
+        SELECT SUM(li.quantity - li.delivered) as pending
         FROM client_po_line_items li
+        JOIN client_purchase_orders po ON li.po_id = po.id
         WHERE li.delivered < li.quantity
+          AND po.status NOT IN ('Completed', 'Cancelled')
       `, (err, row) => {
         stats.pending_client_orders = row ? row.pending || 0 : 0;
-        
+
         db.get(`
-          SELECT COUNT(DISTINCT po.id) as overdue 
+          SELECT COUNT(DISTINCT po.id) as overdue
           FROM client_purchase_orders po
           LEFT JOIN client_po_line_items li ON po.id = li.po_id
-          WHERE po.due_date < date('now') AND li.delivered < li.quantity
+          WHERE po.due_date < date('now')
+            AND li.delivered < li.quantity
+            AND po.status NOT IN ('Completed', 'Cancelled')
         `, (err, row) => {
           stats.overdue_orders = row ? row.overdue || 0 : 0;
           
