@@ -2454,8 +2454,8 @@ function Dashboard({ stats, riskAnalysis, clientPurchaseOrders, inventory, setAc
                 try {
                   const res = await fetch(`${API_URL}/dashboard/cleanup-orphaned-items`, { method: 'DELETE' });
                   const result = await res.json();
-                  alert(`✅ Cleaned up ${result.totalDeleted} orphaned line items.\n\nOrphaned: ${result.orphanedDeleted}\nCompleted/Cancelled: ${result.completedCancelledDeleted}\n\nRefreshing data...`);
-                  fetchAllData();
+                  alert(`✅ Cleaned up ${result.totalDeleted} orphaned line items.\n\nOrphaned: ${result.orphanedDeleted}\nCompleted/Cancelled: ${result.completedCancelledDeleted}\n\nThe page will now refresh.`);
+                  window.location.reload();
                 } catch (err) {
                   alert('❌ Cleanup failed: ' + err.message);
                 }
