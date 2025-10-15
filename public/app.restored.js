@@ -3541,7 +3541,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
   async function saveEdit() {
     try {
       // Save PO header
-      const res = await fetch(`${API_URL}/purchase-orders/${editForm.id}`, {
+      const res = await fetch(`${API_URL}/client-purchase-orders/${editForm.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editForm)
@@ -3621,7 +3621,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
 
   async function del(id) {
     if (!confirm('Delete Client PO?')) return;
-    await fetch(`${API_URL}/purchase-orders/${id}`, { method: 'DELETE' });
+    await fetch(`${API_URL}/client-purchase-orders/${id}`, { method: 'DELETE' });
     await refreshLocalOrders();
     if (onRefresh) await onRefresh();
   }
