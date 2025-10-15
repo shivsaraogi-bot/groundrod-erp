@@ -7730,8 +7730,8 @@ function ProductMaster({ products, calculateWeights, onRefresh }){
   const [cols, setCols] = useState({ id:true, description:true, diameter:true, length:true, coating:true });
   function update(k,v){ setForm({ ...form, [k]: v }) }
   async function add(){ await fetch(`${API_URL}/products`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...form, diameter:Number(form.diameter), length:Number(form.length), coating:Number(form.coating) }) }); setForm({ id:'', description:'', diameter:0, length:0, coating:0 }); onRefresh?.(); }
-  async function save(p){ await fetch(`${API_URL}/products/${p.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(p) }); setEditingId(null); onRefresh?.(); }
-  async function del(id){ if(!confirm('Delete product?')) return; await fetch(`${API_URL}/products/${id}`, { method:'DELETE' }); onRefresh?.(); }
+  async function save(p){ await fetch(`${API_URL}/products/${encodeURIComponent(p.id)}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(p) }); setEditingId(null); onRefresh?.(); }
+  async function del(id){ if(!confirm('Delete product?')) return; await fetch(`${API_URL}/products/${encodeURIComponent(id)}`, { method:'DELETE' }); onRefresh?.(); }
   return (
     React.createElement('div', { className: 'space-y-4' },
       React.createElement(Section, { title: 'Add Product' },
@@ -9037,7 +9037,7 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
     const diameterMM = editForm.diameterUnit ? convertToMM(editForm.steel_diameter, editForm.diameterUnit) : Number(editForm.steel_diameter);
     const lengthMM = editForm.lengthUnit ? convertToMM(editForm.length, editForm.lengthUnit) : Number(editForm.length);
     const urlId = editForm.originalId || editForm.id;
-    await fetch(`${API_URL}/products/${urlId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...editForm, steel_diameter:diameterMM, length:lengthMM, copper_coating:Number(editForm.copper_coating) }) });
+    await fetch(`${API_URL}/products/${encodeURIComponent(urlId)}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...editForm, steel_diameter:diameterMM, length:lengthMM, copper_coating:Number(editForm.copper_coating) }) });
     setEditingProduct(null);
     onRefresh?.();
   }
