@@ -3527,7 +3527,8 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
 
     // Fetch line items
     try {
-      const res = await fetch(`${API_URL}/client-purchase-orders/${po.id}/items`);
+      const encodedPoId = encodeURIComponent(po.id);
+      const res = await fetch(`${API_URL}/client-purchase-orders/${encodedPoId}/items`);
       if (res.ok) {
         const items = await res.json();
         setEditLineItems(items);
@@ -3540,8 +3541,11 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
 
   async function saveEdit() {
     try {
+      // URL encode the PO ID to handle slashes and special characters
+      const encodedPoId = encodeURIComponent(editForm.id);
+
       // Save PO header
-      const res = await fetch(`${API_URL}/client-purchase-orders/${editForm.id}`, {
+      const res = await fetch(`${API_URL}/client-purchase-orders/${encodedPoId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editForm)
@@ -3574,7 +3578,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
 
         if (item.id) {
           // Update existing line item
-          const lineRes = await fetch(`${API_URL}/client-purchase-orders/${editForm.id}/items/${item.id}`, {
+          const lineRes = await fetch(`${API_URL}/client-purchase-orders/${encodedPoId}/items/${item.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -3592,7 +3596,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
           }
         } else {
           // Add new line item
-          const lineRes = await fetch(`${API_URL}/client-purchase-orders/${editForm.id}/items`, {
+          const lineRes = await fetch(`${API_URL}/client-purchase-orders/${encodedPoId}/items`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -4347,7 +4351,8 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                               // Existing item - delete from server
                               if (confirm('Delete this line item?')) {
                                 try {
-                                  const res = await fetch(`${API_URL}/client-purchase-orders/${editForm.id}/items/${item.id}`, { method: 'DELETE' });
+                                  const encodedPoId = encodeURIComponent(editForm.id);
+                                  const res = await fetch(`${API_URL}/client-purchase-orders/${encodedPoId}/items/${item.id}`, { method: 'DELETE' });
                                   if (res.ok) {
                                     setEditLineItems(editLineItems.filter((_, i) => i !== idx));
                                   } else {
