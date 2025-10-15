@@ -4242,9 +4242,9 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
           ),
 
           // Line Items Section
-          editLineItems.length > 0 && React.createElement('div', { className: 'border-t pt-4' },
+          React.createElement('div', { className: 'border-t pt-4' },
             React.createElement('h4', { className: 'font-semibold text-lg mb-3' }, 'Line Items & Fulfillment'),
-            React.createElement('div', { className: 'overflow-x-auto' },
+            editLineItems.length > 0 && React.createElement('div', { className: 'overflow-x-auto' },
               React.createElement('table', { className: 'min-w-full border-collapse text-sm' },
                 React.createElement('thead', null,
                   React.createElement('tr', { className: 'bg-gray-100' },
