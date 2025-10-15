@@ -3568,22 +3568,44 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
         }
       }
 
-      // Save each line item
+      // Save each line item (POST for new, PUT for existing)
       for (const item of editLineItems) {
-        const lineRes = await fetch(`${API_URL}/client-purchase-orders/${editForm.id}/items/${item.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            product_id: item.product_id,
-            quantity: Number(item.quantity),
-            unit_price: Number(item.unit_price),
-            currency: item.currency,
-            due_date: item.due_date
-          })
-        });
+        if (!item.product_id) continue; // Skip empty rows
 
-        if (!lineRes.ok) {
-          console.error(`Failed to update line item ${item.id}`);
+        if (item.id) {
+          // Update existing line item
+          const lineRes = await fetch(`${API_URL}/client-purchase-orders/${editForm.id}/items/${item.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              product_id: item.product_id,
+              quantity: Number(item.quantity),
+              unit_price: Number(item.unit_price),
+              currency: item.currency,
+              due_date: item.due_date
+            })
+          });
+
+          if (!lineRes.ok) {
+            console.error(`Failed to update line item ${item.id}`);
+          }
+        } else {
+          // Add new line item
+          const lineRes = await fetch(`${API_URL}/client-purchase-orders/${editForm.id}/items`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              product_id: item.product_id,
+              quantity: Number(item.quantity),
+              unit_price: Number(item.unit_price),
+              currency: item.currency,
+              due_date: item.due_date
+            })
+          });
+
+          if (!lineRes.ok) {
+            console.error('Failed to add new line item');
+          }
         }
       }
 
@@ -4226,7 +4248,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
               React.createElement('table', { className: 'min-w-full border-collapse text-sm' },
                 React.createElement('thead', null,
                   React.createElement('tr', { className: 'bg-gray-100' },
-                    ['Product', 'Description', 'Quantity', 'Delivered', 'Remaining', 'Unit Price', 'Currency', 'Due Date'].map(h =>
+                    ['Product', 'Description', 'Quantity', 'Delivered', 'Remaining', 'Unit Price', 'Currency', 'Due Date', 'Actions'].map(h =>
                       React.createElement('th', { key: h, className: 'p-2 border' }, h)
                     )
                   )
@@ -4302,11 +4324,52 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                             setEditLineItems(updated);
                           }
                         })
+                      ),
+                      React.createElement('td', { className: 'p-2 border text-center' },
+                        React.createElement('button', {
+                          onClick: async () => {
+                            if (item.id) {
+                              // Existing item - delete from server
+                              if (confirm('Delete this line item?')) {
+                                try {
+                                  const res = await fetch(`${API_URL}/client-purchase-orders/${editForm.id}/items/${item.id}`, { method: 'DELETE' });
+                                  if (res.ok) {
+                                    setEditLineItems(editLineItems.filter((_, i) => i !== idx));
+                                  } else {
+                                    alert('Failed to delete line item');
+                                  }
+                                } catch (err) {
+                                  alert('Error deleting line item: ' + err.message);
+                                }
+                              }
+                            } else {
+                              // New unsaved item - just remove from array
+                              setEditLineItems(editLineItems.filter((_, i) => i !== idx));
+                            }
+                          },
+                          className: 'text-red-600 hover:text-red-800 text-lg'
+                        }, '🗑️')
                       )
                     )
                   )
                 )
               )
+            ),
+            React.createElement('button', {
+              onClick: () => {
+                setEditLineItems([...editLineItems, {
+                  product_id: '',
+                  quantity: 0,
+                  delivered: 0,
+                  unit_price: 0,
+                  currency: editForm.currency || 'INR',
+                  due_date: editForm.due_date || ''
+                }]);
+              },
+              className: 'mt-3 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2'
+            },
+              React.createElement('span', null, '➕'),
+              'Add Item'
             )
           ),
 
