@@ -3582,6 +3582,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
               quantity: Number(item.quantity),
               unit_price: Number(item.unit_price),
               currency: item.currency,
+              marking: item.marking || '',
               due_date: item.due_date
             })
           });
@@ -3599,6 +3600,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
               quantity: Number(item.quantity),
               unit_price: Number(item.unit_price),
               currency: item.currency,
+              marking: item.marking || '',
               due_date: item.due_date
             })
           });
@@ -4248,7 +4250,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
               React.createElement('table', { className: 'min-w-full border-collapse text-sm' },
                 React.createElement('thead', null,
                   React.createElement('tr', { className: 'bg-gray-100' },
-                    ['Product', 'Description', 'Quantity', 'Delivered', 'Remaining', 'Unit Price', 'Currency', 'Due Date', 'Actions'].map(h =>
+                    ['Product', 'Description', 'Quantity', 'Delivered', 'Remaining', 'Unit Price', 'Currency', 'Marking', 'Due Date', 'Actions'].map(h =>
                       React.createElement('th', { key: h, className: 'p-2 border' }, h)
                     )
                   )
@@ -4315,6 +4317,19 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                       ),
                       React.createElement('td', { className: 'p-2 border' },
                         React.createElement('input', {
+                          type: 'text',
+                          className: 'border rounded px-2 py-1 w-full text-sm',
+                          placeholder: 'Marking/Stamping',
+                          value: item.marking || '',
+                          onChange: e => {
+                            const updated = [...editLineItems];
+                            updated[idx].marking = e.target.value;
+                            setEditLineItems(updated);
+                          }
+                        })
+                      ),
+                      React.createElement('td', { className: 'p-2 border' },
+                        React.createElement('input', {
                           type: 'date',
                           className: 'border rounded px-2 py-1 w-full',
                           value: item.due_date || '',
@@ -4363,6 +4378,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                   delivered: 0,
                   unit_price: 0,
                   currency: editForm.currency || 'INR',
+                  marking: '',
                   due_date: editForm.due_date || ''
                 }]);
               },
