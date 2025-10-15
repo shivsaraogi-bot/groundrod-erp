@@ -1765,6 +1765,25 @@ app.post('/api/client-purchase-orders', (req, res) => {
   );
 });
 
+// Update client PO header
+app.put('/api/client-purchase-orders/:id', (req, res) => {
+  const { id } = req.params;
+  const { customer_id, po_date, due_date, currency, status, notes, advance_percent, balance_payment_terms, mode_of_delivery, expected_delivery_date, marking } = req.body;
+
+  db.run(`
+    UPDATE client_purchase_orders
+    SET customer_id = ?, po_date = ?, due_date = ?, currency = ?, status = ?, notes = ?,
+        advance_percent = ?, balance_payment_terms = ?, mode_of_delivery = ?, expected_delivery_date = ?, marking = ?,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `, [customer_id, po_date, due_date, currency, status, notes || '', advance_percent || 0, balance_payment_terms || 'on_dispatch', mode_of_delivery || 'FOB', expected_delivery_date || null, marking || '', id],
+  function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Purchase order not found' });
+    res.json({ message: 'Client PO updated successfully', id });
+  });
+});
+
 // Client PO line items CRUD
 app.get('/api/client-purchase-orders/:id/items', (req, res) => {
   const { id } = req.params;
@@ -1775,7 +1794,7 @@ app.get('/api/client-purchase-orders/:id/items', (req, res) => {
 });
 
 app.post('/api/client-purchase-orders/:id/items', (req, res) => {
-  const { id } = req.params; const { product_id, quantity=0, unit_price=0, currency='INR' } = req.body;
+  const { id } = req.params; const { product_id, quantity=0, unit_price=0, currency='INR', marking='', due_date } = req.body;
   if (!product_id) return res.status(400).json({ error: 'product_id required' });
   const qty = Number(quantity||0); const up = Number(unit_price||0);
 
@@ -1783,7 +1802,7 @@ app.post('/api/client-purchase-orders/:id/items', (req, res) => {
     db.run('BEGIN');
 
     // Insert PO line item
-    db.run(`INSERT INTO client_po_line_items (po_id, product_id, quantity, unit_price, line_total, delivered, currency) VALUES (?, ?, ?, ?, ?, 0, ?)`, [id, product_id, qty, up, qty*up, currency], function(err){
+    db.run(`INSERT INTO client_po_line_items (po_id, product_id, quantity, unit_price, line_total, delivered, currency, marking, due_date) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`, [id, product_id, qty, up, qty*up, currency, marking || '', due_date || null], function(err){
       if (err) {
         try { db.run('ROLLBACK'); } catch(_) {}
         return res.status(500).json({ error: err.message });
@@ -1813,7 +1832,7 @@ app.post('/api/client-purchase-orders/:id/items', (req, res) => {
 });
 
 app.put('/api/client-purchase-orders/:id/items/:itemId', (req, res) => {
-  const { id, itemId } = req.params; const { product_id, quantity, unit_price, currency, due_date } = req.body;
+  const { id, itemId } = req.params; const { product_id, quantity, unit_price, currency, due_date, marking } = req.body;
   db.get(`SELECT product_id, quantity, delivered FROM client_po_line_items WHERE id=? AND po_id=?`, [itemId, id], (e, row)=>{
     if (e) return res.status(500).json({ error: e.message });
     if (!row) return res.status(404).json({ error: 'Item not found' });
@@ -1826,7 +1845,7 @@ app.put('/api/client-purchase-orders/:id/items/:itemId', (req, res) => {
     db.serialize(() => {
       db.run('BEGIN');
 
-      db.run(`UPDATE client_po_line_items SET product_id=?, quantity=?, unit_price=?, currency=?, due_date=?, line_total=? WHERE id=? AND po_id=?`, [product_id, newQty, up, currency || 'INR', due_date || null, newQty*up, itemId, id], function(err){
+      db.run(`UPDATE client_po_line_items SET product_id=?, quantity=?, unit_price=?, currency=?, due_date=?, marking=?, line_total=? WHERE id=? AND po_id=?`, [product_id, newQty, up, currency || 'INR', due_date || null, marking || '', newQty*up, itemId, id], function(err){
         if (err) {
           try { db.run('ROLLBACK'); } catch(_) {}
           return res.status(500).json({ error: err.message });
