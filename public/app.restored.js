@@ -7991,7 +7991,7 @@ function CustomerManagementEx({ customers, onRefresh }){
                       React.createElement('div', { className:'flex-1' },
                         React.createElement('div', { className:'font-semibold flex items-center gap-2' },
                           contact.name,
-                          contact.is_primary && React.createElement('span', { className:'text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded' }, '⭐ Primary')
+                          !!contact.is_primary && React.createElement('span', { className:'text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded' }, '⭐ Primary')
                         ),
                         contact.title && React.createElement('div', { className:'text-sm text-gray-600' }, contact.title),
                         React.createElement('div', { className:'text-sm text-gray-700 mt-1' },
