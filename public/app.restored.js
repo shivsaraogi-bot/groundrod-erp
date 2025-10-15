@@ -3642,7 +3642,8 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
       // Expand the row and fetch line items
       if (!lineItems[poId]) {
         try {
-          const res = await fetch(`${API_URL}/client-purchase-orders/${poId}/items`);
+          const encodedPoId = encodeURIComponent(poId);
+          const res = await fetch(`${API_URL}/client-purchase-orders/${encodedPoId}/items`);
           if (res.ok) {
             const items = await res.json();
             setLineItems(prev => ({ ...prev, [poId]: items }));
