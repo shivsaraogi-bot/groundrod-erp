@@ -428,6 +428,11 @@ function initializeDatabase() {
       FOREIGN KEY (product_id) REFERENCES products(id)
     )`);
 
+    // Add missing columns to client_po_line_items if they don't exist
+    db.run("ALTER TABLE client_po_line_items ADD COLUMN currency TEXT DEFAULT 'INR'", (err) => { /* ignore if exists */ });
+    db.run("ALTER TABLE client_po_line_items ADD COLUMN marking TEXT", (err) => { /* ignore if exists */ });
+    db.run("ALTER TABLE client_po_line_items ADD COLUMN due_date DATE", (err) => { /* ignore if exists */ });
+
     // Uploads dir for PDF imports
     try { require('fs').mkdirSync(require('path').join(__dirname, 'uploads'), { recursive: true }); } catch {}
 
