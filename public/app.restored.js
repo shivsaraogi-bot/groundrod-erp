@@ -4055,7 +4055,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
             React.createElement('table', { className: 'min-w-full border-collapse text-sm bg-white' },
               React.createElement('thead', null,
                 React.createElement('tr', { className: 'bg-blue-100 border-b-2 border-blue-300' },
-                  ['Product', 'Description', 'Quantity', 'Unit Price', 'Due Date', 'Line Total'].map(h =>
+                  ['Product', 'Description', 'Quantity', 'Unit Price', 'Marking', 'Due Date', 'Line Total'].map(h =>
                     React.createElement('th', { key: h, className: 'p-3 text-left font-semibold text-gray-700' }, h)
                   )
                 )
@@ -4067,6 +4067,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                     React.createElement('td', { className: 'p-3' }, item.description || '-'),
                     React.createElement('td', { className: 'p-3 text-right font-semibold' }, formatQuantity(item.quantity)),
                     React.createElement('td', { className: 'p-3 text-right' }, formatCurrency(item.unit_price || 0, localOrders.find(po => po.id === poId)?.currency || 'INR')),
+                    React.createElement('td', { className: 'p-3 text-sm text-gray-700' }, item.marking || '-'),
                     React.createElement('td', { className: 'p-3' }, item.due_date || '-'),
                     React.createElement('td', { className: 'p-3 text-right font-bold text-green-700' }, formatCurrency((item.quantity * item.unit_price) || 0, localOrders.find(po => po.id === poId)?.currency || 'INR'))
                   )
