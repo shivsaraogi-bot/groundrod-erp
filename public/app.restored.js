@@ -4021,7 +4021,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
             );
           }},
           { key: 'notes', label: 'Notes', render: (val) => val || '-' },
-          { key: 'pdf_path', label: 'PDF', render: (val) => val ? React.createElement('a', { href: `${API_URL}${val}`, target: '_blank', className: 'text-blue-600 hover:underline' }, '📄 View') : '-' }
+          { key: 'pdf_path', label: 'PDF', render: (val) => val ? React.createElement('a', { href: `${window.location.origin}/${val}`, target: '_blank', className: 'text-blue-600 hover:underline' }, '📄 View') : '-' }
         ],
         primaryKey: 'id',
         onRowClick: handleRowClick,
@@ -4224,7 +4224,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
               editingPO.pdf_path && React.createElement('div', { className: 'md:col-span-2' },
                 React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Current PDF'),
                 React.createElement('a', {
-                  href: `${API_URL}${editingPO.pdf_path}`,
+                  href: `${window.location.origin}/${editingPO.pdf_path}`,
                   target: '_blank',
                   className: 'text-blue-600 hover:underline flex items-center gap-2'
                 },
