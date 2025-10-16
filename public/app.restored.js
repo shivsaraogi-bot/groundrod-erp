@@ -5521,7 +5521,8 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
       return;
     }
     try {
-      const res = await fetch(`${API_URL}/invoices/generate-from-po/${generateForm.po_id}`, {
+      const encodedPoId = encodeURIComponent(generateForm.po_id);
+      const res = await fetch(`${API_URL}/invoices/generate-from-po/${encodedPoId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(generateForm)
