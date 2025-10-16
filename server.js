@@ -4870,12 +4870,35 @@ app.delete('/api/production/:id', (req, res) => {
 });
 
 app.get('/api/raw-materials', (req, res) => {
-  db.all("SELECT * FROM raw_materials_inventory", (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      res.json(rows || []);
-    }
+  // Calculate committed stock dynamically from active vendor POs
+  db.all(`
+    SELECT vli.material_type, SUM(vli.quantity) as total_committed
+    FROM vendor_po_line_items vli
+    JOIN vendor_purchase_orders vpo ON vli.po_id = vpo.id
+    WHERE vpo.status NOT IN ('Completed', 'Cancelled')
+      AND vli.item_type = 'Raw Material'
+    GROUP BY vli.material_type
+  `, (err, vendorPOs) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    const committedByMaterial = {};
+    (vendorPOs || []).forEach(vpo => {
+      committedByMaterial[vpo.material_type] = Number(vpo.total_committed || 0);
+    });
+
+    db.all("SELECT * FROM raw_materials_inventory", (err2, rows) => {
+      if (err2) {
+        res.status(500).json({ error: err2.message });
+      } else {
+        // Override committed_stock with dynamically calculated values
+        const materials = (rows || []).map(row => ({
+          ...row,
+          committed_stock: committedByMaterial[row.material] || 0,
+          available_stock: Number(row.current_stock || 0) - (committedByMaterial[row.material] || 0)
+        }));
+        res.json(materials);
+      }
+    });
   });
 });
 
