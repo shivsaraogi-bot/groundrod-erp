@@ -5035,6 +5035,23 @@ app.get('/api/dashboard/risk-analysis', (req, res) => {
   });
 });
 
+// Cleanup endpoint to fix corrupted PDF paths
+app.post('/api/dashboard/cleanup-bad-pdf-paths', (req, res) => {
+  db.run(`
+    UPDATE client_purchase_orders
+    SET pdf_path = NULL
+    WHERE pdf_path IS NOT NULL
+      AND (pdf_path LIKE '%app.restored.js%'
+           OR pdf_path NOT LIKE '%.pdf')
+  `, function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({
+      message: 'Cleaned up bad PDF paths',
+      rows_updated: this.changes
+    });
+  });
+});
+
 // Diagnostic endpoint to check vendor POs and committed stock
 app.get('/api/dashboard/diagnostic-vendor', (req, res) => {
   db.all(`
