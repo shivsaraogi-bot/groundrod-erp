@@ -1111,6 +1111,12 @@ function CustomerAnalytics({ onRefresh }) {
 
   const { customers, summary } = analyticsData;
 
+  // Helper to format currency symbols
+  const getCurrencySymbol = (curr) => {
+    const symbols = { INR: '₹', USD: '$', EUR: '€', AED: 'د.إ' };
+    return symbols[curr] || curr + ' ';
+  };
+
   return React.createElement('div', { className: 'space-y-6' },
     React.createElement('div', { className: 'bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg shadow-lg p-6' },
       React.createElement('div', { className: 'flex items-center justify-between mb-6' },
@@ -1123,19 +1129,20 @@ function CustomerAnalytics({ onRefresh }) {
           className: 'px-4 py-2 bg-white text-purple-600 rounded-lg font-semibold hover:bg-purple-50 transition'
         }, '🔄 Refresh')
       ),
-      React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-4' },
+      React.createElement('div', { className: 'grid grid-cols-1 gap-4' },
         React.createElement('div', { className: 'bg-white bg-opacity-20 backdrop-blur rounded-lg p-4' },
           React.createElement('div', { className: 'text-4xl font-bold' }, summary.totalCustomers),
           React.createElement('div', { className: 'text-sm' }, 'Active Customers')
         ),
-        React.createElement('div', { className: 'bg-white bg-opacity-30 backdrop-blur rounded-lg p-4' },
-          React.createElement('div', { className: 'text-3xl font-bold' }, '₹' + formatQuantity(summary.totalRevenue)),
-          React.createElement('div', { className: 'text-sm' }, 'Total Revenue')
-        ),
-        React.createElement('div', { className: 'bg-white bg-opacity-30 backdrop-blur rounded-lg p-4' },
-          React.createElement('div', { className: 'text-3xl font-bold' }, '₹' + formatQuantity(summary.avgRevenuePerCustomer)),
-          React.createElement('div', { className: 'text-sm' }, 'Avg Revenue/Customer')
-        )
+        summary.revenue_by_currency && Object.keys(summary.revenue_by_currency).length > 0 &&
+          React.createElement('div', { className: 'bg-white bg-opacity-30 backdrop-blur rounded-lg p-4' },
+            React.createElement('div', { className: 'text-sm mb-2 font-semibold' }, 'Total Revenue'),
+            Object.entries(summary.revenue_by_currency).map(([currency, amount]) =>
+              React.createElement('div', { key: currency, className: 'text-2xl font-bold' },
+                getCurrencySymbol(currency) + formatQuantity(amount)
+              )
+            )
+          )
       )
     ),
 
@@ -1144,7 +1151,7 @@ function CustomerAnalytics({ onRefresh }) {
         React.createElement('table', { className: 'min-w-full border-collapse' },
           React.createElement('thead', null,
             React.createElement('tr', { className: 'bg-gray-100' },
-              ['Rank', 'Customer', 'Total Orders', 'Total Revenue', 'Avg Order Value', 'Last Order', 'Products Ordered'].map(h =>
+              ['Rank', 'Customer', 'Total Orders', 'Total Revenue', 'Last Order', 'Products Ordered'].map(h =>
                 React.createElement('th', { key: h, className: 'p-3 border text-left font-semibold' }, h)
               )
             )
@@ -1159,8 +1166,13 @@ function CustomerAnalytics({ onRefresh }) {
                 ),
                 React.createElement('td', { className: 'p-3 border font-semibold' }, cust.customer_name),
                 React.createElement('td', { className: 'p-3 border text-center' }, cust.total_orders),
-                React.createElement('td', { className: 'p-3 border text-right font-bold text-green-600' }, '₹' + formatQuantity(cust.total_revenue)),
-                React.createElement('td', { className: 'p-3 border text-right' }, '₹' + formatQuantity(cust.avg_order_value)),
+                React.createElement('td', { className: 'p-3 border text-right font-bold text-green-600' },
+                  cust.revenue_by_currency && Object.entries(cust.revenue_by_currency).map(([currency, amount]) =>
+                    React.createElement('div', { key: currency },
+                      getCurrencySymbol(currency) + formatQuantity(amount)
+                    )
+                  )
+                ),
                 React.createElement('td', { className: 'p-3 border' }, cust.last_order_date || 'N/A'),
                 React.createElement('td', { className: 'p-3 border text-sm text-gray-600' }, cust.products_ordered.length + ' products')
               )

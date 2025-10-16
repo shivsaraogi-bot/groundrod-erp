@@ -4372,40 +4372,57 @@ app.get('/api/analytics/delivery-performance', (_req, res) => {
 
 // ============= Customer Analytics =============
 app.get('/api/analytics/customers', (_req, res) => {
-  // Get customer revenue and order analytics
+  // Get customer revenue and order analytics with currency breakdown
   db.all(`
     SELECT
       c.id as customer_id,
       c.name as customer_name,
       COUNT(DISTINCT po.id) as total_orders,
-      SUM(li.quantity * li.unit_price) as total_revenue,
-      AVG(li.quantity * li.unit_price) as avg_order_value,
       MAX(po.po_date) as last_order_date,
-      GROUP_CONCAT(DISTINCT li.product_id) as products_ordered
+      GROUP_CONCAT(DISTINCT li.product_id) as products_ordered,
+      li.currency,
+      SUM(li.quantity * li.unit_price) as revenue_in_currency
     FROM customers c
     LEFT JOIN client_purchase_orders po ON c.id = po.customer_id AND (po.is_deleted IS NULL OR po.is_deleted = 0)
     LEFT JOIN client_po_line_items li ON po.id = li.po_id
-    GROUP BY c.id, c.name
+    WHERE li.currency IS NOT NULL
+    GROUP BY c.id, c.name, li.currency
     HAVING total_orders > 0
-    ORDER BY total_revenue DESC
-  `, (err, customers) => {
+    ORDER BY c.name, li.currency
+  `, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
 
-    const customerAnalytics = (customers || []).map(c => ({
-      customer_id: c.customer_id,
-      customer_name: c.customer_name,
-      total_orders: Number(c.total_orders || 0),
-      total_revenue: Number(c.total_revenue || 0),
-      avg_order_value: Number(c.avg_order_value || 0),
-      last_order_date: c.last_order_date,
-      products_ordered: c.products_ordered ? c.products_ordered.split(',') : []
-    }));
+    // Group by customer and aggregate currencies
+    const customerMap = {};
+    (rows || []).forEach(row => {
+      const customerId = row.customer_id;
+      if (!customerMap[customerId]) {
+        customerMap[customerId] = {
+          customer_id: customerId,
+          customer_name: row.customer_name,
+          total_orders: Number(row.total_orders || 0),
+          last_order_date: row.last_order_date,
+          products_ordered: row.products_ordered ? [...new Set(row.products_ordered.split(','))] : [],
+          revenue_by_currency: {}
+        };
+      }
+      const currency = row.currency || 'INR';
+      customerMap[customerId].revenue_by_currency[currency] = Number(row.revenue_in_currency || 0);
+    });
+
+    const customerAnalytics = Object.values(customerMap);
+
+    // Calculate summary by currency
+    const revenueByCurrency = {};
+    customerAnalytics.forEach(c => {
+      Object.entries(c.revenue_by_currency).forEach(([currency, amount]) => {
+        revenueByCurrency[currency] = (revenueByCurrency[currency] || 0) + amount;
+      });
+    });
 
     const summary = {
       totalCustomers: customerAnalytics.length,
-      totalRevenue: customerAnalytics.reduce((sum, c) => sum + c.total_revenue, 0),
-      avgRevenuePerCustomer: customerAnalytics.length > 0 ?
-        customerAnalytics.reduce((sum, c) => sum + c.total_revenue, 0) / customerAnalytics.length : 0
+      revenue_by_currency: revenueByCurrency
     };
 
     res.json({ customers: customerAnalytics, summary });
