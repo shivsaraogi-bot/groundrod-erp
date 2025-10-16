@@ -4976,38 +4976,84 @@ app.get('/api/dashboard/risk-analysis', (req, res) => {
     pendingOrders.forEach(order => {
       const steelWeight = (Math.PI * Math.pow(order.steel_diameter / 2000, 2) * order.length * 7850) / 1000;
       const copperWeight = (Math.PI * (order.steel_diameter / 1000) * (order.copper_coating / 1000000) * order.length * 8960) / 1000;
-      
+
       totalSteelNeeded += steelWeight * order.pending_qty;
       totalCopperNeeded += copperWeight * order.pending_qty;
     });
 
-    db.all("SELECT * FROM raw_materials_inventory", (err, materials) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
+    // Calculate committed stock dynamically from active vendor POs
+    db.all(`
+      SELECT vli.material_type, SUM(vli.quantity) as total_qty
+      FROM vendor_po_line_items vli
+      JOIN vendor_purchase_orders vpo ON vli.po_id = vpo.id
+      WHERE vpo.status NOT IN ('Completed', 'Cancelled')
+        AND vli.item_type = 'Raw Material'
+      GROUP BY vli.material_type
+    `, (err2, vendorPOs) => {
+      if (err2) {
+        return res.status(500).json({ error: err2.message });
       }
 
-      const steel = materials.find(m => m.material === 'Steel') || { current_stock: 0, committed_stock: 0 };
-      const copper = materials.find(m => m.material === 'Copper Anode' || m.material === 'Copper') || { current_stock: 0, committed_stock: 0 };
+      const committedStock = {};
+      (vendorPOs || []).forEach(vpo => {
+        committedStock[vpo.material_type] = Number(vpo.total_qty || 0);
+      });
 
-      // For risk management, use current_stock (what's actually on hand)
-      // committed_stock represents materials on order but not yet received
-      const steelAvailable = Number(steel.current_stock || 0);
-      const copperAvailable = Number(copper.current_stock || 0);
+      db.all("SELECT * FROM raw_materials_inventory", (err3, materials) => {
+        if (err3) {
+          return res.status(500).json({ error: err3.message });
+        }
+
+        const steel = materials.find(m => m.material === 'Steel') || { current_stock: 0 };
+        const copper = materials.find(m => m.material === 'Copper Anode' || m.material === 'Copper') || { current_stock: 0 };
+
+        // For risk management, use current_stock (what's actually on hand)
+        // committed stock is calculated dynamically from active vendor POs
+        const steelAvailable = Number(steel.current_stock || 0);
+        const copperAvailable = Number(copper.current_stock || 0);
+        const steelCommitted = committedStock['Steel'] || 0;
+        const copperCommitted = committedStock['Copper Anode'] || committedStock['Copper'] || 0;
+
+        res.json({
+          steel: {
+            required: totalSteelNeeded.toFixed(2),
+            available: steelAvailable,
+            committed: steelCommitted,
+            shortage: Math.max(0, totalSteelNeeded - steelAvailable).toFixed(2),
+            excess: Math.max(0, steelAvailable - totalSteelNeeded).toFixed(2)
+          },
+          copper: {
+            required: totalCopperNeeded.toFixed(2),
+            available: copperAvailable,
+            committed: copperCommitted,
+            shortage: Math.max(0, totalCopperNeeded - copperAvailable).toFixed(2),
+            excess: Math.max(0, copperAvailable - totalCopperNeeded).toFixed(2)
+          }
+        });
+      });
+    });
+  });
+});
+
+// Diagnostic endpoint to check vendor POs and committed stock
+app.get('/api/dashboard/diagnostic-vendor', (req, res) => {
+  db.all(`
+    SELECT vpo.id, vpo.status, vli.material_type, vli.quantity
+    FROM vendor_purchase_orders vpo
+    LEFT JOIN vendor_po_line_items vli ON vpo.id = vli.po_id
+    WHERE vpo.status NOT IN ('Completed', 'Cancelled')
+  `, (err, vendorPOs) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    db.all(`SELECT material, current_stock, committed_stock FROM raw_materials_inventory`, (err2, materials) => {
+      if (err2) return res.status(500).json({ error: err2.message });
 
       res.json({
-        steel: {
-          required: totalSteelNeeded.toFixed(2),
-          available: steelAvailable,
-          committed: Number(steel.committed_stock || 0),
-          shortage: Math.max(0, totalSteelNeeded - steelAvailable).toFixed(2),
-          excess: Math.max(0, steelAvailable - totalSteelNeeded).toFixed(2)
-        },
-        copper: {
-          required: totalCopperNeeded.toFixed(2),
-          available: copperAvailable,
-          committed: Number(copper.committed_stock || 0),
-          shortage: Math.max(0, totalCopperNeeded - copperAvailable).toFixed(2),
-          excess: Math.max(0, copperAvailable - totalCopperNeeded).toFixed(2)
+        vendor_pos: vendorPOs,
+        materials: materials,
+        summary: {
+          total_vendor_pos: vendorPOs.length,
+          committed_in_db: materials.reduce((sum, m) => sum + Number(m.committed_stock || 0), 0)
         }
       });
     });
