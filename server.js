@@ -5076,6 +5076,55 @@ app.get('/api/dashboard/risk-analysis', (req, res) => {
 });
 
 // Cleanup endpoint to fix corrupted PDF paths
+// Regenerate missing BOMs for auto-BOM products
+app.post('/api/dashboard/regenerate-boms', (req, res) => {
+  db.all('SELECT id, steel_diameter, copper_coating, length, custom_bom FROM products WHERE custom_bom = 0 OR custom_bom IS NULL', (err, products) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    let regenerated = 0;
+    let processed = 0;
+
+    if (!products || products.length === 0) {
+      return res.json({ message: 'No auto-BOM products found', regenerated: 0 });
+    }
+
+    products.forEach(product => {
+      if (product.steel_diameter > 0 && product.length > 0) {
+        // Delete existing BOM entries
+        db.run('DELETE FROM bom WHERE product_id = ?', [product.id], (delErr) => {
+          if (!delErr) {
+            // Calculate and insert new BOM
+            const steelRadiusMM = product.steel_diameter / 2;
+            const steelVolumeMM3 = Math.PI * steelRadiusMM * steelRadiusMM * product.length;
+            const steelVolumeM3 = steelVolumeMM3 / 1e9;
+            const steelDensity = 7850;
+            const steelWeightKg = steelVolumeM3 * steelDensity;
+
+            const copperThicknessMM = product.copper_coating / 1000;
+            const copperSurfaceAreaMM2 = 2 * Math.PI * (product.steel_diameter / 2) * product.length;
+            const copperVolumeMM3 = copperSurfaceAreaMM2 * copperThicknessMM;
+            const copperVolumeM3 = copperVolumeMM3 / 1e9;
+            const copperDensity = 8960;
+            const copperWeightKg = copperVolumeM3 * copperDensity;
+
+            db.run('INSERT INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)', [product.id, 'Steel', steelWeightKg]);
+            db.run('INSERT INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)', [product.id, 'Copper Anode', copperWeightKg], () => {
+              regenerated++;
+            });
+          }
+        });
+      }
+
+      processed++;
+      if (processed === products.length) {
+        setTimeout(() => {
+          res.json({ message: `Regenerated BOMs for ${regenerated} products`, regenerated, total: products.length });
+        }, 500); // Wait for all inserts to complete
+      }
+    });
+  });
+});
+
 app.post('/api/dashboard/cleanup-bad-pdf-paths', (req, res) => {
   db.run(`
     UPDATE client_purchase_orders
