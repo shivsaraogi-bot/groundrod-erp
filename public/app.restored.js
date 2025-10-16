@@ -4116,10 +4116,11 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
             React.createElement('div', null,
               React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'PO ID'),
               React.createElement('input', {
-                className: 'border rounded px-3 py-2 w-full',
+                className: 'border rounded px-3 py-2 w-full bg-gray-100',
                 value: editForm.id || '',
-                onChange: e => setEditForm({ ...editForm, id: e.target.value })
-              })
+                disabled: true
+              }),
+              React.createElement('p', { className: 'text-xs text-gray-500 mt-1' }, 'PO ID cannot be changed after creation')
             ),
             React.createElement('div', null,
               React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Customer'),
