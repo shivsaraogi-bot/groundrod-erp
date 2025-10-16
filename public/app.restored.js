@@ -3479,7 +3479,8 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
           const formData = new FormData();
           formData.append('file', pdfFile);
           try {
-            await fetch(`${API_URL}/purchase-orders/${result.id}/upload-pdf`, {
+            const encodedPoId = encodeURIComponent(result.id);
+            await fetch(`${API_URL}/purchase-orders/${encodedPoId}/upload-pdf`, {
               method: 'POST',
               body: formData
             });
@@ -3559,16 +3560,19 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
       // Upload PDF if provided
       if (editPdfFile) {
         const formData = new FormData();
-        formData.append('pdf', editPdfFile);
-        formData.append('po_id', editForm.id);
+        formData.append('file', editPdfFile);
 
-        const pdfRes = await fetch(`${API_URL}/upload-client-po-pdf`, {
+        const encodedPoId = encodeURIComponent(editForm.id);
+        const pdfRes = await fetch(`${API_URL}/purchase-orders/${encodedPoId}/upload-pdf`, {
           method: 'POST',
           body: formData
         });
 
         if (!pdfRes.ok) {
           console.error('Failed to upload PDF');
+        } else {
+          const pdfResult = await pdfRes.json();
+          editForm.pdf_path = pdfResult.pdf_path; // Update the form with the new PDF path
         }
       }
 
