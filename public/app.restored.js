@@ -8714,25 +8714,48 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
 
           React.createElement('div', { className:'border-t pt-4' },
             React.createElement('h4', { className:'font-semibold mb-2 text-gray-700' }, '📦 Add Items to PO'),
-            React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-5 gap-2 items-end' },
+            React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-6 gap-2 items-end' },
               React.createElement('div', null,
-                React.createElement('label', { className:'text-xs text-gray-600' }, 'Material'),
-                React.createElement('select', { className:'border rounded px-2 py-1 w-full', value: tempItem.material_type, onChange:e=>setTempItem({...tempItem, material_type:e.target.value}) },
-                  React.createElement('option', { value:'' }, 'Select Material'),
-                  rawMaterials.map(m => React.createElement('option', { key:m.material, value:m.material }, m.material))
+                React.createElement('label', { className:'text-xs text-gray-600' }, 'Item Type'),
+                React.createElement('select', { className:'border rounded px-2 py-1 w-full', value: tempItem.item_type || 'Raw Material', onChange:e=>setTempItem({...tempItem, item_type:e.target.value, material_type:'', product_id:'', product_stage:''}) },
+                  React.createElement('option', { value:'Raw Material' }, 'Raw Material'),
+                  React.createElement('option', { value:'Product' }, 'Product')
                 )
               ),
               React.createElement('div', null,
+                React.createElement('label', { className:'text-xs text-gray-600' }, (tempItem.item_type === 'Product' ? 'Product' : 'Material')),
+                (tempItem.item_type === 'Product'
+                  ? React.createElement('select', { className:'border rounded px-2 py-1 w-full', value: tempItem.product_id || '', onChange:e=>setTempItem({...tempItem, product_id:e.target.value}) },
+                      React.createElement('option', { value:'' }, 'Select Product'),
+                      products.map(p => React.createElement('option', { key:p.id, value:p.id }, `${p.id} - ${p.description}`))
+                    )
+                  : React.createElement('select', { className:'border rounded px-2 py-1 w-full', value: tempItem.material_type || '', onChange:e=>setTempItem({...tempItem, material_type:e.target.value}) },
+                      React.createElement('option', { value:'' }, 'Select Material'),
+                      rawMaterials.map(m => React.createElement('option', { key:m.material, value:m.material }, m.material))
+                    )
+                )
+              ),
+              (tempItem.item_type === 'Product' && React.createElement('div', null,
+                React.createElement('label', { className:'text-xs text-gray-600' }, 'Stage'),
+                React.createElement('select', { className:'border rounded px-2 py-1 w-full', value: tempItem.product_stage || 'stamped', onChange:e=>setTempItem({...tempItem, product_stage:e.target.value}) },
+                  React.createElement('option', { value:'steel_rods' }, 'Steel Rods'),
+                  React.createElement('option', { value:'plated' }, 'Plated'),
+                  React.createElement('option', { value:'machined' }, 'Machined'),
+                  React.createElement('option', { value:'qc' }, 'QC'),
+                  React.createElement('option', { value:'stamped' }, 'Stamped (Finished)')
+                )
+              )),
+              React.createElement('div', null,
                 React.createElement('label', { className:'text-xs text-gray-600' }, 'Quantity'),
-                React.createElement('input', { type:'number', className:'border rounded px-2 py-1 w-full', value: tempItem.quantity, onChange:e=>setTempItem({...tempItem, quantity:Number(e.target.value)}) })
+                React.createElement('input', { type:'number', className:'border rounded px-2 py-1 w-full', value: tempItem.quantity || 0, onChange:e=>setTempItem({...tempItem, quantity:Number(e.target.value)}) })
               ),
               React.createElement('div', null,
                 React.createElement('label', { className:'text-xs text-gray-600' }, 'Unit Price'),
-                React.createElement('input', { type:'number', step:'0.01', className:'border rounded px-2 py-1 w-full', value: tempItem.unit_price, onChange:e=>setTempItem({...tempItem, unit_price:Number(e.target.value)}) })
+                React.createElement('input', { type:'number', step:'0.01', className:'border rounded px-2 py-1 w-full', value: tempItem.unit_price || 0, onChange:e=>setTempItem({...tempItem, unit_price:Number(e.target.value)}) })
               ),
               React.createElement('div', null,
                 React.createElement('label', { className:'text-xs text-gray-600' }, 'Unit'),
-                React.createElement('select', { className:'border rounded px-2 py-1 w-full', value: tempItem.unit, onChange:e=>setTempItem({...tempItem, unit:e.target.value}) },
+                React.createElement('select', { className:'border rounded px-2 py-1 w-full', value: tempItem.unit || 'kg', onChange:e=>setTempItem({...tempItem, unit:e.target.value}) },
                   React.createElement('option', { value:'kg' }, 'kg'),
                   React.createElement('option', { value:'pcs' }, 'pcs'),
                   React.createElement('option', { value:'ton' }, 'ton')
