@@ -553,8 +553,7 @@ function initializeDatabase() {
       cores INTEGER DEFAULT 0,
       plated INTEGER DEFAULT 0,
       machined INTEGER DEFAULT 0,
-      qc INTEGER DEFAULT 0,
-      stamped INTEGER DEFAULT 0,
+            stamped INTEGER DEFAULT 0,
       packed INTEGER DEFAULT 0,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (product_id) REFERENCES products(id)
@@ -613,8 +612,7 @@ function initializeDatabase() {
       product_id TEXT NOT NULL,
       plated INTEGER DEFAULT 0,
       machined INTEGER DEFAULT 0,
-      qc INTEGER DEFAULT 0,
-      stamped INTEGER DEFAULT 0,
+            stamped INTEGER DEFAULT 0,
       packed INTEGER DEFAULT 0,
       rejected INTEGER DEFAULT 0,
       notes TEXT,
@@ -4874,8 +4872,7 @@ app.delete('/api/production/:id', (req, res) => {
       // This reverses the sequential flow logic from POST
       const platedQty = Number(production.plated || 0);
       const machinedQty = Number(production.machined || 0);
-      const qcQty = Number(production.qc || 0);
-      const stampedQty = Number(production.stamped || 0);
+            const stampedQty = Number(production.stamped || 0);
       const packedQty = Number(production.packed || 0);
 
       db.run(`

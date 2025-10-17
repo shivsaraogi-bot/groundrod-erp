@@ -1345,7 +1345,6 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
     production_date: new Date().toISOString().split('T')[0],
     plated: '',
     machined: '',
-    qc: '',
     stamped: '',
     rejected: '',
     marking_type: 'unmarked',
@@ -1414,7 +1413,6 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
           production_date: new Date().toISOString().split('T')[0],
           plated: '',
           machined: '',
-          qc: '',
           stamped: '',
           rejected: '',
           marking_type: prodForm.marking_type, // Keep marking type
@@ -2608,8 +2606,8 @@ function AnalyticsPanel(){
     // WIP by stage
     const wip = await (await fetch(`${API_URL}/analytics/wip-stages`)).json();
     const wd = {
-      labels: ['Plated','Machined','QC','Stamped'],
-      datasets:[{ data:[wip.plated,wip.machined,wip.qc,wip.stamped], backgroundColor:['#60a5fa','#34d399','#fbbf24','#f87171'] }]
+      labels: ['Plated','Machined','Stamped'],
+      datasets:[{ data:[wip.plated,wip.machined,wip.stamped], backgroundColor:['#60a5fa','#34d399','#fbbf24','#f87171'] }]
     };
     if (charts.current.wip) charts.current.wip.destroy();
     charts.current.wip = new Chart(wipRef.current.getContext('2d'), { type:'doughnut', data:wd, options:{ responsive:true } });
@@ -2630,7 +2628,6 @@ function AnalyticsPanel(){
     const byd = { labels, datasets:[
       { label:'Plated', data: mk('plated'), backgroundColor:'#60a5fa' },
       { label:'Machined', data: mk('machined'), backgroundColor:'#34d399' },
-      { label:'QC', data: mk('qc'), backgroundColor:'#fbbf24' },
       { label:'Stamped', data: mk('stamped'), backgroundColor:'#f87171' }
     ]};
     if (charts.current.by) charts.current.by.destroy();
@@ -2942,7 +2939,7 @@ function DailyProduction({ products, onSubmit }){
         React.createElement('table', { className: 'min-w-full border-collapse' },
           React.createElement('thead', null,
             React.createElement('tr', { className: 'bg-gray-100' },
-              ['Product','Plated','Machined','QC','Stamped','Rejected','Marking Type','Marking Text','Notes'].map(h=> React.createElement('th', { key: h, className: 'p-2 text-xs' }, h))
+              ['Product','Plated','Machined','Stamped','Rejected','Marking Type','Marking Text','Notes'].map(h=> React.createElement('th', { key: h, className: 'p-2 text-xs' }, h))
             )
           ),
           React.createElement('tbody', null,
@@ -8742,7 +8739,6 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
                   React.createElement('option', { value:'steel_rods' }, 'Steel Rods'),
                   React.createElement('option', { value:'plated' }, 'Plated'),
                   React.createElement('option', { value:'machined' }, 'Machined'),
-                  React.createElement('option', { value:'qc' }, 'QC'),
                   React.createElement('option', { value:'stamped' }, 'Stamped (Finished)')
                 )
               )),
