@@ -553,7 +553,8 @@ function initializeDatabase() {
       cores INTEGER DEFAULT 0,
       plated INTEGER DEFAULT 0,
       machined INTEGER DEFAULT 0,
-            stamped INTEGER DEFAULT 0,
+      qc INTEGER DEFAULT 0,
+      stamped INTEGER DEFAULT 0,
       packed INTEGER DEFAULT 0,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (product_id) REFERENCES products(id)
@@ -612,7 +613,8 @@ function initializeDatabase() {
       product_id TEXT NOT NULL,
       plated INTEGER DEFAULT 0,
       machined INTEGER DEFAULT 0,
-            stamped INTEGER DEFAULT 0,
+      qc INTEGER DEFAULT 0,
+      stamped INTEGER DEFAULT 0,
       packed INTEGER DEFAULT 0,
       rejected INTEGER DEFAULT 0,
       notes TEXT,
@@ -1502,7 +1504,6 @@ app.delete('/api/products/:id/force', (req, res) => {
               });
             });
           });
-          });
         });
       });
     });
@@ -1940,38 +1941,71 @@ app.delete('/api/client-purchase-orders/:id', (req, res) => {
       if (invErr) return res.status(500).json({ error: invErr.message });
       if (invoice) return res.status(400).json({ error: 'Cannot delete PO with linked invoices. Delete invoices first.' });
 
-      // Check if there are any shipments linked to this PO
-      db.get(`SELECT id FROM shipments WHERE po_id=?`, [id], (shipErr, shipment) => {
-        if (shipErr) return res.status(500).json({ error: shipErr.message });
-        if (shipment) return res.status(400).json({ error: 'Cannot delete PO with linked shipments. Delete shipments first.' });
+      // Check if any line items have delivered quantity
+      db.get(`SELECT id FROM client_po_line_items WHERE po_id=? AND delivered > 0`, [id], (delErr, deliveredItem) => {
+        if (delErr) return res.status(500).json({ error: delErr.message });
+        if (deliveredItem) return res.status(400).json({ error: 'Cannot delete PO with delivered items' });
 
-        // Check if any line items have delivered quantity
-        db.get(`SELECT id FROM client_po_line_items WHERE po_id=? AND delivered > 0`, [id], (delErr, deliveredItem) => {
-          if (delErr) return res.status(500).json({ error: delErr.message });
-          if (deliveredItem) return res.status(400).json({ error: 'Cannot delete PO with delivered items' });
-
-        // Delete line items and PO in a transaction
         db.serialize(() => {
           db.run('BEGIN');
 
-          db.run(`DELETE FROM client_po_line_items WHERE po_id=?`, [id], (delItemsErr) => {
-            if (delItemsErr) {
+          // Get all line items to release committed materials
+          db.all(`SELECT product_id, quantity FROM client_po_line_items WHERE po_id=?`, [id], (itemsErr, items) => {
+            if (itemsErr) {
               try { db.run('ROLLBACK'); } catch(_) {}
-              return res.status(500).json({ error: delItemsErr.message });
+              return res.status(500).json({ error: itemsErr.message });
             }
 
-            db.run(`DELETE FROM client_purchase_orders WHERE id=?`, [id], (delPOErr) => {
-              if (delPOErr) {
-                try { db.run('ROLLBACK'); } catch(_) {}
-                return res.status(500).json({ error: delPOErr.message });
-              }
+            // Release committed materials for each line item
+            let completed = 0;
+            const releaseCommitted = () => {
+              if (items.length === 0 || completed === items.length) {
+                // Delete line items and PO
+                db.run(`DELETE FROM client_po_line_items WHERE po_id=?`, [id], (delItemsErr) => {
+                  if (delItemsErr) {
+                    try { db.run('ROLLBACK'); } catch(_) {}
+                    return res.status(500).json({ error: delItemsErr.message });
+                  }
 
-              db.run('COMMIT', (commitErr) => {
-                if (commitErr) {
+                  db.run(`DELETE FROM client_purchase_orders WHERE id=?`, [id], (delPOErr) => {
+                    if (delPOErr) {
+                      try { db.run('ROLLBACK'); } catch(_) {}
+                      return res.status(500).json({ error: delPOErr.message });
+                    }
+
+                    db.run('COMMIT', (commitErr) => {
+                      if (commitErr) {
+                        try { db.run('ROLLBACK'); } catch(_) {}
+                        return res.status(500).json({ error: commitErr.message });
+                      }
+                      res.json({ message: 'Client PO deleted successfully' });
+                    });
+                  });
+                });
+              }
+            };
+
+            if (items.length === 0) {
+              releaseCommitted();
+              return;
+            }
+
+            items.forEach(item => {
+              db.all('SELECT material, qty_per_unit FROM bom WHERE product_id = ?', [item.product_id], (bomErr, bomRows) => {
+                if (bomErr) {
                   try { db.run('ROLLBACK'); } catch(_) {}
-                  return res.status(500).json({ error: commitErr.message });
+                  return res.status(500).json({ error: bomErr.message });
                 }
-                res.json({ message: 'Client PO deleted successfully' });
+
+                if (bomRows && bomRows.length > 0) {
+                  bomRows.forEach(bom => {
+                    const releaseQty = Number(item.quantity || 0) * Number(bom.qty_per_unit || 0);
+                    db.run(`UPDATE raw_materials_inventory SET committed_stock = MAX(0, committed_stock - ?) WHERE material = ?`, [releaseQty, bom.material]);
+                  });
+                }
+
+                completed++;
+                releaseCommitted();
               });
             });
           });
@@ -1980,6 +2014,7 @@ app.delete('/api/client-purchase-orders/:id', (req, res) => {
     });
   });
 });
+
 
 // Update delivered quantity for a line item
 app.put('/api/client-po-line-items/:itemId/delivered', (req, res) => {
@@ -4872,7 +4907,8 @@ app.delete('/api/production/:id', (req, res) => {
       // This reverses the sequential flow logic from POST
       const platedQty = Number(production.plated || 0);
       const machinedQty = Number(production.machined || 0);
-            const stampedQty = Number(production.stamped || 0);
+      const qcQty = Number(production.qc || 0);
+      const stampedQty = Number(production.stamped || 0);
       const packedQty = Number(production.packed || 0);
 
       db.run(`

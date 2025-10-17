@@ -8966,6 +8966,22 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
   const [editForm, setEditForm] = useState({});
   const [bulkImportStatus, setBulkImportStatus] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [bomData, setBomData] = useState({});
+
+  // Fetch BOM data for all products
+  React.useEffect(() => {
+    fetch(`${API_URL}/bom`)
+      .then(r => r.json())
+      .then(data => {
+        const bomMap = {};
+        data.forEach(item => {
+          if (!bomMap[item.product_id]) bomMap[item.product_id] = {};
+          bomMap[item.product_id][item.material] = Number(item.qty_per_unit || 0);
+        });
+        setBomData(bomMap);
+      })
+      .catch(err => console.error('Error fetching BOM:', err));
+  }, [products]);
 
   // Unit conversion functions - convert everything to mm and kg for storage
   function convertToMM(value, unit) {
@@ -9134,6 +9150,18 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
       if (!row.steel_diameter || !row.copper_coating) return '-';
       const cbg = row.steel_diameter + (2 * row.copper_coating / 1000);
       return (cbg/25.4).toFixed(3);
+    }},
+        { key: 'steel_per_unit', label: 'Steel/Unit (kg)', render: (val, row) => {
+      const bom = bomData[row.id];
+      if (!bom) return '-';
+      const steel = bom['Steel'] || bom['Steel Bar'] || 0;
+      return steel > 0 ? steel.toFixed(3) : '-';
+    }},
+    { key: 'copper_per_unit', label: 'Copper/Unit (kg)', render: (val, row) => {
+      const bom = bomData[row.id];
+      if (!bom) return '-';
+      const copper = bom['Copper Anode'] || 0;
+      return copper > 0 ? copper.toFixed(3) : '-';
     }},
     { key: 'cbg_weight', label: 'Weight (kg)', render: (val, row) => {
       if (!row.steel_diameter || !row.copper_coating || !row.length) return '-';
