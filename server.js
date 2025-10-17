@@ -4925,10 +4925,34 @@ app.post('/api/raw-materials', (req, res) => {
   );
 });
 
+app.put('/api/raw-materials/:material', (req, res) => {
+  const { material } = req.params;
+  const { current_stock, reorder_level, last_purchase_date } = req.body;
+
+  db.run(
+    `UPDATE raw_materials_inventory
+     SET current_stock = ?,
+         reorder_level = ?,
+         last_purchase_date = ?,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE material = ?`,
+    [Number(current_stock || 0), Number(reorder_level || 0), last_purchase_date || null, material],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Material not found' });
+      }
+      res.json({ message: 'Raw material updated successfully', material });
+    }
+  );
+});
+
 app.delete('/api/raw-materials/:material', (req, res) => {
   const { material } = req.params;
 
-  db.run('DELETE FROM raw_materials WHERE material = ?', [material], function(err) {
+  db.run('DELETE FROM raw_materials_inventory WHERE material = ?', [material], function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
