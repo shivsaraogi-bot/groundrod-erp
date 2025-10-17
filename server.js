@@ -1504,6 +1504,7 @@ app.delete('/api/products/:id/force', (req, res) => {
               });
             });
           });
+          });
         });
       });
     });
@@ -1941,10 +1942,15 @@ app.delete('/api/client-purchase-orders/:id', (req, res) => {
       if (invErr) return res.status(500).json({ error: invErr.message });
       if (invoice) return res.status(400).json({ error: 'Cannot delete PO with linked invoices. Delete invoices first.' });
 
-      // Check if any line items have delivered quantity
-      db.get(`SELECT id FROM client_po_line_items WHERE po_id=? AND delivered > 0`, [id], (delErr, deliveredItem) => {
-        if (delErr) return res.status(500).json({ error: delErr.message });
-        if (deliveredItem) return res.status(400).json({ error: 'Cannot delete PO with delivered items' });
+      // Check if there are any shipments linked to this PO
+      db.get(`SELECT id FROM shipments WHERE po_id=?`, [id], (shipErr, shipment) => {
+        if (shipErr) return res.status(500).json({ error: shipErr.message });
+        if (shipment) return res.status(400).json({ error: 'Cannot delete PO with linked shipments. Delete shipments first.' });
+
+        // Check if any line items have delivered quantity
+        db.get(`SELECT id FROM client_po_line_items WHERE po_id=? AND delivered > 0`, [id], (delErr, deliveredItem) => {
+          if (delErr) return res.status(500).json({ error: delErr.message });
+          if (deliveredItem) return res.status(400).json({ error: 'Cannot delete PO with delivered items' });
 
         // Delete line items and PO in a transaction
         db.serialize(() => {
