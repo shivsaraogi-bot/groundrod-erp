@@ -1349,6 +1349,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
     rejected: '',
     marking_type: 'unmarked',
     marking_text: '',
+    threading: 'Plain',
     notes: ''
   });
 
@@ -8960,7 +8961,7 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
 
 // Extended Products table with required columns
 function ProductMasterEx({ products, calculateWeights, onRefresh }){
-  const [form, setForm] = useState({ id:'', description:'', diameter:0, diameterUnit:'mm', length:0, lengthUnit:'mm', coating:0, width:0, height:0, thickness:0, rectUnit:'mm', weightUnit:'kg', product_type:'ground_rod', custom_bom:false });
+  const [form, setForm] = useState({ id:'', description:'', diameter:0, diameterUnit:'mm', length:0, lengthUnit:'mm', coating:0, width:0, height:0, thickness:0, rectUnit:'mm', weightUnit:'kg', product_type:'ground_rod', custom_bom:false, base_product_id:'', threading:'Plain' });
   const [bomItems, setBomItems] = useState([]);
   const [editingProduct, setEditingProduct] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -9133,8 +9134,10 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
   }
 
   const columns = [
-    { key: 'id', label: 'Product ID' },
+        { key: 'id', label: 'Product ID' },
     { key: 'description', label: 'Description' },
+    { key: 'threading', label: 'Threading', render: (val) => val || 'Plain' },
+    { key: 'base_product_id', label: 'Base Product', render: (val, row) => val || row.id },
     { key: 'steel_diameter', label: 'Steel Dia (mm)', render: (val) => val || '-' },
     { key: 'steel_diameter_in', label: 'Steel Dia (in)', render: (val, row) => row.steel_diameter ? (row.steel_diameter/25.4).toFixed(3) : '-' },
     { key: 'length', label: 'Length (mm)', render: (val) => val || '-' },
