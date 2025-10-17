@@ -9016,7 +9016,9 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
       height: heightMM,
       thickness: thicknessMM,
       product_type: form.product_type,
-      custom_bom: form.custom_bom ? 1 : 0
+      custom_bom: form.custom_bom ? 1 : 0,
+      base_product_id: form.base_product_id || form.id,
+      threading: form.threading || 'Plain'
     };
 
     await fetch(`${API_URL}/products`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(productData) });
@@ -9032,7 +9034,7 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
       }
     }
 
-    setForm({ id:'', description:'', diameter:0, diameterUnit:'mm', length:0, lengthUnit:'mm', coating:0, width:0, height:0, thickness:0, rectUnit:'mm', weightUnit:'kg', product_type:'ground_rod', custom_bom:false });
+    setForm({ id:'', description:'', diameter:0, diameterUnit:'mm', length:0, lengthUnit:'mm', coating:0, width:0, height:0, thickness:0, rectUnit:'mm', weightUnit:'kg', product_type:'ground_rod', custom_bom:false, base_product_id:'', threading:'Plain' });
     setBomItems([]);
     onRefresh?.();
   }
@@ -9194,7 +9196,9 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
       length: product.length,
       lengthUnit: 'mm',
       copper_coating: product.copper_coating || product.coating,
-      weightUnit: 'kg'
+      weightUnit: 'kg',
+      base_product_id: product.base_product_id || '',
+      threading: product.threading || 'Plain'
     });
     setEditingProduct(product);
   }
@@ -9241,6 +9245,19 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
           React.createElement('div', { className:'md:col-span-2' },
             React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Description'),
             React.createElement('input', { className:'border rounded px-3 py-2 w-full', placeholder:'e.g. 14.2mm x 3000mm Ground Rod', value:form.description, onChange:e=>setForm({ ...form, description:e.target.value }) })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Threading'),
+            React.createElement('select', { className:'border rounded px-3 py-2 w-full', value:form.threading, onChange:e=>setForm({ ...form, threading:e.target.value }) },
+              React.createElement('option', { value:'Plain' }, 'Plain'),
+              React.createElement('option', { value:'Threaded' }, 'Threaded'),
+              React.createElement('option', { value:'Partially Threaded' }, 'Partially Threaded')
+            )
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Base Product ID'),
+            React.createElement('input', { className:'border rounded px-3 py-2 w-full', placeholder:'Leave empty for base product', value:form.base_product_id, onChange:e=>setForm({ ...form, base_product_id:e.target.value }) }),
+            React.createElement('p', { className:'text-xs text-gray-500 mt-1' }, 'Link to base product for threading variants')
           ),
           (form.product_type === 'ground_rod' || !form.custom_bom) && React.createElement('div', null,
             React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Steel Diameter'),
