@@ -432,6 +432,7 @@ function initializeDatabase() {
     db.run("ALTER TABLE client_po_line_items ADD COLUMN currency TEXT DEFAULT 'INR'", (err) => { /* ignore if exists */ });
     db.run("ALTER TABLE client_po_line_items ADD COLUMN marking TEXT", (err) => { /* ignore if exists */ });
     db.run("ALTER TABLE client_po_line_items ADD COLUMN due_date DATE", (err) => { /* ignore if exists */ });
+    db.run("ALTER TABLE client_po_line_items ADD COLUMN threading TEXT DEFAULT 'Plain'", (err) => { /* ignore if exists */ });
 
     // Uploads dir for PDF imports
     try { require('fs').mkdirSync(require('path').join(__dirname, 'uploads'), { recursive: true }); } catch {}
@@ -622,6 +623,9 @@ function initializeDatabase() {
       FOREIGN KEY (product_id) REFERENCES products(id)
     )`);
 
+        // Add threading support to production history
+    db.run("ALTER TABLE production_history ADD COLUMN threading TEXT DEFAULT 'Plain'", (err) => { /* ignore if exists */ });
+
     // Stock Adjustments table for opening balances and corrections
     db.run(`CREATE TABLE IF NOT EXISTS stock_adjustments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -799,6 +803,9 @@ function initializeDatabase() {
       FOREIGN KEY (product_id) REFERENCES products(id),
       FOREIGN KEY (allocated_po_id) REFERENCES client_purchase_orders(id)
     )`);
+
+        // Add threading support to inventory allocations
+    db.run("ALTER TABLE inventory_allocations ADD COLUMN threading TEXT DEFAULT 'Plain'", (err) => { /* ignore if exists */ });
 
     // MIGRATION NOTE (v20.2): Clean up old packed allocations if needed
     // The system now only tracks markings at the "stamped" stage since stamping
