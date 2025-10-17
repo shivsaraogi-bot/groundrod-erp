@@ -3643,7 +3643,8 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
 
   async function del(id) {
     if (!confirm('Delete Client PO?')) return;
-    await fetch(`${API_URL}/client-purchase-orders/${id}`, { method: 'DELETE' });
+    const encodedId = encodeURIComponent(id);
+    await fetch(`${API_URL}/client-purchase-orders/${encodedId}`, { method: 'DELETE' });
     await refreshLocalOrders();
     if (onRefresh) await onRefresh();
   }
