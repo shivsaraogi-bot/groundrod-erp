@@ -8719,9 +8719,6 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
                 React.createElement('label', { className:'text-xs text-gray-600' }, 'Material'),
                 React.createElement('select', { className:'border rounded px-2 py-1 w-full', value: tempItem.material_type, onChange:e=>setTempItem({...tempItem, material_type:e.target.value}) },
                   React.createElement('option', { value:'' }, 'Select Material'),
-                  React.createElement('option', { value:'Steel' }, 'Steel'),
-                  React.createElement('option', { value:'Copper' }, 'Copper'),
-                  React.createElement('option', { value:'Copper Anode' }, 'Copper Anode'),
                   rawMaterials.map(m => React.createElement('option', { key:m.material, value:m.material }, m.material))
                 )
               ),
