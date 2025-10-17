@@ -9092,7 +9092,7 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
     const diameterMM = editForm.diameterUnit ? convertToMM(editForm.steel_diameter, editForm.diameterUnit) : Number(editForm.steel_diameter);
     const lengthMM = editForm.lengthUnit ? convertToMM(editForm.length, editForm.lengthUnit) : Number(editForm.length);
     const urlId = editForm.originalId || editForm.id;
-    await fetch(`${API_URL}/products/${encodeURIComponent(urlId)}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...editForm, steel_diameter:diameterMM, length:lengthMM, copper_coating:Number(editForm.copper_coating) }) });
+    await fetch(`${API_URL}/products/${encodeURIComponent(urlId)}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...editForm, steel_diameter:diameterMM, length:lengthMM, copper_coating:Number(editForm.copper_coating), base_product_id:editForm.base_product_id || editForm.id, threading:editForm.threading || 'Plain' }) });
     setEditingProduct(null);
     onRefresh?.();
   }
@@ -9392,6 +9392,18 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
             React.createElement('div', { className:'md:col-span-1' },
               React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Description'),
               React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.description || '', onChange:e=>setEditForm({...editForm, description:e.target.value}) })
+            ),
+            React.createElement('div', null,
+              React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Threading'),
+              React.createElement('select', { className:'border rounded px-3 py-2 w-full', value:editForm.threading || 'Plain', onChange:e=>setEditForm({...editForm, threading:e.target.value}) },
+                React.createElement('option', { value:'Plain' }, 'Plain'),
+                React.createElement('option', { value:'Threaded' }, 'Threaded'),
+                React.createElement('option', { value:'Partially Threaded' }, 'Partially Threaded')
+              )
+            ),
+            React.createElement('div', null,
+              React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Base Product ID'),
+              React.createElement('input', { className:'border rounded px-3 py-2 w-full', placeholder:'Link to base product', value:editForm.base_product_id || '', onChange:e=>setEditForm({...editForm, base_product_id:e.target.value}) })
             ),
             React.createElement('div', null,
               React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Steel Diameter'),
