@@ -1938,81 +1938,39 @@ app.delete('/api/client-purchase-orders/:id/items/:itemId', (req, res) => {
 app.delete('/api/client-purchase-orders/:id', (req, res) => {
   const { id } = req.params;
 
-  // Check if PO exists
   db.get(`SELECT id FROM client_purchase_orders WHERE id=?`, [id], (e, po) => {
     if (e) return res.status(500).json({ error: e.message });
     if (!po) return res.status(404).json({ error: 'Client PO not found' });
 
-    // Check if there are any invoices linked to this PO
+    // Check for linked invoices
     db.get(`SELECT id FROM invoices WHERE po_id=?`, [id], (invErr, invoice) => {
       if (invErr) return res.status(500).json({ error: invErr.message });
-      if (invoice) return res.status(400).json({ error: 'Cannot delete PO with linked invoices. Delete invoices first.' });
+      if (invoice) return res.status(400).json({ error: 'Cannot delete PO with linked invoices.' });
 
-      // Check if any line items have delivered quantity
-      db.get(`SELECT id FROM client_po_line_items WHERE po_id=? AND delivered > 0`, [id], (delErr, deliveredItem) => {
-        if (delErr) return res.status(500).json({ error: delErr.message });
-        if (deliveredItem) return res.status(400).json({ error: 'Cannot delete PO with delivered items' });
+      // Check for linked shipments
+      db.get(`SELECT id FROM shipments WHERE po_id=?`, [id], (shipErr, shipment) => {
+        if (shipErr) return res.status(500).json({ error: shipErr.message });
+        if (shipment) return res.status(400).json({ error: 'Cannot delete PO with linked shipments.' });
 
+        // Delete in transaction
         db.serialize(() => {
           db.run('BEGIN');
-
-          // Get all line items to release committed materials
-          db.all(`SELECT product_id, quantity FROM client_po_line_items WHERE po_id=?`, [id], (itemsErr, items) => {
-            if (itemsErr) {
+          db.run(`DELETE FROM client_po_line_items WHERE po_id=?`, [id], (delItemsErr) => {
+            if (delItemsErr) {
               try { db.run('ROLLBACK'); } catch(_) {}
-              return res.status(500).json({ error: itemsErr.message });
+              return res.status(500).json({ error: delItemsErr.message });
             }
-
-            // Release committed materials for each line item
-            let completed = 0;
-            const releaseCommitted = () => {
-              if (items.length === 0 || completed === items.length) {
-                // Delete line items and PO
-                db.run(`DELETE FROM client_po_line_items WHERE po_id=?`, [id], (delItemsErr) => {
-                  if (delItemsErr) {
-                    try { db.run('ROLLBACK'); } catch(_) {}
-                    return res.status(500).json({ error: delItemsErr.message });
-                  }
-
-                  db.run(`DELETE FROM client_purchase_orders WHERE id=?`, [id], (delPOErr) => {
-                    if (delPOErr) {
-                      try { db.run('ROLLBACK'); } catch(_) {}
-                      return res.status(500).json({ error: delPOErr.message });
-                    }
-
-                    db.run('COMMIT', (commitErr) => {
-                      if (commitErr) {
-                        try { db.run('ROLLBACK'); } catch(_) {}
-                        return res.status(500).json({ error: commitErr.message });
-                      }
-                      res.json({ message: 'Client PO deleted successfully' });
-                    });
-                  });
-                });
+            db.run(`DELETE FROM client_purchase_orders WHERE id=?`, [id], (delPOErr) => {
+              if (delPOErr) {
+                try { db.run('ROLLBACK'); } catch(_) {}
+                return res.status(500).json({ error: delPOErr.message });
               }
-            };
-
-            if (items.length === 0) {
-              releaseCommitted();
-              return;
-            }
-
-            items.forEach(item => {
-              db.all('SELECT material, qty_per_unit FROM bom WHERE product_id = ?', [item.product_id], (bomErr, bomRows) => {
-                if (bomErr) {
+              db.run('COMMIT', (commitErr) => {
+                if (commitErr) {
                   try { db.run('ROLLBACK'); } catch(_) {}
-                  return res.status(500).json({ error: bomErr.message });
+                  return res.status(500).json({ error: commitErr.message });
                 }
-
-                if (bomRows && bomRows.length > 0) {
-                  bomRows.forEach(bom => {
-                    const releaseQty = Number(item.quantity || 0) * Number(bom.qty_per_unit || 0);
-                    db.run(`UPDATE raw_materials_inventory SET committed_stock = MAX(0, committed_stock - ?) WHERE material = ?`, [releaseQty, bom.material]);
-                  });
-                }
-
-                completed++;
-                releaseCommitted();
+                res.json({ message: 'Client PO deleted successfully' });
               });
             });
           });
@@ -2020,7 +1978,7 @@ app.delete('/api/client-purchase-orders/:id', (req, res) => {
       });
     });
   });
-});
+})
 
 
 // Update delivered quantity for a line item

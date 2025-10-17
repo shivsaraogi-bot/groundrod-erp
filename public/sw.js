@@ -1,5 +1,5 @@
 // GroundRod ERP Service Worker
-const CACHE_NAME = 'groundrod-erp-37.25';
+const CACHE_NAME = 'groundrod-erp-37.26';
 const urlsToCache = [
   '/',
   '/index.html',
