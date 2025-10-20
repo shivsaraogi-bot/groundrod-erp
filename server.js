@@ -1981,6 +1981,82 @@ app.delete('/api/client-purchase-orders/:id', (req, res) => {
 })
 
 
+// DELETE ALL CLIENT POS AND INVOICES (DANGER ZONE)
+app.post('/api/admin/delete-all-pos-invoices', (req, res) => {
+  const { confirm } = req.body;
+
+  if (confirm !== 'DELETE_ALL') {
+    return res.status(400).json({ error: 'Must send {confirm: "DELETE_ALL"} to proceed' });
+  }
+
+  console.log('⚠️  DELETING ALL CLIENT POS AND INVOICES');
+
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION');
+
+    db.run('DELETE FROM shipments', (err) => {
+      if (err) {
+        console.error('Error deleting shipments:', err.message);
+        db.run('ROLLBACK');
+        return res.status(500).json({ error: err.message });
+      }
+
+      db.run('DELETE FROM invoices', (err) => {
+        if (err) {
+          console.error('Error deleting invoices:', err.message);
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: err.message });
+        }
+
+        db.run('DELETE FROM client_po_line_items', (err) => {
+          if (err) {
+            console.error('Error deleting line items:', err.message);
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: err.message });
+          }
+
+          db.run('DELETE FROM inventory_allocations', (err) => {
+            if (err) {
+              console.error('Error deleting allocations:', err.message);
+              db.run('ROLLBACK');
+              return res.status(500).json({ error: err.message });
+            }
+
+            db.run('DELETE FROM client_purchase_orders', (err) => {
+              if (err) {
+                console.error('Error deleting POs:', err.message);
+                db.run('ROLLBACK');
+                return res.status(500).json({ error: err.message });
+              }
+
+              db.run('COMMIT', (err) => {
+                if (err) {
+                  console.error('Error committing:', err.message);
+                  db.run('ROLLBACK');
+                  return res.status(500).json({ error: err.message });
+                }
+
+                console.log('✅ All client POs and invoices deleted');
+                res.json({
+                  message: 'Successfully deleted all client POs and invoices',
+                  deleted: {
+                    shipments: true,
+                    invoices: true,
+                    line_items: true,
+                    allocations: true,
+                    purchase_orders: true
+                  }
+                });
+              });
+            });
+          });
+        });
+      });
+    });
+  });
+});
+
+
 // Update delivered quantity for a line item
 app.put('/api/client-po-line-items/:itemId/delivered', (req, res) => {
   const { itemId } = req.params;
