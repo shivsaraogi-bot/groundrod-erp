@@ -1992,26 +1992,27 @@ app.post('/api/admin/delete-all-pos-invoices', (req, res) => {
   console.log('⚠️  DELETING ALL CLIENT POS AND INVOICES');
 
   db.serialize(() => {
-    db.run('BEGIN TRANSACTION');
-
-    db.run('DELETE FROM shipments', (err) => {
+    db.run('PRAGMA foreign_keys = OFF', (err) => {
       if (err) {
-        console.error('Error deleting shipments:', err.message);
-        db.run('ROLLBACK');
+        console.error('Error disabling foreign keys:', err.message);
         return res.status(500).json({ error: err.message });
       }
+
+      db.run('BEGIN TRANSACTION');
 
       db.run('DELETE FROM invoices', (err) => {
         if (err) {
           console.error('Error deleting invoices:', err.message);
           db.run('ROLLBACK');
+          db.run('PRAGMA foreign_keys = ON');
           return res.status(500).json({ error: err.message });
         }
 
-        db.run('DELETE FROM client_po_line_items', (err) => {
+        db.run('DELETE FROM shipments', (err) => {
           if (err) {
-            console.error('Error deleting line items:', err.message);
+            console.error('Error deleting shipments:', err.message);
             db.run('ROLLBACK');
+            db.run('PRAGMA foreign_keys = ON');
             return res.status(500).json({ error: err.message });
           }
 
@@ -2019,33 +2020,51 @@ app.post('/api/admin/delete-all-pos-invoices', (req, res) => {
             if (err) {
               console.error('Error deleting allocations:', err.message);
               db.run('ROLLBACK');
+              db.run('PRAGMA foreign_keys = ON');
               return res.status(500).json({ error: err.message });
             }
 
-            db.run('DELETE FROM client_purchase_orders', (err) => {
+            db.run('DELETE FROM client_po_line_items', (err) => {
               if (err) {
-                console.error('Error deleting POs:', err.message);
+                console.error('Error deleting line items:', err.message);
                 db.run('ROLLBACK');
+                db.run('PRAGMA foreign_keys = ON');
                 return res.status(500).json({ error: err.message });
               }
 
-              db.run('COMMIT', (err) => {
+              db.run('DELETE FROM client_purchase_orders', (err) => {
                 if (err) {
-                  console.error('Error committing:', err.message);
+                  console.error('Error deleting POs:', err.message);
                   db.run('ROLLBACK');
+                  db.run('PRAGMA foreign_keys = ON');
                   return res.status(500).json({ error: err.message });
                 }
 
-                console.log('✅ All client POs and invoices deleted');
-                res.json({
-                  message: 'Successfully deleted all client POs and invoices',
-                  deleted: {
-                    shipments: true,
-                    invoices: true,
-                    line_items: true,
-                    allocations: true,
-                    purchase_orders: true
+                db.run('COMMIT', (err) => {
+                  if (err) {
+                    console.error('Error committing:', err.message);
+                    db.run('ROLLBACK');
+                    db.run('PRAGMA foreign_keys = ON');
+                    return res.status(500).json({ error: err.message });
                   }
+
+                  db.run('PRAGMA foreign_keys = ON', (err) => {
+                    if (err) {
+                      console.error('Error re-enabling foreign keys:', err.message);
+                    }
+
+                    console.log('✅ All client POs and invoices deleted');
+                    res.json({
+                      message: 'Successfully deleted all client POs and invoices',
+                      deleted: {
+                        invoices: true,
+                        shipments: true,
+                        allocations: true,
+                        line_items: true,
+                        purchase_orders: true
+                      }
+                    });
+                  });
                 });
               });
             });
@@ -2055,6 +2074,7 @@ app.post('/api/admin/delete-all-pos-invoices', (req, res) => {
     });
   });
 });
+
 
 
 // Update delivered quantity for a line item
