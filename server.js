@@ -2078,6 +2078,63 @@ app.post('/api/admin/delete-all-pos-invoices', (req, res) => {
 
 
 
+
+// Get product usage details across all tables
+app.get('/api/products/:id/usage', (req, res) => {
+  const { id } = req.params;
+
+  const usage = {
+    product_id: id,
+    references: {},
+    total_references: 0,
+    can_delete: true
+  };
+
+  const checks = [
+    { table: 'bom', query: 'SELECT COUNT(*) as count FROM bom WHERE product_id=?', safe_to_have: true },
+    { table: 'inventory', query: 'SELECT steel_rods, plated, machined, stamped, packed FROM inventory WHERE product_id=?', safe_to_have: false },
+    { table: 'client_po_line_items', query: 'SELECT COUNT(*) as count FROM client_po_line_items WHERE product_id=?', safe_to_have: false },
+    { table: 'production_history', query: 'SELECT COUNT(*) as count FROM production_history WHERE product_id=?', safe_to_have: true },
+    { table: 'shipment_items', query: 'SELECT COUNT(*) as count FROM shipment_items WHERE product_id=?', safe_to_have: false },
+    { table: 'inventory_allocations', query: 'SELECT COUNT(*) as count FROM inventory_allocations WHERE product_id=?', safe_to_have: false },
+    { table: 'stock_adjustments', query: 'SELECT COUNT(*) as count FROM stock_adjustments WHERE product_id=?', safe_to_have: true }
+  ];
+
+  let completed = 0;
+
+  checks.forEach(check => {
+    db.get(check.query, [id], (err, row) => {
+      if (!err && row) {
+        if (check.table === 'inventory') {
+          const total = (row.steel_rods || 0) + (row.plated || 0) + (row.machined || 0) + (row.stamped || 0) + (row.packed || 0);
+          if (total > 0) {
+            usage.references[check.table] = {
+              count: 1,
+              details: row,
+              blocking: true
+            };
+            usage.total_references++;
+            if (!check.safe_to_have) usage.can_delete = false;
+          }
+        } else if (row.count > 0) {
+          usage.references[check.table] = {
+            count: row.count,
+            blocking: !check.safe_to_have
+          };
+          usage.total_references += row.count;
+          if (!check.safe_to_have) usage.can_delete = false;
+        }
+      }
+
+      completed++;
+
+      if (completed === checks.length) {
+        res.json(usage);
+      }
+    });
+  });
+});
+
 // FORCE DELETE PRODUCT (removes all references)
 app.post('/api/admin/force-delete-product/:id', (req, res) => {
   const { id } = req.params;
