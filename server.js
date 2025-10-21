@@ -1417,6 +1417,7 @@ app.delete('/api/products/:id', (req, res) => {
   // First check if product is referenced in other tables
   const checks = [
     { query: "SELECT COUNT(*) as count FROM client_po_line_items WHERE product_id=?", name: "Client Purchase Orders" },
+    { query: "SELECT COUNT(*) as count FROM vendor_po_line_items WHERE product_id=?", name: "Vendor Purchase Orders" },
     { query: "SELECT COUNT(*) as count FROM inventory WHERE product_id=?", name: "Inventory" },
     { query: "SELECT COUNT(*) as count FROM production_history WHERE product_id=?", name: "Production History" },
     { query: "SELECT COUNT(*) as count FROM shipment_items WHERE product_id=?", name: "Shipments" },
