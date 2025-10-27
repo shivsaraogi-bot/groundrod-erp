@@ -1,423 +1,267 @@
-# Ground Rod ERP System - Enhanced Edition v2.0
+# Ground Rod ERP System
 
-**Production-Ready ERP System for Copper Bonded Ground Rod Manufacturing**
+**Production ERP System for Copper Bonded Ground Rod Manufacturing**
 
-[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)]()
-[![Backend](https://img.shields.io/badge/Backend-100%25%20Complete-blue)]()
-[![Frontend](https://img.shields.io/badge/Frontend-Demo%20Ready-orange)]()
-[![Documentation](https://img.shields.io/badge/Docs-Comprehensive-purple)]()
+Current Version: **37.36** | Status: **Production** | Platform: **Render.com**
 
 ---
 
-## 🎯 What This System Does
+## 🎯 Overview
 
-A comprehensive ERP solution for managing:
-- **Inventory** with multi-stage WIP tracking (Cores → Plated → Machined → QC → Stamped → Packed)
-- **Client & Vendor Orders** with automatic fulfillment tracking
-- **Production** with BOM-based automatic material consumption
-- **Raw Materials** with reorder alerts
-- **Shipments** with container/BL tracking
-- **Documents** with permanent attachment storage
-- **Audit Trail** with complete change history
+Comprehensive manufacturing ERP managing inventory, production, procurement, sales orders, and analytics for ground rod manufacturing.
+
+**Live System**: https://groundrod-erp.onrender.com
 
 ---
 
-## ✨ New in v2.0 (Enhanced Edition)
+## ✨ Key Features
 
-### 🔥 Major Features
+### **Inventory Management**
+- Multi-stage WIP tracking: Steel Rods → Plated → Machined → Stamped → Packed
+- Real-time stock levels with committed vs available tracking
+- Threading variant support (Plain/Threaded/Partially Threaded)
+- Base product grouping for variant consolidation
 
-| Feature | Description | Status |
-|---------|-------------|--------|
-| **Inventory Commitment** | Reserves stock for orders, shows Available = Packed - Committed | ✅ Working |
-| **BOM Auto-Consumption** | Production automatically deducts steel & copper | ✅ Working |
-| **Soft Delete & Undo** | Recover deleted records with one click | ✅ Working |
-| **Complete Audit Trail** | Every change tracked with timestamp | ✅ Working |
-| **Availability Validation** | Check stock before creating orders | ✅ Working |
-| **Document Attachments** | Permanent PDF/file storage per record | ✅ Working |
-| **Performance Indexes** | 81% faster queries | ✅ Active |
-| **Toast Notifications** | User-friendly alerts with actions | ✅ Working |
+### **Production Tracking**
+- Production entry with automatic BOM consumption
+- Threading application at stamping stage
+- Production history with audit trail
+- Material consumption tracking
+
+### **Order Management**
+- **Client POs**: Sales orders with line items, invoicing, shipment tracking
+- **Vendor POs**: Purchase orders for raw materials and finished products
+- PDF generation and attachment storage
+- Multi-currency support
+
+### **Analytics & Reporting**
+- Real-time dashboard with production metrics
+- Customer analytics with revenue tracking
+- Inventory analytics and forecasting
+- Purchase planning and MRP
+
+### **Master Data**
+- Products with threading variants and BOM
+- Customers and vendors
+- Raw materials inventory
+- Exchange rates and currencies
 
 ---
 
 ## 🚀 Quick Start
 
-### **1. Start the Server**
+### **Local Development**
 ```bash
+npm install
 npm start
 ```
+Access at: `http://localhost:3000`
 
-### **2. View Enhanced Demo**
-```
-http://localhost:3000/demo-enhanced.html
-```
+### **Production Deployment**
+Deployed automatically on push to GitHub main branch via Render.com
 
-### **3. Access Main Application**
-```
-http://localhost:3000
-```
+---
 
-**That's it!** Database migrates automatically, no manual setup needed.
+## 📊 System Architecture
+
+### **Technology Stack**
+- **Backend**: Node.js + Express.js
+- **Database**: SQLite3 with automatic migrations
+- **Frontend**: React 18 (no JSX, pure createElement)
+- **Styling**: TailwindCSS (CDN)
+- **Charts**: Chart.js
+- **PDF**: html2pdf.js
+
+### **Database Tables** (20+)
+- products, inventory, production_history
+- client_purchase_orders, client_po_line_items
+- vendor_purchase_orders, vendor_po_line_items
+- customers, vendors, raw_materials_inventory
+- invoices, shipments, exchange_rates
+- bom, inventory_allocations, audit_log
+
+### **Key Schema Features**
+- Foreign key constraints for referential integrity
+- Automatic timestamp tracking
+- Soft delete support (is_deleted)
+- Threading support with base_product_id linking
+
+---
+
+## 🔧 Recent Major Features (v37.x)
+
+### **Threading System (v37.20-37.33)**
+- Products can be Plain, Threaded, or Partially Threaded
+- Base products link to variants via base_product_id
+- Inventory consolidated by base_product (no double-counting WIP)
+- Threading applied at stamping stage in production
+- Edit modals support threading fields
+
+### **Deletion Safety (v37.24-37.36)**
+- Fixed client PO deletion with shipment/invoice checks
+- Product deletion validates all references
+- Usage report endpoint shows blocking references
+- Admin force-delete for cleanup when needed
+
+### **Database Management (v37.28-37.31)**
+- Admin endpoint to delete all client POs and invoices
+- Foreign key handling for safe bulk operations
+- Auto-migration system for schema evolution
 
 ---
 
 ## 📚 Documentation
 
-### **Start Here** 👇
-
-| Document | Description | Read Time |
-|----------|-------------|-----------|
-| **[QUICK_START.md](QUICK_START.md)** | Get started in 3 minutes | 3 min |
-| **[PROJECT_COMPLETE.md](PROJECT_COMPLETE.md)** | Complete overview & guide | 10 min |
-| [IMPROVEMENTS_SUMMARY.md](IMPROVEMENTS_SUMMARY.md) | Technical details | 15 min |
-| [API_TESTING_GUIDE.md](API_TESTING_GUIDE.md) | API testing commands | 10 min |
-| [WORKFLOW_DIAGRAM.md](WORKFLOW_DIAGRAM.md) | Visual flow diagrams | 5 min |
-| [CHANGES_COMPLETE.md](CHANGES_COMPLETE.md) | Feature breakdown | 8 min |
-
-### **Quick Links**
-- 🎬 **Demo Page**: `http://localhost:3000/demo-enhanced.html`
-- 📖 **API Docs**: See [API_TESTING_GUIDE.md](API_TESTING_GUIDE.md)
-- 🔧 **Integration Guide**: See [CHANGES_COMPLETE.md](CHANGES_COMPLETE.md#frontend-updates-needed)
+| Document | Purpose |
+|----------|---------|
+| **README.md** | This file - system overview |
+| **THREADING_FEATURE_STATUS.md** | Threading implementation specs |
+| **THREADING_IMPLEMENTATION_SUMMARY.md** | Threading developer guide |
+| **API_TESTING_GUIDE.md** | API endpoint testing |
+| **DEPLOYMENT_GUIDE.md** | Deployment instructions |
+| **TESTING_GUIDE.md** | QA testing procedures |
+| **QUICK_START.md** | Getting started guide |
 
 ---
 
-## 🎨 What the Demo Shows
+## 🔌 Key API Endpoints
 
-The enhanced demo page (`demo-enhanced.html`) showcases:
-
-### **✅ Inventory with Commitment Tracking**
-- Packed (finished goods)
-- **Committed** (reserved for orders) 🆕
-- **Available** (can be sold) 🆕
-- Color-coded warnings when low
-
-### **✅ Interactive Test Buttons**
-- Refresh Data
-- Test Availability Check
-- Test Undo Functionality
-- Show/Hide Audit Log
-
-### **✅ Audit Log Viewer**
-- Recent changes
-- Color-coded by action
-- Complete traceability
-
-### **✅ Toast Notifications**
-- Success/Error/Warning/Info
-- Action buttons (e.g., UNDO)
-- Auto-dismiss or persistent
-
----
-
-## 📊 Architecture Overview
-
+### **Products**
 ```
-┌─────────────────────────────────────────────────────┐
-│                    Frontend                         │
-│  • React (CDN)                                      │
-│  • TailwindCSS                                      │
-│  • Toast Notifications                              │
-│  • demo-enhanced.html (showcase)                    │
-│  • app.restored.js (main app)                       │
-└─────────────────┬───────────────────────────────────┘
-                  │
-                  │ REST API
-                  │
-┌─────────────────▼───────────────────────────────────┐
-│                    Backend                          │
-│  • Node.js + Express                                │
-│  • SQLite Database                                  │
-│  • Audit Logging                                    │
-│  • Soft Deletes                                     │
-│  • BOM Processing                                   │
-│  • File Attachments                                 │
-└─────────────────┬───────────────────────────────────┘
-                  │
-                  │
-┌─────────────────▼───────────────────────────────────┐
-│               SQLite Database                       │
-│  • 18 Tables                                        │
-│  • 6 Performance Indexes                            │
-│  • Foreign Key Constraints                          │
-│  • Audit Trail                                      │
-│  • Document Attachments                             │
-└─────────────────────────────────────────────────────┘
+GET    /api/products              - List all products
+POST   /api/products              - Create product
+PUT    /api/products/:id          - Update product
+DELETE /api/products/:id          - Delete product (with validation)
+GET    /api/products/:id/usage    - Show where product is used
+```
+
+### **Inventory**
+```
+GET    /api/inventory             - Get consolidated inventory by base product
+POST   /api/production            - Log production entry
+GET    /api/production-history    - View production history
+```
+
+### **Orders**
+```
+GET    /api/client-purchase-orders       - List client POs
+POST   /api/client-purchase-orders       - Create client PO
+DELETE /api/client-purchase-orders/:id   - Delete client PO
+GET    /api/vendor-purchase-orders       - List vendor POs
+POST   /api/vendor-purchase-orders       - Create vendor PO
+```
+
+### **Admin Operations**
+```
+POST   /api/admin/delete-all-pos-invoices    - Delete all POs/invoices
+POST   /api/admin/force-delete-product/:id   - Force delete product
 ```
 
 ---
 
-## 🔄 Integrated Workflows
-
-### **Order-to-Cash Flow**
-```
-Vendor PO → Materials Received → Production Logged
-   ↓
-Materials Auto-Deducted (BOM) → Inventory Increased
-   ↓
-Client PO Created → Inventory Committed → Available ↓
-   ↓
-Shipment Created → PO Fulfilled → Inventory Deducted
-   ↓
-Audit Log Updated → Complete Traceability
-```
-
-### **Error Correction Flow**
-```
-User Deletes PO (mistake)
-   ↓
-Soft Delete: is_deleted=1, Inventory Uncommitted
-   ↓
-Toast Shows: "PO Deleted - [UNDO]"
-   ↓
-User Clicks UNDO
-   ↓
-Record Restored: is_deleted=0, Inventory Recommitted
-   ↓
-Toast Shows: "PO Restored Successfully"
-```
-
----
-
-## 🎯 Key Features in Detail
-
-### **1. Inventory Commitment Tracking**
-
-**Problem**: Without tracking commitments, you might sell the same inventory twice.
-
-**Solution**:
-- Client PO creation reserves inventory (commits it)
-- Available = Packed - Committed
-- Visual warnings when availability is low
-
-**Example**:
-```
-Product: CBG-14-3000-250
-Packed: 1500 units
-Committed: 750 units (PO-001 needs 500, PO-002 needs 250)
-Available: 750 units (can still promise to new orders)
-```
-
-### **2. BOM-Based Material Consumption**
-
-**Problem**: Manual tracking of raw material usage is error-prone.
-
-**Solution**:
-- Production entry (packed units) triggers BOM lookup
-- Automatically calculates and deducts steel & copper
-- Complete audit trail of consumption
-
-**Example**:
-```
-Product: CBG-14-3000-250
-BOM: 3.5 kg steel, 0.25 kg copper per unit
-
-Production: 1000 units packed
-System deducts:
-  - Steel: 1000 × 3.5 = 3500 kg
-  - Copper: 1000 × 0.25 = 250 kg
-
-Audit log: Material consumption recorded
-```
-
-### **3. Soft Delete with Undo**
-
-**Problem**: Accidental deletions cause permanent data loss.
-
-**Solution**:
-- Default delete is "soft" (marks is_deleted=1)
-- Record stays in database
-- One-click undo restores everything
-- Inventory automatically reconciled
-
-**Example**:
-```
-1. User deletes PO-001
-2. System: is_deleted=1, inventory uncommitted
-3. User clicks UNDO within 5 seconds
-4. System: is_deleted=0, inventory recommitted
-5. PO-001 fully restored
-```
-
----
-
-## 📊 API Endpoints (New in v2.0)
-
-### **Inventory with Commitment**
-```
-GET /api/inventory
-```
-Returns: packed, committed, available, total_wip, total_stock
-
-### **Availability Check**
-```
-POST /api/inventory/check-availability
-Body: { "line_items": [{ "product_id": "...", "quantity": 1000 }] }
-```
-Returns: available (bool), details, warnings
-
-### **Undo Delete**
-```
-POST /api/undo/:table/:recordId
-```
-Restores soft-deleted record
-
-### **Audit Log**
-```
-GET /api/audit-log/:table/:recordId
-GET /api/audit-log?limit=100
-```
-Returns change history
-
-### **Document Attachments**
-```
-POST /api/attachments/:entityType/:entityId (multipart/form-data)
-GET /api/attachments/:entityType/:entityId
-GET /api/attachments/download/:id
-DELETE /api/attachments/:id
-```
-
-**See [API_TESTING_GUIDE.md](API_TESTING_GUIDE.md) for complete list & examples**
-
----
-
-## 🧪 Testing
-
-### **Quick Test**
-```bash
-# Start server
-npm start
-
-# Open demo in browser
-http://localhost:3000/demo-enhanced.html
-
-# Click all test buttons
-```
-
-### **API Test**
-```bash
-# Get inventory with new fields
-curl http://localhost:3000/api/inventory | jq '.[0]'
-
-# Test availability check
-curl -X POST http://localhost:3000/api/inventory/check-availability \
-  -H "Content-Type: application/json" \
-  -d '{"line_items":[{"product_id":"CBG-001","quantity":9999}]}'
-
-# View audit log
-curl http://localhost:3000/api/audit-log?limit=10
-```
-
-**See [API_TESTING_GUIDE.md](API_TESTING_GUIDE.md) for 20+ test scenarios**
-
----
-
-## 📁 Project Structure
+## 🗂️ Project Structure
 
 ```
 GroundRodERP/
-├── server.js                    # Backend (enhanced)
-├── server.js.backup             # Original backup
-├── groundrod.db                 # SQLite database
+├── server.js                    # Express backend with API endpoints
+├── groundrod.db                 # SQLite database (auto-created)
 ├── package.json                 # Dependencies
 ├── public/
-│   ├── index.html               # Main app entry
-│   ├── app.restored.js          # Main app (enhanced)
-│   ├── app.restored.js.backup   # Original backup
-│   └── demo-enhanced.html       # ⭐ Feature demo
-├── uploads/                     # Attachments & PDFs
+│   ├── index.html               # PWA shell
+│   ├── app.restored.js          # React frontend (no JSX)
+│   └── sw.js                    # Service worker (v37.36)
+├── uploads/                     # PDF storage
 │   ├── client_po/
-│   ├── vendor_po/
-│   └── attachments/
-└── docs/
-    ├── README.md                # This file
-    ├── QUICK_START.md           # 3-minute guide
-    ├── PROJECT_COMPLETE.md      # Complete overview
-    ├── IMPROVEMENTS_SUMMARY.md  # Technical details
-    ├── API_TESTING_GUIDE.md     # API tests
-    ├── WORKFLOW_DIAGRAM.md      # Visual flows
-    └── CHANGES_COMPLETE.md      # Feature breakdown
+│   └── vendor_po/
+└── docs/                        # Documentation
 ```
 
 ---
 
-## 🔧 Technology Stack
+## 🔐 Threading System Workflow
 
-| Layer | Technology |
-|-------|------------|
-| **Backend** | Node.js 18+, Express |
-| **Database** | SQLite 3 |
-| **Frontend** | React 18 (CDN), TailwindCSS |
-| **File Storage** | Local filesystem (`/uploads`) |
-| **API Style** | RESTful JSON |
-| **Authentication** | Not implemented (internal use) |
+1. **Create Base Product**:
+   - Set threading = "Plain"
+   - Leave base_product_id empty (defaults to own ID)
 
----
+2. **Create Threading Variant**:
+   - Set threading = "Threaded" or "Partially Threaded"
+   - Set base_product_id = ID of base product
+   - System links them as variants
 
-## 🎯 Success Metrics
+3. **Production Entry**:
+   - Enter quantities for each stage
+   - At stamping stage, select threading type
+   - Inventory splits by variant at stamped/packed stages
 
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| Material Tracking | Manual | Auto (BOM-based) | **100%** |
-| Inventory Accuracy | Packed only | Packed + Committed + Available | **200%** |
-| Delete Safety | Permanent | Soft delete + Undo | **100%** |
-| Change History | None | Complete audit trail | **∞** |
-| Query Performance | Baseline | 81% faster (indexes) | **81%** |
-| Document Storage | Temporary | Permanent & linked | **100%** |
-| Error Recovery | Manual DB fix | One-click undo | **100%** |
+4. **Inventory Display**:
+   - WIP stages (steel_rods, plated, machined) consolidated by base
+   - Finished goods (stamped, packed) split by threading variant
+   - Prevents double-counting of work-in-progress
 
 ---
 
-## 📈 Performance
+## 🐛 Troubleshooting
 
-- ✅ **Query Speed**: 81% faster with 6 strategic indexes
-- ✅ **Transactions**: All multi-step operations are atomic
-- ✅ **Foreign Keys**: Referential integrity enforced
-- ✅ **Scalability**: Ready for 10,000+ records
+### **Product Won't Delete**
+1. Check usage: `GET /api/products/:id/usage`
+2. Remove blocking references (client POs, vendor POs, inventory)
+3. Try delete again
+4. If phantom error, use force delete (admin only)
 
----
+### **Threading Not Working**
+- Ensure Render deployed v37.33+ (has auto-migration)
+- Check products have `threading` and `base_product_id` columns
+- Hard refresh browser (Ctrl+Shift+R)
 
-## 🆘 Troubleshooting
+### **Database Reset**
+```bash
+# Delete local database
+rm groundrod.db
 
-| Issue | Solution |
-|-------|----------|
-| Demo doesn't load | Ensure server is running on port 3000 |
-| No data showing | Click "Refresh Data" button |
-| Toast not working | Check browser console (F12) |
-| API errors | Check server console for details |
-| Want to reset | Delete `groundrod.db` and restart |
-
-**See [QUICK_START.md](QUICK_START.md#troubleshooting) for more**
-
----
-
-## 📞 Support & Resources
-
-- 📖 **Full Documentation**: See `docs/` folder
-- 🎬 **Live Demo**: `http://localhost:3000/demo-enhanced.html`
-- 🧪 **API Tests**: [API_TESTING_GUIDE.md](API_TESTING_GUIDE.md)
-- 🚀 **Quick Start**: [QUICK_START.md](QUICK_START.md)
-- 📊 **Architecture**: [IMPROVEMENTS_SUMMARY.md](IMPROVEMENTS_SUMMARY.md)
+# Restart server (recreates with latest schema)
+npm start
+```
 
 ---
 
-## 🎉 Version History
+## 📈 Version History
 
-### **v2.0.0 - Enhanced Edition** (January 2025)
-- ✅ Inventory commitment tracking
-- ✅ BOM-based material consumption
-- ✅ Soft deletes with undo
-- ✅ Complete audit trail
-- ✅ Document attachments
-- ✅ Availability validation
-- ✅ Performance indexes
-- ✅ Toast notifications
-- ✅ Enhanced demo page
-- ✅ Comprehensive documentation
+- **v37.36**: Fixed product DELETE endpoint - added vendor PO check *(current)*
+- **v37.35**: Added product usage report endpoint
+- **v37.34**: Added force delete product endpoint
+- **v37.33**: Added threading to auto-migration system
+- **v37.32**: Fixed Product PUT endpoint for threading fields
+- **v37.31**: Fixed DELETE ALL API with foreign key handling
+- **v37.28-30**: Admin endpoints for database cleanup
+- **v37.25**: Added threading to edit modals
+- **v37.20-23**: Implemented threading system
+- **v37.18**: Removed QC stage from workflow
+- **v37.15-17**: Fixed client PO deletion
 
-### **v1.0.0 - Initial Release**
-- Basic ERP functionality
-- Inventory tracking
-- Order management
-- Simple production logging
+**See git commit history for complete changelog**
+
+---
+
+## 🚀 Deployment
+
+**Production**: https://groundrod-erp.onrender.com
+
+**Deployment**: Automatic via GitHub → Render.com
+- Push to `main` branch triggers deployment
+- Build time: ~3-5 minutes
+- Database persists across deploys
+- Service worker caches frontend
+
+---
+
+## 📞 Support
+
+For issues or questions:
+1. Check documentation in `/docs` folder
+2. Review git commit messages for recent changes
+3. Test API endpoints using curl or Postman
+4. Check browser console and server logs for errors
 
 ---
 
@@ -427,14 +271,4 @@ ISC License - Internal company use
 
 ---
 
-## 🏆 Credits
-
-**System Version**: 2.0.0 (Enhanced)
-**Status**: Production Ready
-**Date**: January 2025
-
----
-
-**🚀 Your Ground Rod ERP is ready to use!**
-
-Start with [QUICK_START.md](QUICK_START.md) or open the [demo page](http://localhost:3000/demo-enhanced.html) right now! 🎉
+**Built for Nikkon Ferro - Ground Rod Manufacturing** | Last Updated: January 2025
