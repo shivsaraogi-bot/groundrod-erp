@@ -4889,10 +4889,13 @@ app.post('/api/stock-adjustments', (req, res) => {
     return res.status(400).json({ error: 'Missing required fields: adjustment_date, product_id, stage, quantity, adjustment_type, reason' });
   }
 
-  const validStages = ['plated', 'machined', 'qc', 'stamped', 'packed', 'cores'];
+  const validStages = ['plated', 'machined', 'qc', 'stamped', 'packed', 'cores', 'steel_rods'];
   if (!validStages.includes(stage.toLowerCase())) {
     return res.status(400).json({ error: 'Invalid stage. Must be one of: plated, machined, qc, stamped, packed, cores' });
   }
+
+  // Map 'steel_rods' to 'cores' for database column compatibility
+  const dbStage = stage.toLowerCase() === 'steel_rods' ? 'cores' : stage.toLowerCase();
 
   const validTypes = ['opening_balance', 'physical_count', 'damage_scrap', 'other'];
   if (!validTypes.includes(adjustment_type)) {
@@ -4902,11 +4905,11 @@ app.post('/api/stock-adjustments', (req, res) => {
   db.serialize(() => {
     db.run('BEGIN');
 
-    // Insert adjustment record
+    // Insert adjustment record (store original stage name for display)
     db.run(`
       INSERT INTO stock_adjustments (adjustment_date, product_id, stage, quantity, adjustment_type, reason, notes, created_by)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [adjustment_date, product_id, stage.toLowerCase(), Number(quantity), adjustment_type, reason, notes || '', created_by || 'system'],
+    `, [adjustment_date, product_id, dbStage, Number(quantity), adjustment_type, reason, notes || '', created_by || 'system'],
     function(err) {
       if (err) {
         db.run('ROLLBACK');
@@ -4915,13 +4918,12 @@ app.post('/api/stock-adjustments', (req, res) => {
 
       const adjustmentId = this.lastID;
 
-      // Update inventory
-      const stageColumn = stage.toLowerCase();
+      // Update inventory (use dbStage for column name)
       db.run(`
-        INSERT INTO inventory (product_id, ${stageColumn})
+        INSERT INTO inventory (product_id, ${dbStage})
         VALUES (?, ?)
         ON CONFLICT(product_id) DO UPDATE SET
-          ${stageColumn} = ${stageColumn} + excluded.${stageColumn},
+          ${dbStage} = ${dbStage} + excluded.${dbStage},
           updated_at = CURRENT_TIMESTAMP
       `, [product_id, Number(quantity)], (invErr) => {
         if (invErr) {
