@@ -1374,6 +1374,9 @@ app.put('/api/products/:id', (req, res) => {
     // If ID changed, update all related tables
     if (oldId !== newId) {
       db.serialize(() => {
+        // Disable foreign keys temporarily to allow PRIMARY KEY update
+        db.run('PRAGMA foreign_keys = OFF', ()=>{});
+
         // Update BOM entries
         db.run('UPDATE bom SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
         // Update inventory
@@ -1384,6 +1387,18 @@ app.put('/api/products/:id', (req, res) => {
         db.run('UPDATE shipment_items SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
         // Update production history
         db.run('UPDATE production_history SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        // Update stock adjustments
+        db.run('UPDATE stock_adjustments SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        // Update drawing operations
+        db.run('UPDATE drawing_operations SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        // Update job work items
+        db.run('UPDATE job_work_items SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        // Update job work receipts
+        db.run('UPDATE job_work_receipts SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        // Update inventory allocations
+        db.run('UPDATE inventory_allocations SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        // Update vendor PO line items
+        db.run('UPDATE vendor_po_line_items SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
 
         // Update product ID itself
         const sets = ['id=?','description=?','steel_diameter=?','copper_coating=?','length=?','active=?','threading=?'];
@@ -1395,6 +1410,8 @@ app.put('/api/products/:id', (req, res) => {
         if (schema.hasCoating) { sets.splice(sets.length-1, 0, 'coating=?'); vals.splice(vals.length, 0, copper_coating); }
         const sql = `UPDATE products SET ${sets.join(', ')} WHERE id=?`;
         db.run(sql, [...vals, oldId], function(err){
+          // Re-enable foreign keys
+          db.run('PRAGMA foreign_keys = ON', ()=>{});
           if (err) return res.status(500).json({ error: err.message });
           res.json({ message: 'Product updated successfully', newId });
         });
