@@ -1364,6 +1364,7 @@ app.put('/api/products/:id', (req, res) => {
   const length = Number(req.body.length ?? req.body.length_mm);
   const active = req.body.active ?? 1;
   const category = (req.body.category||'').toString() || null;
+  const threading = (req.body.threading||'Plain').toString();
 
   const runUpdate = (schema)=>{
     // If ID changed, update all related tables
@@ -1381,8 +1382,8 @@ app.put('/api/products/:id', (req, res) => {
         db.run('UPDATE production_history SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
 
         // Update product ID itself
-        const sets = ['id=?','description=?','steel_diameter=?','copper_coating=?','length=?','active=?'];
-        const vals = [newId, description, steel_diameter, copper_coating, length, active];
+        const sets = ['id=?','description=?','steel_diameter=?','copper_coating=?','length=?','active=?','threading=?'];
+        const vals = [newId, description, steel_diameter, copper_coating, length, active, threading];
         if (category !== null){ sets.push('category=?'); vals.push(category); }
         sets.push('updated_at=CURRENT_TIMESTAMP');
         if (schema.hasDiameter) { sets.splice(sets.length-1, 0, 'diameter=?'); vals.splice(vals.length, 0, steel_diameter); }
@@ -1395,8 +1396,8 @@ app.put('/api/products/:id', (req, res) => {
       });
     } else {
       // ID didn't change, just update product fields
-      const sets = ['description=?','steel_diameter=?','copper_coating=?','length=?','active=?'];
-      const vals = [description, steel_diameter, copper_coating, length, active];
+      const sets = ['description=?','steel_diameter=?','copper_coating=?','length=?','active=?','threading=?'];
+      const vals = [description, steel_diameter, copper_coating, length, active, threading];
       if (category !== null){ sets.push('category=?'); vals.push(category); }
       sets.push('updated_at=CURRENT_TIMESTAMP');
       if (schema.hasDiameter) { sets.splice(sets.length-1, 0, 'diameter=?'); vals.splice(vals.length, 0, steel_diameter); }
