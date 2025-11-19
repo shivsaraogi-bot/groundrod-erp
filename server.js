@@ -1307,11 +1307,14 @@ app.post('/api/products', (req, res) => {
   const category = (req.body.category||'').toString() || null;
   const product_type = (req.body.product_type||'ground_rod').toString();
   const custom_bom = req.body.custom_bom ? 1 : 0;
+  const threading = (req.body.threading||'Plain').toString();
+  const base_product_id = req.body.base_product_id ? req.body.base_product_id.toString() : null;
 
   const runInsert = (schema)=>{
-    const cols = ['id','description','steel_diameter','copper_coating','length','width','height','thickness','product_type','custom_bom'];
-    const vals = [id, description, steel_diameter, copper_coating, length, width, height, thickness, product_type, custom_bom];
+    const cols = ['id','description','steel_diameter','copper_coating','length','width','height','thickness','product_type','custom_bom','threading'];
+    const vals = [id, description, steel_diameter, copper_coating, length, width, height, thickness, product_type, custom_bom, threading];
     if (category !== null){ cols.push('category'); vals.push(category); }
+    if (base_product_id !== null){ cols.push('base_product_id'); vals.push(base_product_id); }
     if (schema.hasDiameter) { cols.push('diameter'); vals.push(steel_diameter); }
     if (schema.hasCoating) { cols.push('coating'); vals.push(copper_coating); }
     const sql = `INSERT INTO products (${cols.join(',')}) VALUES (${cols.map(()=>'?').join(',')})`;
