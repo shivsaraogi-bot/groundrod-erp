@@ -1365,6 +1365,7 @@ app.put('/api/products/:id', (req, res) => {
   const active = req.body.active ?? 1;
   const category = (req.body.category||'').toString() || null;
   const threading = (req.body.threading||'Plain').toString();
+  const base_product_id = req.body.base_product_id ? req.body.base_product_id.toString() : null;
 
   const runUpdate = (schema)=>{
     // If ID changed, update all related tables
@@ -1385,6 +1386,7 @@ app.put('/api/products/:id', (req, res) => {
         const sets = ['id=?','description=?','steel_diameter=?','copper_coating=?','length=?','active=?','threading=?'];
         const vals = [newId, description, steel_diameter, copper_coating, length, active, threading];
         if (category !== null){ sets.push('category=?'); vals.push(category); }
+        if (base_product_id !== null){ sets.push('base_product_id=?'); vals.push(base_product_id); }
         sets.push('updated_at=CURRENT_TIMESTAMP');
         if (schema.hasDiameter) { sets.splice(sets.length-1, 0, 'diameter=?'); vals.splice(vals.length, 0, steel_diameter); }
         if (schema.hasCoating) { sets.splice(sets.length-1, 0, 'coating=?'); vals.splice(vals.length, 0, copper_coating); }
@@ -1399,6 +1401,7 @@ app.put('/api/products/:id', (req, res) => {
       const sets = ['description=?','steel_diameter=?','copper_coating=?','length=?','active=?','threading=?'];
       const vals = [description, steel_diameter, copper_coating, length, active, threading];
       if (category !== null){ sets.push('category=?'); vals.push(category); }
+      if (base_product_id !== null){ sets.push('base_product_id=?'); vals.push(base_product_id); }
       sets.push('updated_at=CURRENT_TIMESTAMP');
       if (schema.hasDiameter) { sets.splice(sets.length-1, 0, 'diameter=?'); vals.splice(vals.length, 0, steel_diameter); }
       if (schema.hasCoating) { sets.splice(sets.length-1, 0, 'coating=?'); vals.splice(vals.length, 0, copper_coating); }
