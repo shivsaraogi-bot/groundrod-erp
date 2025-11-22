@@ -4161,7 +4161,8 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
       )
     )
   )
-          ),
+          ))
+        ),
 
   // Submit button
   React.createElement('div', { className: 'flex justify-end mt-4' },
