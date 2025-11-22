@@ -4611,7 +4611,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
           )
         )
       )
-    );
+    ));
 }
 
 function VendorPurchaseOrders({ purchaseOrders, vendors, onRefresh }) {
