@@ -18,42 +18,42 @@ app.use(express.static('public'));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Optional PDF import deps (guarded)
 let multer = null; let pdfParse = null; let csvParse = null; let AfterShip = null; let GoogleGenAI = null; let Anthropic = null;
-try { multer = require('multer'); } catch(_) {}
-try { pdfParse = require('pdf-parse'); } catch(_) {}
-try { csvParse = require('csv-parse/sync'); } catch(_) {}
-try { AfterShip = require('aftership').default || require('aftership'); } catch(_) {}
-try { GoogleGenAI = require('@google/genai').GoogleGenAI; } catch(_) {}
-try { Anthropic = require('@anthropic-ai/sdk').Anthropic; } catch(_) {}
+try { multer = require('multer'); } catch (_) { }
+try { pdfParse = require('pdf-parse'); } catch (_) { }
+try { csvParse = require('csv-parse/sync'); } catch (_) { }
+try { AfterShip = require('aftership').default || require('aftership'); } catch (_) { }
+try { GoogleGenAI = require('@google/genai').GoogleGenAI; } catch (_) { }
+try { Anthropic = require('@anthropic-ai/sdk').Anthropic; } catch (_) { }
 const upload = multer ? multer({ storage: multer.memoryStorage() }) : null;
 
-function normalizeDateInput(d){
+function normalizeDateInput(d) {
   if (!d) return d;
-  const str = String(d).trim().replace(/\//g,'-');
+  const str = String(d).trim().replace(/\//g, '-');
   const m = str.match(/^([0-3]\d)-([01]\d)-(\d{4})$/);
   if (m) return `${m[3]}-${m[2]}-${m[1]}`;
   return str;
 }
 
-function extractClientPOItems(text){
+function extractClientPOItems(text) {
   if (!text) return [];
-  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   const items = [];
   let headerSeen = false;
-  for (const line of lines){
+  for (const line of lines) {
     const lower = line.toLowerCase();
-    if (!headerSeen && lower.includes('qty') && (lower.includes('price') || lower.includes('rate'))){
+    if (!headerSeen && lower.includes('qty') && (lower.includes('price') || lower.includes('rate'))) {
       headerSeen = true;
       continue;
     }
     if (!headerSeen) continue;
-    const parts = line.split(/\t|\s{2,}|,/).map(p=>p.trim()).filter(Boolean);
+    const parts = line.split(/\t|\s{2,}|,/).map(p => p.trim()).filter(Boolean);
     if (parts.length < 4) continue;
     let unitPriceIndex = -1;
     let qtyIndex = -1;
-    for (let i = parts.length - 1; i >= 0; i--){
-      const value = parts[i].replace(/,/g,'');
-      if (/^-?\d+(?:\.\d+)?$/.test(value)){
-        if (unitPriceIndex === -1){
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const value = parts[i].replace(/,/g, '');
+      if (/^-?\d+(?:\.\d+)?$/.test(value)) {
+        if (unitPriceIndex === -1) {
           unitPriceIndex = i;
         } else {
           qtyIndex = i;
@@ -62,8 +62,8 @@ function extractClientPOItems(text){
       }
     }
     if (qtyIndex === -1 || unitPriceIndex === -1) continue;
-    const quantity = Number(parts[qtyIndex].replace(/,/g,''));
-    const unit_price = Number(parts[unitPriceIndex].replace(/,/g,''));
+    const quantity = Number(parts[qtyIndex].replace(/,/g, ''));
+    const unit_price = Number(parts[unitPriceIndex].replace(/,/g, ''));
     if (!Number.isFinite(quantity) || !Number.isFinite(unit_price)) continue;
     const product_id = parts[0];
     if (!product_id || product_id.length > 40) continue;
@@ -81,7 +81,7 @@ function extractClientPOItems(text){
   return items;
 }
 
-function parseClientPOFromText(text){
+function parseClientPOFromText(text) {
   const po = {};
   const id = text.match(/PO\s*(?:ID|#|Number)?\s*[:\-]?\s*([A-Z0-9\-]+)/i);
   if (id) po.id = id[1];
@@ -96,44 +96,44 @@ function parseClientPOFromText(text){
   return { po, items: extractClientPOItems(text) };
 }
 
-function extractVendorPOItems(text){
+function extractVendorPOItems(text) {
   if (!text) return [];
-  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   const items = [];
   let headerSeen = false;
-  for (const line of lines){
+  for (const line of lines) {
     const lower = line.toLowerCase();
-    if (!headerSeen && lower.includes('qty') && (lower.includes('unit') || lower.includes('rate') || lower.includes('price'))){
+    if (!headerSeen && lower.includes('qty') && (lower.includes('unit') || lower.includes('rate') || lower.includes('price'))) {
       headerSeen = true;
       continue;
     }
     if (!headerSeen) continue;
-    const parts = line.split(/\t|\s{2,}|,/).map(p=>p.trim()).filter(Boolean);
+    const parts = line.split(/\t|\s{2,}|,/).map(p => p.trim()).filter(Boolean);
     if (parts.length < 3) continue;
     let qtyIndex = -1;
-    for (let i = parts.length - 1; i >= 0; i--){
-      const value = parts[i].replace(/,/g,'');
-      if (/^-?\d+(?:\.\d+)?$/.test(value)){
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const value = parts[i].replace(/,/g, '');
+      if (/^-?\d+(?:\.\d+)?$/.test(value)) {
         qtyIndex = i;
         break;
       }
     }
     if (qtyIndex === -1) continue;
-    const qty = Number(parts[qtyIndex].replace(/,/g,'')); if (!Number.isFinite(qty)) continue;
-    const itemCode = parts[0] || `ITEM-${items.length+1}`;
+    const qty = Number(parts[qtyIndex].replace(/,/g, '')); if (!Number.isFinite(qty)) continue;
+    const itemCode = parts[0] || `ITEM-${items.length + 1}`;
     const description = parts.slice(1, qtyIndex).join(' ');
-    const unit = (qtyIndex + 1 < parts.length && parts[qtyIndex+1].length <= 6) ? parts[qtyIndex+1] : 'pcs';
+    const unit = (qtyIndex + 1 < parts.length && parts[qtyIndex + 1].length <= 6) ? parts[qtyIndex + 1] : 'pcs';
     items.push({ item: itemCode, description, qty, unit });
     if (items.length >= 25) break;
   }
   return items;
 }
 
-async function ensureDir(p){
-  try { await fsp.mkdir(p, { recursive:true }); } catch(_){}
+async function ensureDir(p) {
+  try { await fsp.mkdir(p, { recursive: true }); } catch (_) { }
 }
 
-function parseVendorPOFromText(text){
+function parseVendorPOFromText(text) {
   const out = {};
   const id = text.match(/VPO\s*(?:ID|#|Number)?\s*[:\-]?\s*([A-Z0-9\-]+)/i) || text.match(/PO\s*(?:ID|#|Number)?\s*[:\-]?\s*([A-Z0-9\-]+)/i);
   if (id) out.id = id[1];
@@ -148,22 +148,22 @@ function parseVendorPOFromText(text){
   return out;
 }
 
-async function handleClientPoPreview(req, res, allowParse){
-  try{
-    if (!req.file || !req.file.buffer) return res.status(400).json({ error:'No file uploaded' });
-    const dir = path.join(__dirname,'uploads','client_po');
+async function handleClientPoPreview(req, res, allowParse) {
+  try {
+    if (!req.file || !req.file.buffer) return res.status(400).json({ error: 'No file uploaded' });
+    const dir = path.join(__dirname, 'uploads', 'client_po');
     await ensureDir(dir);
     const token = `clientpo_${Date.now()}_${Math.random().toString(36).slice(2)}.pdf`;
     const full = path.join(dir, token);
     await fsp.writeFile(full, req.file.buffer);
     let text = '';
     let warning = '';
-    if (allowParse && pdfParse){
+    if (allowParse && pdfParse) {
       try {
         const data = await pdfParse(req.file.buffer);
         text = (data && data.text) ? data.text : '';
         if (!text) warning = 'No text extracted from PDF; fill fields manually.';
-      } catch(e){
+      } catch (e) {
         warning = 'Failed to extract text from PDF; fill fields manually.';
       }
     } else {
@@ -173,27 +173,27 @@ async function handleClientPoPreview(req, res, allowParse){
     const response = { po: parsed.po, items: parsed.items, text: text || '', file_token: token };
     if (warning) response.warning = warning;
     res.json(response);
-  }catch(e){
+  } catch (e) {
     res.status(500).json({ error: e.message || 'Preview failed' });
   }
 }
 
-async function handleVendorPoPreview(req, res, allowParse){
-  try{
-    if (!req.file || !req.file.buffer) return res.status(400).json({ error:'No file uploaded' });
-    const dir = path.join(__dirname,'uploads','vendor_po');
+async function handleVendorPoPreview(req, res, allowParse) {
+  try {
+    if (!req.file || !req.file.buffer) return res.status(400).json({ error: 'No file uploaded' });
+    const dir = path.join(__dirname, 'uploads', 'vendor_po');
     await ensureDir(dir);
     const token = `vendorpo_${Date.now()}_${Math.random().toString(36).slice(2)}.pdf`;
     const full = path.join(dir, token);
     await fsp.writeFile(full, req.file.buffer);
     let text = '';
     let warning = '';
-    if (allowParse && pdfParse){
+    if (allowParse && pdfParse) {
       try {
         const data = await pdfParse(req.file.buffer);
         text = (data && data.text) ? data.text : '';
         if (!text) warning = 'No text extracted from PDF; fill fields manually.';
-      } catch(e){
+      } catch (e) {
         warning = 'Failed to extract text from PDF; fill fields manually.';
       }
     } else {
@@ -204,7 +204,7 @@ async function handleVendorPoPreview(req, res, allowParse){
     const response = { vpo, items, text: text || '', file_token: token };
     if (warning) response.warning = warning;
     res.json(response);
-  }catch(e){
+  } catch (e) {
     res.status(500).json({ error: e.message || 'Preview failed' });
   }
 }
@@ -213,8 +213,8 @@ async function handleVendorPoPreview(req, res, allowParse){
 const DB_PATH = process.env.DB_PATH
   ? path.resolve(process.env.DB_PATH)
   : (fs.existsSync('/var/data')
-      ? '/var/data/groundrod.db'
-      : path.join(__dirname, 'groundrod.db'));
+    ? '/var/data/groundrod.db'
+    : path.join(__dirname, 'groundrod.db'));
 
 const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) {
@@ -225,12 +225,70 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
   }
 });
 
+// ============================================================================
+// PRODUCT & BOM ENDPOINTS
+// ============================================================================
+
+app.post('/api/products/with-bom', async (req, res) => {
+  const { product, bom } = req.body;
+
+  if (!product || !product.id || !product.description) {
+    return res.status(400).json({ error: 'Invalid product data' });
+  }
+
+  const dbRun = (sql, params) => new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) reject(err);
+      else resolve(this);
+    });
+  });
+
+  try {
+    await dbRun('BEGIN TRANSACTION', []);
+
+    // 1. Create Product
+    await dbRun(
+      `INSERT INTO products (id, description, steel_diameter, copper_coating, length, base_currency, cost_price) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        product.id,
+        product.description,
+        product.steel_diameter || 0,
+        product.copper_coating || 0,
+        product.length || 0,
+        product.base_currency || 'INR',
+        product.cost_price || 0
+      ]
+    );
+
+    // 2. Create BOM entries
+    if (bom && Array.isArray(bom)) {
+      for (const item of bom) {
+        await dbRun(
+          `INSERT INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)`,
+          [product.id, item.material, item.qty_per_unit]
+        );
+      }
+    }
+
+    await dbRun('COMMIT', []);
+
+    logAudit('products', product.id, 'CREATE_WITH_BOM', null, { product, bom });
+    res.status(201).json({ message: 'Product and BOM created successfully', id: product.id });
+
+  } catch (error) {
+    await dbRun('ROLLBACK', []);
+    console.error('Error creating product with BOM:', error);
+    res.status(500).json({ error: error.message || 'Failed to create product' });
+  }
+});
+
 // Track products table schema (legacy columns present?)
 const productsSchema = { hasDiameter: false, hasCoating: false, _ready: false };
-function refreshProductsSchema(cb){
+function refreshProductsSchema(cb) {
   db.all("PRAGMA table_info(products)", (err, cols) => {
-    if (!err && Array.isArray(cols)){
-      const names = cols.map(c=>c.name);
+    if (!err && Array.isArray(cols)) {
+      const names = cols.map(c => c.name);
       productsSchema.hasDiameter = names.includes('diameter');
       productsSchema.hasCoating = names.includes('coating');
       productsSchema._ready = true;
@@ -328,7 +386,7 @@ function initializeDatabase() {
       const ensureColumn = (def) => {
         const name = def.split(/\s+/)[0];
         if (!names.includes(name)) {
-          try { db.run(`ALTER TABLE products ADD COLUMN ${def}`); } catch(_){}
+          try { db.run(`ALTER TABLE products ADD COLUMN ${def}`); } catch (_) { }
         }
       };
       ensureColumn('steel_diameter REAL');
@@ -339,10 +397,10 @@ function initializeDatabase() {
       ensureColumn('updated_at DATETIME DEFAULT CURRENT_TIMESTAMP');
       // Backfill from legacy columns if present
       if (names.includes('diameter')) {
-        try { db.run('UPDATE products SET steel_diameter = COALESCE(steel_diameter, diameter) WHERE steel_diameter IS NULL'); } catch(_){}
+        try { db.run('UPDATE products SET steel_diameter = COALESCE(steel_diameter, diameter) WHERE steel_diameter IS NULL'); } catch (_) { }
       }
       if (names.includes('coating')) {
-        try { db.run('UPDATE products SET copper_coating = COALESCE(copper_coating, coating) WHERE copper_coating IS NULL'); } catch(_){}
+        try { db.run('UPDATE products SET copper_coating = COALESCE(copper_coating, coating) WHERE copper_coating IS NULL'); } catch (_) { }
       }
       refreshProductsSchema();
     });
@@ -435,7 +493,7 @@ function initializeDatabase() {
     db.run("ALTER TABLE client_po_line_items ADD COLUMN threading TEXT DEFAULT 'Plain'", (err) => { /* ignore if exists */ });
 
     // Uploads dir for PDF imports
-    try { require('fs').mkdirSync(require('path').join(__dirname, 'uploads'), { recursive: true }); } catch {}
+    try { require('fs').mkdirSync(require('path').join(__dirname, 'uploads'), { recursive: true }); } catch { }
 
     // Vendor Purchase Orders table (NEW)
     db.run(`CREATE TABLE IF NOT EXISTS vendor_purchase_orders (
@@ -563,13 +621,13 @@ function initializeDatabase() {
 
     // Lightweight migration: ensure inventory.cores and steel_rods exist
     db.all("PRAGMA table_info(inventory)", (err, cols) => {
-      if (!err && Array.isArray(cols)){
-        const n = cols.map(c=>c.name);
-        if (!n.includes('cores')){
-          try { db.run("ALTER TABLE inventory ADD COLUMN cores INTEGER DEFAULT 0"); } catch(_){ }
+      if (!err && Array.isArray(cols)) {
+        const n = cols.map(c => c.name);
+        if (!n.includes('cores')) {
+          try { db.run("ALTER TABLE inventory ADD COLUMN cores INTEGER DEFAULT 0"); } catch (_) { }
         }
-        if (!n.includes('steel_rods')){
-          try { db.run("ALTER TABLE inventory ADD COLUMN steel_rods INTEGER DEFAULT 0"); } catch(_){ }
+        if (!n.includes('steel_rods')) {
+          try { db.run("ALTER TABLE inventory ADD COLUMN steel_rods INTEGER DEFAULT 0"); } catch (_) { }
         }
       }
     });
@@ -623,7 +681,7 @@ function initializeDatabase() {
       FOREIGN KEY (product_id) REFERENCES products(id)
     )`);
 
-        // Add threading support to production history
+    // Add threading support to production history
     db.run("ALTER TABLE production_history ADD COLUMN threading TEXT DEFAULT 'Plain'", (err) => { /* ignore if exists */ });
 
     // Stock Adjustments table for opening balances and corrections
@@ -703,18 +761,18 @@ function initializeDatabase() {
     )`);
     // Add missing columns for evolving schema
     db.all("PRAGMA table_info(company_settings)", (err, cols) => {
-      if (!err && Array.isArray(cols)){
-        const names = cols.map(c=>c.name);
-        if (!names.includes('contacts_json')){
-          try { db.run("ALTER TABLE company_settings ADD COLUMN contacts_json TEXT"); } catch(_){ }
+      if (!err && Array.isArray(cols)) {
+        const names = cols.map(c => c.name);
+        if (!names.includes('contacts_json')) {
+          try { db.run("ALTER TABLE company_settings ADD COLUMN contacts_json TEXT"); } catch (_) { }
         }
       }
     });
     db.get('SELECT COUNT(*) as count FROM company_settings', (err, row) => {
       if (!err && row && row.count === 0) {
         const defaultContacts = JSON.stringify([
-          { name:'Pravin N Saraogi', title:'Managing Director and CEO', email:'pravinns@nikkonferro.com', phone:'+91 98308 14400' },
-          { name:'Shivam Saraogi', title:'Director', email:'shiv@nikkonferro.com', phone:'+91 98300 09236 / +1 703 225 8625' }
+          { name: 'Pravin N Saraogi', title: 'Managing Director and CEO', email: 'pravinns@nikkonferro.com', phone: '+91 98308 14400' },
+          { name: 'Shivam Saraogi', title: 'Director', email: 'shiv@nikkonferro.com', phone: '+91 98300 09236 / +1 703 225 8625' }
         ]);
         db.run(`INSERT INTO company_settings (id, name, phone, website, cin, iso, gstin, registered_address, factory_address, logo_url, contacts_json) VALUES (1,?,?,?,?,?,?,?,?,?,?)`, [
           'NIKKON FERRO PRIVATE LIMITED',
@@ -731,8 +789,8 @@ function initializeDatabase() {
       } else if (!err && row && row.count > 0) {
         // Backfill defaults if missing
         const defaultContacts = JSON.stringify([
-          { name:'Pravin N Saraogi', title:'Managing Director and CEO', email:'pravinns@nikkonferro.com', phone:'+91 98308 14400' },
-          { name:'Shivam Saraogi', title:'Director', email:'shiv@nikkonferro.com', phone:'+91 98300 09236 / +1 703 225 8625' }
+          { name: 'Pravin N Saraogi', title: 'Managing Director and CEO', email: 'pravinns@nikkonferro.com', phone: '+91 98308 14400' },
+          { name: 'Shivam Saraogi', title: 'Director', email: 'shiv@nikkonferro.com', phone: '+91 98300 09236 / +1 703 225 8625' }
         ]);
         db.run("UPDATE company_settings SET contacts_json = COALESCE(NULLIF(contacts_json,''), ?) WHERE id=1", [defaultContacts]);
         db.run("UPDATE company_settings SET logo_url = 'assets/nikkon-logo.png' WHERE id=1 AND (logo_url IS NULL OR logo_url = '' OR logo_url = 'assets/logo-nikkon.png')");
@@ -776,18 +834,20 @@ function initializeDatabase() {
 
     console.log('✅ Database tables initialized');
     // Lightweight migrations for evolving schema - all wrapped in error handlers to prevent crashes
-    db.all("PRAGMA table_info(customers)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('city')) db.run("ALTER TABLE customers ADD COLUMN city TEXT", ()=>{}); if(!n.includes('country')) db.run("ALTER TABLE customers ADD COLUMN country TEXT", ()=>{}); if(!n.includes('is_deleted')) db.run("ALTER TABLE customers ADD COLUMN is_deleted INTEGER DEFAULT 0", ()=>{}); } });
-    db.all("PRAGMA table_info(vendors)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('city')) db.run("ALTER TABLE vendors ADD COLUMN city TEXT", ()=>{}); if(!n.includes('country')) db.run("ALTER TABLE vendors ADD COLUMN country TEXT", ()=>{}); if(!n.includes('vendor_type')) db.run("ALTER TABLE vendors ADD COLUMN vendor_type TEXT", ()=>{}); if(!n.includes('is_deleted')) db.run("ALTER TABLE vendors ADD COLUMN is_deleted INTEGER DEFAULT 0", ()=>{}); } });
-    db.all("PRAGMA table_info(products)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('category')) db.run("ALTER TABLE products ADD COLUMN category TEXT", ()=>{}); if(!n.includes('product_type')) db.run("ALTER TABLE products ADD COLUMN product_type TEXT", ()=>{}); if(!n.includes('custom_bom')) db.run("ALTER TABLE products ADD COLUMN custom_bom INTEGER", ()=>{}); if(!n.includes('width')) db.run("ALTER TABLE products ADD COLUMN width REAL", ()=>{}); if(!n.includes('height')) db.run("ALTER TABLE products ADD COLUMN height REAL", ()=>{}); if(!n.includes('thickness')) db.run("ALTER TABLE products ADD COLUMN thickness REAL", ()=>{}); if(!n.includes('is_deleted')) db.run("ALTER TABLE products ADD COLUMN is_deleted INTEGER DEFAULT 0", ()=>{}); if(!n.includes('threading')) db.run("ALTER TABLE products ADD COLUMN threading TEXT DEFAULT 'Plain'", ()=>{}); if(!n.includes('base_product_id')) db.run("ALTER TABLE products ADD COLUMN base_product_id TEXT", ()=>{}); } });
-    db.all("PRAGMA table_info(vendor_po_line_items)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('description')) db.run("ALTER TABLE vendor_po_line_items ADD COLUMN description TEXT", ()=>{}); if(!n.includes('unit')) db.run("ALTER TABLE vendor_po_line_items ADD COLUMN unit TEXT", ()=>{}); } });
-    db.all("PRAGMA table_info(inventory)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('committed')) db.run("ALTER TABLE inventory ADD COLUMN committed INTEGER", ()=>{}); } });
-    db.all("PRAGMA table_info(client_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN is_deleted INTEGER", ()=>{}); if(!n.includes('advance_percent')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN advance_percent REAL", ()=>{}); if(!n.includes('balance_payment_terms')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN balance_payment_terms TEXT", ()=>{}); if(!n.includes('mode_of_delivery')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN mode_of_delivery TEXT", ()=>{}); if(!n.includes('expected_delivery_date')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN expected_delivery_date TEXT", ()=>{}); if(!n.includes('pdf_path')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN pdf_path TEXT", ()=>{}); } });
-    db.all("PRAGMA table_info(invoices)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('advance_percent')) db.run("ALTER TABLE invoices ADD COLUMN advance_percent REAL", ()=>{}); if(!n.includes('balance_payment_terms')) db.run("ALTER TABLE invoices ADD COLUMN balance_payment_terms TEXT", ()=>{}); if(!n.includes('mode_of_delivery')) db.run("ALTER TABLE invoices ADD COLUMN mode_of_delivery TEXT", ()=>{}); if(!n.includes('expected_delivery_date')) db.run("ALTER TABLE invoices ADD COLUMN expected_delivery_date TEXT", ()=>{}); } });
-    db.all("PRAGMA table_info(vendor_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE vendor_purchase_orders ADD COLUMN is_deleted INTEGER", ()=>{}); } });
-    db.all("PRAGMA table_info(shipments)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE shipments ADD COLUMN is_deleted INTEGER", ()=>{}); if(!n.includes('carrier')) db.run("ALTER TABLE shipments ADD COLUMN carrier TEXT", ()=>{}); if(!n.includes('destination')) db.run("ALTER TABLE shipments ADD COLUMN destination TEXT", ()=>{}); if(!n.includes('tracking_number')) db.run("ALTER TABLE shipments ADD COLUMN tracking_number TEXT", ()=>{}); if(!n.includes('tracking_status')) db.run("ALTER TABLE shipments ADD COLUMN tracking_status TEXT", ()=>{}); if(!n.includes('tracking_last_updated')) db.run("ALTER TABLE shipments ADD COLUMN tracking_last_updated DATETIME", ()=>{}); if(!n.includes('estimated_delivery')) db.run("ALTER TABLE shipments ADD COLUMN estimated_delivery TEXT", ()=>{}); if(!n.includes('carrier_detected')) db.run("ALTER TABLE shipments ADD COLUMN carrier_detected TEXT", ()=>{}); } });
-    db.all("PRAGMA table_info(production_history)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('is_deleted')) db.run("ALTER TABLE production_history ADD COLUMN is_deleted INTEGER", ()=>{}); if(!n.includes('marking_type')) db.run("ALTER TABLE production_history ADD COLUMN marking_type TEXT DEFAULT 'unmarked'", ()=>{}); if(!n.includes('marking_text')) db.run("ALTER TABLE production_history ADD COLUMN marking_text TEXT", ()=>{}); if(!n.includes('allocated_po_id')) db.run("ALTER TABLE production_history ADD COLUMN allocated_po_id TEXT", ()=>{}); } });
-    db.all("PRAGMA table_info(client_po_line_items)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('marking_type')) db.run("ALTER TABLE client_po_line_items ADD COLUMN marking_type TEXT DEFAULT 'unmarked'", ()=>{}); if(!n.includes('marking_text')) db.run("ALTER TABLE client_po_line_items ADD COLUMN marking_text TEXT", ()=>{}); } });
-    db.all("PRAGMA table_info(job_work_orders)", (err, cols) => { if (!err && Array.isArray(cols)){ const n=cols.map(c=>c.name); if(!n.includes('raw_steel_material')) db.run("ALTER TABLE job_work_orders ADD COLUMN raw_steel_material TEXT", ()=>{}); if(!n.includes('steel_consumed')) db.run("ALTER TABLE job_work_orders ADD COLUMN steel_consumed REAL", ()=>{}); if(!n.includes('cores_produced')) db.run("ALTER TABLE job_work_orders ADD COLUMN cores_produced INTEGER", ()=>{}); if(!n.includes('cores_rejected')) db.run("ALTER TABLE job_work_orders ADD COLUMN cores_rejected INTEGER", ()=>{}); if(!n.includes('core_product_id')) db.run("ALTER TABLE job_work_orders ADD COLUMN core_product_id TEXT", ()=>{}); if(!n.includes('unit_rate')) db.run("ALTER TABLE job_work_orders ADD COLUMN unit_rate REAL DEFAULT 0", ()=>{}); if(!n.includes('total_cost')) db.run("ALTER TABLE job_work_orders ADD COLUMN total_cost REAL DEFAULT 0", ()=>{}); } });
+    db.all("PRAGMA table_info(customers)", (err, cols) => { if (!err && Array.isArray(cols)) { const n = cols.map(c => c.name); if (!n.includes('city')) db.run("ALTER TABLE customers ADD COLUMN city TEXT", () => { }); if (!n.includes('country')) db.run("ALTER TABLE customers ADD COLUMN country TEXT", () => { }); if (!n.includes('is_deleted')) db.run("ALTER TABLE customers ADD COLUMN is_deleted INTEGER DEFAULT 0", () => { }); } });
+    db.all("PRAGMA table_info(vendors)", (err, cols) => { if (!err && Array.isArray(cols)) { const n = cols.map(c => c.name); if (!n.includes('city')) db.run("ALTER TABLE vendors ADD COLUMN city TEXT", () => { }); if (!n.includes('country')) db.run("ALTER TABLE vendors ADD COLUMN country TEXT", () => { }); if (!n.includes('vendor_type')) db.run("ALTER TABLE vendors ADD COLUMN vendor_type TEXT", () => { }); if (!n.includes('is_deleted')) db.run("ALTER TABLE vendors ADD COLUMN is_deleted INTEGER DEFAULT 0", () => { }); } });
+    db.all("PRAGMA table_info(products)", (err, cols) => { if (!err && Array.isArray(cols)) { const n = cols.map(c => c.name); if (!n.includes('category')) db.run("ALTER TABLE products ADD COLUMN category TEXT", () => { }); if (!n.includes('product_type')) db.run("ALTER TABLE products ADD COLUMN product_type TEXT", () => { }); if (!n.includes('custom_bom')) db.run("ALTER TABLE products ADD COLUMN custom_bom INTEGER", () => { }); if (!n.includes('width')) db.run("ALTER TABLE products ADD COLUMN width REAL", () => { }); if (!n.includes('height')) db.run("ALTER TABLE products ADD COLUMN height REAL", () => { }); if (!n.includes('thickness')) db.run("ALTER TABLE products ADD COLUMN thickness REAL", () => { }); if (!n.includes('is_deleted')) db.run("ALTER TABLE products ADD COLUMN is_deleted INTEGER DEFAULT 0", () => { }); if (!n.includes('threading')) db.run("ALTER TABLE products ADD COLUMN threading TEXT DEFAULT 'Plain'", () => { }); if (!n.includes('base_product_id')) db.run("ALTER TABLE products ADD COLUMN base_product_id TEXT", () => { }); } });
+    db.all("PRAGMA table_info(vendor_po_line_items)", (err, cols) => { if (!err && Array.isArray(cols)) { const n = cols.map(c => c.name); if (!n.includes('description')) db.run("ALTER TABLE vendor_po_line_items ADD COLUMN description TEXT", () => { }); if (!n.includes('unit')) db.run("ALTER TABLE vendor_po_line_items ADD COLUMN unit TEXT", () => { }); if (!n.includes('currency')) db.run("ALTER TABLE vendor_po_line_items ADD COLUMN currency TEXT DEFAULT 'INR'", () => { }); } });
+    db.all("PRAGMA table_info(products)", (err, cols) => { if (!err && Array.isArray(cols)) { const n = cols.map(c => c.name); if (!n.includes('base_currency')) db.run("ALTER TABLE products ADD COLUMN base_currency TEXT DEFAULT 'INR'", () => { }); } });
+    db.all("PRAGMA table_info(customers)", (err, cols) => { if (!err && Array.isArray(cols)) { const n = cols.map(c => c.name); if (!n.includes('preferred_currency')) db.run("ALTER TABLE customers ADD COLUMN preferred_currency TEXT DEFAULT 'INR'", () => { }); } });
+    db.all("PRAGMA table_info(inventory)", (err, cols) => { if (!err && Array.isArray(cols)) { const n = cols.map(c => c.name); if (!n.includes('committed')) db.run("ALTER TABLE inventory ADD COLUMN committed INTEGER", () => { }); } });
+    db.all("PRAGMA table_info(client_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)) { const n = cols.map(c => c.name); if (!n.includes('is_deleted')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN is_deleted INTEGER", () => { }); if (!n.includes('advance_percent')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN advance_percent REAL", () => { }); if (!n.includes('balance_payment_terms')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN balance_payment_terms TEXT", () => { }); if (!n.includes('mode_of_delivery')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN mode_of_delivery TEXT", () => { }); if (!n.includes('expected_delivery_date')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN expected_delivery_date TEXT", () => { }); if (!n.includes('pdf_path')) db.run("ALTER TABLE client_purchase_orders ADD COLUMN pdf_path TEXT", () => { }); } });
+    db.all("PRAGMA table_info(invoices)", (err, cols) => { if (!err && Array.isArray(cols)) { const n = cols.map(c => c.name); if (!n.includes('advance_percent')) db.run("ALTER TABLE invoices ADD COLUMN advance_percent REAL", () => { }); if (!n.includes('balance_payment_terms')) db.run("ALTER TABLE invoices ADD COLUMN balance_payment_terms TEXT", () => { }); if (!n.includes('mode_of_delivery')) db.run("ALTER TABLE invoices ADD COLUMN mode_of_delivery TEXT", () => { }); if (!n.includes('expected_delivery_date')) db.run("ALTER TABLE invoices ADD COLUMN expected_delivery_date TEXT", () => { }); } });
+    db.all("PRAGMA table_info(vendor_purchase_orders)", (err, cols) => { if (!err && Array.isArray(cols)) { const n = cols.map(c => c.name); if (!n.includes('is_deleted')) db.run("ALTER TABLE vendor_purchase_orders ADD COLUMN is_deleted INTEGER", () => { }); } });
+    db.all("PRAGMA table_info(shipments)", (err, cols) => { if (!err && Array.isArray(cols)) { const n = cols.map(c => c.name); if (!n.includes('is_deleted')) db.run("ALTER TABLE shipments ADD COLUMN is_deleted INTEGER", () => { }); if (!n.includes('carrier')) db.run("ALTER TABLE shipments ADD COLUMN carrier TEXT", () => { }); if (!n.includes('destination')) db.run("ALTER TABLE shipments ADD COLUMN destination TEXT", () => { }); if (!n.includes('tracking_number')) db.run("ALTER TABLE shipments ADD COLUMN tracking_number TEXT", () => { }); if (!n.includes('tracking_status')) db.run("ALTER TABLE shipments ADD COLUMN tracking_status TEXT", () => { }); if (!n.includes('tracking_last_updated')) db.run("ALTER TABLE shipments ADD COLUMN tracking_last_updated DATETIME", () => { }); if (!n.includes('estimated_delivery')) db.run("ALTER TABLE shipments ADD COLUMN estimated_delivery TEXT", () => { }); if (!n.includes('carrier_detected')) db.run("ALTER TABLE shipments ADD COLUMN carrier_detected TEXT", () => { }); } });
+    db.all("PRAGMA table_info(production_history)", (err, cols) => { if (!err && Array.isArray(cols)) { const n = cols.map(c => c.name); if (!n.includes('is_deleted')) db.run("ALTER TABLE production_history ADD COLUMN is_deleted INTEGER", () => { }); if (!n.includes('marking_type')) db.run("ALTER TABLE production_history ADD COLUMN marking_type TEXT DEFAULT 'unmarked'", () => { }); if (!n.includes('marking_text')) db.run("ALTER TABLE production_history ADD COLUMN marking_text TEXT", () => { }); if (!n.includes('allocated_po_id')) db.run("ALTER TABLE production_history ADD COLUMN allocated_po_id TEXT", () => { }); } });
+    db.all("PRAGMA table_info(client_po_line_items)", (err, cols) => { if (!err && Array.isArray(cols)) { const n = cols.map(c => c.name); if (!n.includes('marking_type')) db.run("ALTER TABLE client_po_line_items ADD COLUMN marking_type TEXT DEFAULT 'unmarked'", () => { }); if (!n.includes('marking_text')) db.run("ALTER TABLE client_po_line_items ADD COLUMN marking_text TEXT", () => { }); } });
+    db.all("PRAGMA table_info(job_work_orders)", (err, cols) => { if (!err && Array.isArray(cols)) { const n = cols.map(c => c.name); if (!n.includes('raw_steel_material')) db.run("ALTER TABLE job_work_orders ADD COLUMN raw_steel_material TEXT", () => { }); if (!n.includes('steel_consumed')) db.run("ALTER TABLE job_work_orders ADD COLUMN steel_consumed REAL", () => { }); if (!n.includes('cores_produced')) db.run("ALTER TABLE job_work_orders ADD COLUMN cores_produced INTEGER", () => { }); if (!n.includes('cores_rejected')) db.run("ALTER TABLE job_work_orders ADD COLUMN cores_rejected INTEGER", () => { }); if (!n.includes('core_product_id')) db.run("ALTER TABLE job_work_orders ADD COLUMN core_product_id TEXT", () => { }); if (!n.includes('unit_rate')) db.run("ALTER TABLE job_work_orders ADD COLUMN unit_rate REAL DEFAULT 0", () => { }); if (!n.includes('total_cost')) db.run("ALTER TABLE job_work_orders ADD COLUMN total_cost REAL DEFAULT 0", () => { }); } });
 
     // Inventory allocations table for tracking marked/branded inventory
     db.run(`CREATE TABLE IF NOT EXISTS inventory_allocations (
@@ -804,7 +864,7 @@ function initializeDatabase() {
       FOREIGN KEY (allocated_po_id) REFERENCES client_purchase_orders(id)
     )`);
 
-        // Add threading support to inventory allocations
+    // Add threading support to inventory allocations
     db.run("ALTER TABLE inventory_allocations ADD COLUMN threading TEXT DEFAULT 'Plain'", (err) => { /* ignore if exists */ });
 
     // MIGRATION NOTE (v20.2): Clean up old packed allocations if needed
@@ -852,7 +912,7 @@ app.post('/api/copper-scrap-sales', (req, res) => {
     `INSERT INTO copper_scrap_sales (sale_date, quantity_kg, rate_per_kg, currency, buyer_name, invoice_number, notes)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [normalizedDate, quantity_kg, rate_per_kg, currency || 'INR', buyer_name, invoice_number, notes],
-    function(err) {
+    function (err) {
       if (err) return res.status(500).json({ error: err.message });
 
       // Deduct from Copper Anode inventory
@@ -896,7 +956,7 @@ app.put('/api/copper-scrap-sales/:id', (req, res) => {
            buyer_name = ?, invoice_number = ?, notes = ?
        WHERE id = ?`,
       [normalizedDate, quantity_kg, rate_per_kg, currency || 'INR', buyer_name, invoice_number, notes, id],
-      function(updateErr) {
+      function (updateErr) {
         if (updateErr) return res.status(500).json({ error: updateErr.message });
 
         // Adjust inventory by the difference
@@ -930,7 +990,7 @@ app.delete('/api/copper-scrap-sales/:id', (req, res) => {
 
     const quantity = row.quantity_kg;
 
-    db.run(`DELETE FROM copper_scrap_sales WHERE id = ?`, [id], function(deleteErr) {
+    db.run(`DELETE FROM copper_scrap_sales WHERE id = ?`, [id], function (deleteErr) {
       if (deleteErr) return res.status(500).json({ error: deleteErr.message });
 
       // Restore inventory
@@ -954,7 +1014,7 @@ app.delete('/api/copper-scrap-sales/:id', (req, res) => {
 app.get('/api/company', (req, res) => {
   db.get('SELECT id, name, phone, website, cin, iso, gstin, registered_address, factory_address, logo_url, contacts_json, updated_at FROM company_settings WHERE id=1', (err, row) => {
     if (err) return res.status(500).json({ error: 'DB error' });
-    if (!row) return res.json({ id:1, name:'', phone:'', website:'', cin:'', iso:'', gstin:'', registered_address:'', factory_address:'', logo_url:'assets/nikkon-logo.png', contacts_json:'[]' });
+    if (!row) return res.json({ id: 1, name: '', phone: '', website: '', cin: '', iso: '', gstin: '', registered_address: '', factory_address: '', logo_url: 'assets/nikkon-logo.png', contacts_json: '[]' });
     res.json(row);
   });
 });
@@ -974,7 +1034,7 @@ app.put('/api/company', (req, res) => {
                  logo_url=excluded.logo_url,
                  contacts_json=excluded.contacts_json,
                  updated_at=CURRENT_TIMESTAMP`;
-  db.run(sql, [name||'', phone||'', website||'', cin||'', iso||'', gstin||'', registered_address||'', factory_address||'', logo_url||'assets/nikkon-logo.png', contacts_json||'[]'], function(err){
+  db.run(sql, [name || '', phone || '', website || '', cin || '', iso || '', gstin || '', registered_address || '', factory_address || '', logo_url || 'assets/nikkon-logo.png', contacts_json || '[]'], function (err) {
     if (err) return res.status(500).json({ error: 'DB error' });
     db.get('SELECT id, name, phone, website, cin, iso, gstin, registered_address, factory_address, logo_url, contacts_json, updated_at FROM company_settings WHERE id=1', (e, row) => {
       if (e) return res.status(500).json({ error: 'DB error' });
@@ -1071,12 +1131,12 @@ app.get('/api/customers', (req, res) => {
 });
 
 app.post('/api/customers', (req, res) => {
-  const { id, name, office_address, warehouse_address, contact_person, phone, email, city=null, country=null } = req.body;
-  
+  const { id, name, office_address, warehouse_address, contact_person, phone, email, city = null, country = null } = req.body;
+
   db.run(
     "INSERT INTO customers (id, name, office_address, warehouse_address, contact_person, phone, email, city, country) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
     [id, name, office_address, warehouse_address, contact_person, phone, email, city, country],
-    function(err) {
+    function (err) {
       if (err) {
         res.status(500).json({ error: err.message });
       } else {
@@ -1088,12 +1148,12 @@ app.post('/api/customers', (req, res) => {
 
 app.put('/api/customers/:id', (req, res) => {
   const { id } = req.params;
-  const { name, office_address, warehouse_address, contact_person, phone, email, city=null, country=null } = req.body;
-  
+  const { name, office_address, warehouse_address, contact_person, phone, email, city = null, country = null } = req.body;
+
   db.run(
     "UPDATE customers SET name=?, office_address=?, warehouse_address=?, contact_person=?, phone=?, email=?, city=?, country=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
     [name, office_address, warehouse_address, contact_person, phone, email, city, country, id],
-    function(err) {
+    function (err) {
       if (err) {
         res.status(500).json({ error: err.message });
       } else {
@@ -1106,7 +1166,7 @@ app.put('/api/customers/:id', (req, res) => {
 app.delete('/api/customers/:id', (req, res) => {
   const { id } = req.params;
 
-  db.run("DELETE FROM customers WHERE id=?", [id], function(err) {
+  db.run("DELETE FROM customers WHERE id=?", [id], function (err) {
     if (err) {
       res.status(500).json({ error: err.message });
     } else {
@@ -1152,7 +1212,7 @@ app.post('/api/customers/:customerId/contacts', (req, res) => {
   db.run(
     "INSERT INTO customer_contacts (customer_id, name, title, phone, email, is_primary, notes) VALUES (?, ?, ?, ?, ?, ?, ?)",
     [customerId, name, title || '', phone || '', email || '', is_primary ? 1 : 0, notes || ''],
-    function(err) {
+    function (err) {
       if (err) {
         res.status(500).json({ error: err.message });
       } else {
@@ -1181,7 +1241,7 @@ app.put('/api/customers/:customerId/contacts/:contactId', (req, res) => {
   db.run(
     "UPDATE customer_contacts SET name=?, title=?, phone=?, email=?, is_primary=?, notes=? WHERE id=? AND customer_id=?",
     [name, title || '', phone || '', email || '', is_primary ? 1 : 0, notes || '', contactId, customerId],
-    function(err) {
+    function (err) {
       if (err) {
         res.status(500).json({ error: err.message });
       } else {
@@ -1198,7 +1258,7 @@ app.delete('/api/customers/:customerId/contacts/:contactId', (req, res) => {
   db.run(
     "DELETE FROM customer_contacts WHERE id=? AND customer_id=?",
     [contactId, customerId],
-    function(err) {
+    function (err) {
       if (err) {
         res.status(500).json({ error: err.message });
       } else {
@@ -1239,12 +1299,12 @@ app.get('/api/vendors', (req, res) => {
 });
 
 app.post('/api/vendors', (req, res) => {
-  const { id, name, office_address, contact_person, phone, email, vendor_type='Other', material_type, city=null, country=null } = req.body;
-  
+  const { id, name, office_address, contact_person, phone, email, vendor_type = 'Other', material_type, city = null, country = null } = req.body;
+
   db.run(
     "INSERT INTO vendors (id, name, office_address, contact_person, phone, email, vendor_type, material_type, city, country) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     [id, name, office_address, contact_person, phone, email, vendor_type, material_type, city, country],
-    function(err) {
+    function (err) {
       if (err) {
         res.status(500).json({ error: err.message });
       } else {
@@ -1256,12 +1316,12 @@ app.post('/api/vendors', (req, res) => {
 
 app.put('/api/vendors/:id', (req, res) => {
   const { id } = req.params;
-  const { name, office_address, contact_person, phone, email, vendor_type='Other', material_type, city=null, country=null } = req.body;
-  
+  const { name, office_address, contact_person, phone, email, vendor_type = 'Other', material_type, city = null, country = null } = req.body;
+
   db.run(
     "UPDATE vendors SET name=?, office_address=?, contact_person=?, phone=?, email=?, vendor_type=?, material_type=?, city=?, country=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
     [name, office_address, contact_person, phone, email, vendor_type, material_type, city, country, id],
-    function(err) {
+    function (err) {
       if (err) {
         res.status(500).json({ error: err.message });
       } else {
@@ -1273,8 +1333,8 @@ app.put('/api/vendors/:id', (req, res) => {
 
 app.delete('/api/vendors/:id', (req, res) => {
   const { id } = req.params;
-  
-  db.run("DELETE FROM vendors WHERE id=?", [id], function(err) {
+
+  db.run("DELETE FROM vendors WHERE id=?", [id], function (err) {
     if (err) {
       res.status(500).json({ error: err.message });
     } else {
@@ -1296,29 +1356,29 @@ app.get('/api/products', (req, res) => {
 });
 
 app.post('/api/products', (req, res) => {
-  const id = (req.body.id||'').toString();
-  const description = (req.body.description||'').toString();
+  const id = (req.body.id || '').toString();
+  const description = (req.body.description || '').toString();
   const steel_diameter = Number(req.body.steel_diameter ?? req.body.diameter);
   const copper_coating = Number(req.body.copper_coating ?? req.body.coating);
   const length = Number(req.body.length ?? req.body.length_mm);
   const width = Number(req.body.width || 0);
   const height = Number(req.body.height || 0);
   const thickness = Number(req.body.thickness || 0);
-  const category = (req.body.category||'').toString() || null;
-  const product_type = (req.body.product_type||'ground_rod').toString();
+  const category = (req.body.category || '').toString() || null;
+  const product_type = (req.body.product_type || 'ground_rod').toString();
   const custom_bom = req.body.custom_bom ? 1 : 0;
-  const threading = (req.body.threading||'Plain').toString();
+  const threading = (req.body.threading || 'Plain').toString();
   const base_product_id = req.body.base_product_id ? req.body.base_product_id.toString() : null;
 
-  const runInsert = (schema)=>{
-    const cols = ['id','description','steel_diameter','copper_coating','length','width','height','thickness','product_type','custom_bom','threading'];
+  const runInsert = (schema) => {
+    const cols = ['id', 'description', 'steel_diameter', 'copper_coating', 'length', 'width', 'height', 'thickness', 'product_type', 'custom_bom', 'threading'];
     const vals = [id, description, steel_diameter, copper_coating, length, width, height, thickness, product_type, custom_bom, threading];
-    if (category !== null){ cols.push('category'); vals.push(category); }
-    if (base_product_id !== null){ cols.push('base_product_id'); vals.push(base_product_id); }
+    if (category !== null) { cols.push('category'); vals.push(category); }
+    if (base_product_id !== null) { cols.push('base_product_id'); vals.push(base_product_id); }
     if (schema.hasDiameter) { cols.push('diameter'); vals.push(steel_diameter); }
     if (schema.hasCoating) { cols.push('coating'); vals.push(copper_coating); }
-    const sql = `INSERT INTO products (${cols.join(',')}) VALUES (${cols.map(()=>'?').join(',')})`;
-    db.run(sql, vals, function(err){
+    const sql = `INSERT INTO products (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`;
+    db.run(sql, vals, function (err) {
       if (err) return res.status(500).json({ error: err.message });
 
       // Auto-generate BOM only if NOT using custom BOM
@@ -1333,8 +1393,8 @@ app.post('/api/products', (req, res) => {
           const copperVolumeMM3 = Math.PI * (outerRadiusMM * outerRadiusMM - steelRadiusMM * steelRadiusMM) * length;
           const copperWeightKg = (copperVolumeMM3 * 8.96) / 1000000;
 
-          db.run(`INSERT OR REPLACE INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)`, [id, 'Steel', steelWeightKg], ()=>{});
-          db.run(`INSERT OR REPLACE INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)`, [id, 'Copper Anode', copperWeightKg], ()=>{});
+          db.run(`INSERT OR REPLACE INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)`, [id, 'Steel', steelWeightKg], () => { });
+          db.run(`INSERT OR REPLACE INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)`, [id, 'Copper Anode', copperWeightKg], () => { });
         } else if (product_type === 'clamp' && width > 0 && height > 0 && thickness > 0 && length > 0) {
           // Rectangular clamp calculation - steel bar volume
           const steelVolumeMM3 = width * height * thickness * length;
@@ -1347,8 +1407,8 @@ app.post('/api/products', (req, res) => {
           const copperVolumeMM3 = surfaceAreaMM2 * copperThicknessMM;
           const copperWeightKg = (copperVolumeMM3 * 8.96) / 1000000; // Copper density 8.96 g/cm³
 
-          db.run(`INSERT OR REPLACE INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)`, [id, 'Steel Bar', steelWeightKg], ()=>{});
-          db.run(`INSERT OR REPLACE INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)`, [id, 'Copper Anode', copperWeightKg], ()=>{});
+          db.run(`INSERT OR REPLACE INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)`, [id, 'Steel Bar', steelWeightKg], () => { });
+          db.run(`INSERT OR REPLACE INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?)`, [id, 'Copper Anode', copperWeightKg], () => { });
         }
       }
 
@@ -1361,72 +1421,72 @@ app.post('/api/products', (req, res) => {
 app.put('/api/products/:id', (req, res) => {
   const oldId = req.params.id;
   const newId = (req.body.id || oldId).toString();
-  const description = (req.body.description||'').toString();
+  const description = (req.body.description || '').toString();
   const steel_diameter = Number(req.body.steel_diameter ?? req.body.diameter);
   const copper_coating = Number(req.body.copper_coating ?? req.body.coating);
   const length = Number(req.body.length ?? req.body.length_mm);
   const active = req.body.active ?? 1;
-  const category = (req.body.category||'').toString() || null;
-  const threading = (req.body.threading||'Plain').toString();
+  const category = (req.body.category || '').toString() || null;
+  const threading = (req.body.threading || 'Plain').toString();
   const base_product_id = req.body.base_product_id ? req.body.base_product_id.toString() : null;
 
-  const runUpdate = (schema)=>{
+  const runUpdate = (schema) => {
     // If ID changed, update all related tables
     if (oldId !== newId) {
       db.serialize(() => {
         // Disable foreign keys temporarily to allow PRIMARY KEY update
-        db.run('PRAGMA foreign_keys = OFF', ()=>{});
+        db.run('PRAGMA foreign_keys = OFF', () => { });
 
         // Update BOM entries
-        db.run('UPDATE bom SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        db.run('UPDATE bom SET product_id=? WHERE product_id=?', [newId, oldId], () => { });
         // Update inventory
-        db.run('UPDATE inventory SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        db.run('UPDATE inventory SET product_id=? WHERE product_id=?', [newId, oldId], () => { });
         // Update client PO line items
-        db.run('UPDATE client_po_line_items SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        db.run('UPDATE client_po_line_items SET product_id=? WHERE product_id=?', [newId, oldId], () => { });
         // Update shipment items
-        db.run('UPDATE shipment_items SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        db.run('UPDATE shipment_items SET product_id=? WHERE product_id=?', [newId, oldId], () => { });
         // Update production history
-        db.run('UPDATE production_history SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        db.run('UPDATE production_history SET product_id=? WHERE product_id=?', [newId, oldId], () => { });
         // Update stock adjustments
-        db.run('UPDATE stock_adjustments SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        db.run('UPDATE stock_adjustments SET product_id=? WHERE product_id=?', [newId, oldId], () => { });
         // Update drawing operations
-        db.run('UPDATE drawing_operations SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        db.run('UPDATE drawing_operations SET product_id=? WHERE product_id=?', [newId, oldId], () => { });
         // Update job work items
-        db.run('UPDATE job_work_items SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        db.run('UPDATE job_work_items SET product_id=? WHERE product_id=?', [newId, oldId], () => { });
         // Update job work receipts
-        db.run('UPDATE job_work_receipts SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        db.run('UPDATE job_work_receipts SET product_id=? WHERE product_id=?', [newId, oldId], () => { });
         // Update inventory allocations
-        db.run('UPDATE inventory_allocations SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        db.run('UPDATE inventory_allocations SET product_id=? WHERE product_id=?', [newId, oldId], () => { });
         // Update vendor PO line items
-        db.run('UPDATE vendor_po_line_items SET product_id=? WHERE product_id=?', [newId, oldId], ()=>{});
+        db.run('UPDATE vendor_po_line_items SET product_id=? WHERE product_id=?', [newId, oldId], () => { });
 
         // Update product ID itself
-        const sets = ['id=?','description=?','steel_diameter=?','copper_coating=?','length=?','active=?','threading=?'];
+        const sets = ['id=?', 'description=?', 'steel_diameter=?', 'copper_coating=?', 'length=?', 'active=?', 'threading=?'];
         const vals = [newId, description, steel_diameter, copper_coating, length, active, threading];
-        if (category !== null){ sets.push('category=?'); vals.push(category); }
-        if (base_product_id !== null){ sets.push('base_product_id=?'); vals.push(base_product_id); }
+        if (category !== null) { sets.push('category=?'); vals.push(category); }
+        if (base_product_id !== null) { sets.push('base_product_id=?'); vals.push(base_product_id); }
         sets.push('updated_at=CURRENT_TIMESTAMP');
-        if (schema.hasDiameter) { sets.splice(sets.length-1, 0, 'diameter=?'); vals.splice(vals.length, 0, steel_diameter); }
-        if (schema.hasCoating) { sets.splice(sets.length-1, 0, 'coating=?'); vals.splice(vals.length, 0, copper_coating); }
+        if (schema.hasDiameter) { sets.splice(sets.length - 1, 0, 'diameter=?'); vals.splice(vals.length, 0, steel_diameter); }
+        if (schema.hasCoating) { sets.splice(sets.length - 1, 0, 'coating=?'); vals.splice(vals.length, 0, copper_coating); }
         const sql = `UPDATE products SET ${sets.join(', ')} WHERE id=?`;
-        db.run(sql, [...vals, oldId], function(err){
+        db.run(sql, [...vals, oldId], function (err) {
           // Re-enable foreign keys
-          db.run('PRAGMA foreign_keys = ON', ()=>{});
+          db.run('PRAGMA foreign_keys = ON', () => { });
           if (err) return res.status(500).json({ error: err.message });
           res.json({ message: 'Product updated successfully', newId });
         });
       });
     } else {
       // ID didn't change, just update product fields
-      const sets = ['description=?','steel_diameter=?','copper_coating=?','length=?','active=?','threading=?'];
+      const sets = ['description=?', 'steel_diameter=?', 'copper_coating=?', 'length=?', 'active=?', 'threading=?'];
       const vals = [description, steel_diameter, copper_coating, length, active, threading];
-      if (category !== null){ sets.push('category=?'); vals.push(category); }
-      if (base_product_id !== null){ sets.push('base_product_id=?'); vals.push(base_product_id); }
+      if (category !== null) { sets.push('category=?'); vals.push(category); }
+      if (base_product_id !== null) { sets.push('base_product_id=?'); vals.push(base_product_id); }
       sets.push('updated_at=CURRENT_TIMESTAMP');
-      if (schema.hasDiameter) { sets.splice(sets.length-1, 0, 'diameter=?'); vals.splice(vals.length, 0, steel_diameter); }
-      if (schema.hasCoating) { sets.splice(sets.length-1, 0, 'coating=?'); vals.splice(vals.length, 0, copper_coating); }
+      if (schema.hasDiameter) { sets.splice(sets.length - 1, 0, 'diameter=?'); vals.splice(vals.length, 0, steel_diameter); }
+      if (schema.hasCoating) { sets.splice(sets.length - 1, 0, 'coating=?'); vals.splice(vals.length, 0, copper_coating); }
       const sql = `UPDATE products SET ${sets.join(', ')} WHERE id=?`;
-      db.run(sql, [...vals, oldId], function(err){
+      db.run(sql, [...vals, oldId], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: 'Product updated successfully' });
       });
@@ -1466,9 +1526,9 @@ app.delete('/api/products/:id', (req, res) => {
       }
 
       // No references found, safe to delete. First delete BOM entries, then the product
-      db.run("DELETE FROM bom WHERE product_id=?", [id], function(bomErr) {
+      db.run("DELETE FROM bom WHERE product_id=?", [id], function (bomErr) {
         // Ignore BOM delete errors, continue with product deletion
-        db.run("DELETE FROM products WHERE id=?", [id], function(err) {
+        db.run("DELETE FROM products WHERE id=?", [id], function (err) {
           if (err) {
             res.status(500).json({ error: err.message });
           } else {
@@ -1499,7 +1559,7 @@ app.delete('/api/products/:id/force', (req, res) => {
     db.run('BEGIN');
 
     const fail = (err) => {
-      try { db.run('ROLLBACK'); } catch(_){};
+      try { db.run('ROLLBACK'); } catch (_) { };
       res.status(500).json({ error: err.message || String(err) });
     };
 
@@ -1558,7 +1618,7 @@ app.post('/api/products/rename', (req, res) => {
 
       db.serialize(() => {
         db.run('BEGIN');
-        const fail = (err) => { try { db.run('ROLLBACK'); } catch(_){}; res.status(500).json({ error: err.message || String(err) }); };
+        const fail = (err) => { try { db.run('ROLLBACK'); } catch (_) { }; res.status(500).json({ error: err.message || String(err) }); };
         db.run('UPDATE inventory SET product_id=? WHERE product_id=?', [newId, oldId], (e3) => {
           if (e3) return fail(e3);
           db.run('UPDATE client_po_line_items SET product_id=? WHERE product_id=?', [newId, oldId], (e4) => {
@@ -1585,37 +1645,37 @@ app.post('/api/products/rename', (req, res) => {
 
 // Auto-categorize and normalize product descriptions
 app.post('/api/products/normalize', (req, res) => {
-  function inchFraction(valInch){
-    const frac = [0,1/8,1/4,3/8,1/2,5/8,3/4,7/8,1];
-    const labels = ['0','1/8','1/4','3/8','1/2','5/8','3/4','7/8','1'];
+  function inchFraction(valInch) {
+    const frac = [0, 1 / 8, 1 / 4, 3 / 8, 1 / 2, 5 / 8, 3 / 4, 7 / 8, 1];
+    const labels = ['0', '1/8', '1/4', '3/8', '1/2', '5/8', '3/4', '7/8', '1'];
     const x = Math.max(0, Math.min(1, valInch - Math.floor(valInch)));
-    let idx=0, best=1e9; for(let i=0;i<frac.length;i++){ const d=Math.abs(x-frac[i]); if(d<best){best=d; idx=i;} }
-    const whole = Math.floor(valInch) + (labels[idx]==='1'?1:0);
-    const fracLabel = labels[idx]==='1'?'0':labels[idx];
-    return fracLabel==='0' ? `${whole}` : `${whole ? whole+' ' : ''}${fracLabel}`.trim();
+    let idx = 0, best = 1e9; for (let i = 0; i < frac.length; i++) { const d = Math.abs(x - frac[i]); if (d < best) { best = d; idx = i; } }
+    const whole = Math.floor(valInch) + (labels[idx] === '1' ? 1 : 0);
+    const fracLabel = labels[idx] === '1' ? '0' : labels[idx];
+    return fracLabel === '0' ? `${whole}` : `${whole ? whole + ' ' : ''}${fracLabel}`.trim();
   }
-  db.all(`SELECT id, steel_diameter, copper_coating, length, description FROM products`, (err, rows)=>{
+  db.all(`SELECT id, steel_diameter, copper_coating, length, description FROM products`, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    db.serialize(()=>{
+    db.serialize(() => {
       db.run('BEGIN');
       const stmt = db.prepare(`UPDATE products SET description=?, category=? WHERE id=?`);
       rows.forEach(r => {
-        const inch = Number(r.steel_diameter||0)/25.4;
-        const lenFt = Number(r.length||0)/304.8;
+        const inch = Number(r.steel_diameter || 0) / 25.4;
+        const lenFt = Number(r.length || 0) / 304.8;
         const diaLabel = inchFraction(inch).replace(/^0\s?/, '');
         const lenLabel = Math.round(lenFt).toString();
-        const coat = Math.round(Number(r.copper_coating||0));
+        const coat = Math.round(Number(r.copper_coating || 0));
         const desc = `${diaLabel}\" x ${lenLabel}\' - ${coat} microns`;
         let cat = 'Plain CBG';
-        const d = (r.description||'').toLowerCase();
+        const d = (r.description || '').toLowerCase();
         if (d.includes('thread')) cat = 'Threaded CBG';
         if (d.includes('ul')) cat = 'UL Rods';
         if (d.includes('non ul') || d.includes('non-ul')) cat = 'Non UL Rods';
         stmt.run([desc, cat, r.id]);
       });
-      stmt.finalize((e)=>{
-        if (e) { try{ db.run('ROLLBACK'); }catch(_){}; return res.status(500).json({ error: e.message }); }
-        db.run('COMMIT', (cerr)=>{ if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message: 'Products normalized' }); });
+      stmt.finalize((e) => {
+        if (e) { try { db.run('ROLLBACK'); } catch (_) { }; return res.status(500).json({ error: e.message }); }
+        db.run('COMMIT', (cerr) => { if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message: 'Products normalized' }); });
       });
     });
   });
@@ -1625,8 +1685,8 @@ app.post('/api/products/normalize', (req, res) => {
 app.post('/api/products/bulk-delete', (req, res) => {
   const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(Boolean) : [];
   if (ids.length === 0) return res.status(400).json({ error: 'No product IDs provided' });
-  const placeholders = ids.map(()=>'?' ).join(',');
-  db.run(`DELETE FROM products WHERE id IN (${placeholders})`, ids, function(err){
+  const placeholders = ids.map(() => '?').join(',');
+  db.run(`DELETE FROM products WHERE id IN (${placeholders})`, ids, function (err) {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ message: 'Products deleted', deleted: this.changes || 0 });
   });
@@ -1661,7 +1721,7 @@ app.post('/api/products/bulk', (req, res) => {
   db.serialize(() => {
     db.run('BEGIN');
     const fail = (err) => {
-      try { db.run('ROLLBACK'); } catch {}
+      try { db.run('ROLLBACK'); } catch { }
       res.status(500).json({ error: err.message || String(err) });
     };
 
@@ -1674,10 +1734,10 @@ app.post('/api/products/bulk', (req, res) => {
 
     const doWork = () => {
       let inserted = 0, updated = 0;
-      const cols = ['id','description','steel_diameter','copper_coating','length','active'];
-      if (productsSchema.hasDiameter) cols.splice(cols.length-1, 0, 'diameter');
-      if (productsSchema.hasCoating) cols.splice(cols.length-1, 0, 'coating');
-      const placeholders = cols.map(()=>'?').join(',');
+      const cols = ['id', 'description', 'steel_diameter', 'copper_coating', 'length', 'active'];
+      if (productsSchema.hasDiameter) cols.splice(cols.length - 1, 0, 'diameter');
+      if (productsSchema.hasCoating) cols.splice(cols.length - 1, 0, 'coating');
+      const placeholders = cols.map(() => '?').join(',');
       const updates = [
         'description=excluded.description',
         'steel_diameter=excluded.steel_diameter',
@@ -1695,7 +1755,7 @@ app.post('/api/products/bulk', (req, res) => {
         if (productsSchema.hasDiameter) vals.push(r.steel_diameter);
         if (productsSchema.hasCoating) vals.push(r.copper_coating);
         vals.push(1);
-        stmt.run(vals, function(err){
+        stmt.run(vals, function (err) {
           if (err) return fail(err);
           // sqlite3 does not expose upsert result directly; approximate via changes
           // If this was an insert, lastID is set on first insert, but not reliable for upserts across runs.
@@ -1707,7 +1767,7 @@ app.post('/api/products/bulk', (req, res) => {
           // To provide a stable API, we’ll only return total processed as 'inserted'.
           remaining -= 1;
           if (remaining === 0) {
-            stmt.finalize((ferr)=>{ if (ferr) return fail(ferr); finishCommit(rows.length, 0); });
+            stmt.finalize((ferr) => { if (ferr) return fail(ferr); finishCommit(rows.length, 0); });
           }
         });
       }
@@ -1747,7 +1807,7 @@ app.get('/api/client-purchase-orders', (req, res) => {
 
 app.get('/api/client-purchase-orders/:id', (req, res) => {
   const { id } = req.params;
-  
+
   db.get(`
     SELECT po.*, c.* 
     FROM client_purchase_orders po
@@ -1777,12 +1837,12 @@ app.get('/api/client-purchase-orders/:id', (req, res) => {
 
 app.post('/api/client-purchase-orders', (req, res) => {
   const { id, customer_id, po_date, due_date, currency, delivery_terms, payment_terms, advance_amount, payment_days, priority, notes, line_items } = req.body;
-  
+
   db.run(
     `INSERT INTO client_purchase_orders (id, customer_id, po_date, due_date, currency, delivery_terms, payment_terms, advance_amount, payment_days, priority, notes) 
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [id, customer_id, po_date, due_date, currency || 'INR', delivery_terms, payment_terms, advance_amount || 0, payment_days || 0, priority || 'Normal', notes],
-    function(err) {
+    function (err) {
       if (err) {
         res.status(500).json({ error: err.message });
       } else {
@@ -1814,41 +1874,41 @@ app.put('/api/client-purchase-orders/:id', (req, res) => {
         updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `, [customer_id, po_date, due_date, currency, status, notes || '', advance_percent || 0, balance_payment_terms || 'on_dispatch', mode_of_delivery || 'FOB', expected_delivery_date || null, marking || '', id],
-  function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    if (this.changes === 0) return res.status(404).json({ error: 'Purchase order not found' });
-    res.json({ message: 'Client PO updated successfully', id });
-  });
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Purchase order not found' });
+      res.json({ message: 'Client PO updated successfully', id });
+    });
 });
 
 // Client PO line items CRUD
 app.get('/api/client-purchase-orders/:id/items', (req, res) => {
   const { id } = req.params;
-  db.all(`SELECT li.*, p.description as product_description FROM client_po_line_items li LEFT JOIN products p ON li.product_id = p.id WHERE li.po_id = ? ORDER BY li.id`, [id], (err, rows)=>{
+  db.all(`SELECT li.*, p.description as product_description FROM client_po_line_items li LEFT JOIN products p ON li.product_id = p.id WHERE li.po_id = ? ORDER BY li.id`, [id], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
 });
 
 app.post('/api/client-purchase-orders/:id/items', (req, res) => {
-  const { id } = req.params; const { product_id, quantity=0, unit_price=0, currency='INR', marking='', due_date } = req.body;
+  const { id } = req.params; const { product_id, quantity = 0, unit_price = 0, currency = 'INR', marking = '', due_date } = req.body;
   if (!product_id) return res.status(400).json({ error: 'product_id required' });
-  const qty = Number(quantity||0); const up = Number(unit_price||0);
+  const qty = Number(quantity || 0); const up = Number(unit_price || 0);
 
   db.serialize(() => {
     db.run('BEGIN');
 
     // Insert PO line item
-    db.run(`INSERT INTO client_po_line_items (po_id, product_id, quantity, unit_price, line_total, delivered, currency, marking, due_date) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`, [id, product_id, qty, up, qty*up, currency, marking || '', due_date || null], function(err){
+    db.run(`INSERT INTO client_po_line_items (po_id, product_id, quantity, unit_price, line_total, delivered, currency, marking, due_date) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`, [id, product_id, qty, up, qty * up, currency, marking || '', due_date || null], function (err) {
       if (err) {
-        try { db.run('ROLLBACK'); } catch(_) {}
+        try { db.run('ROLLBACK'); } catch (_) { }
         return res.status(500).json({ error: err.message });
       }
 
       // Commit raw materials based on BOM
       db.all('SELECT material, qty_per_unit FROM bom WHERE product_id = ?', [product_id], (bomErr, bomRows) => {
         if (bomErr) {
-          try { db.run('ROLLBACK'); } catch(_) {}
+          try { db.run('ROLLBACK'); } catch (_) { }
           return res.status(500).json({ error: bomErr.message });
         }
 
@@ -1870,21 +1930,21 @@ app.post('/api/client-purchase-orders/:id/items', (req, res) => {
 
 app.put('/api/client-purchase-orders/:id/items/:itemId', (req, res) => {
   const { id, itemId } = req.params; const { product_id, quantity, unit_price, currency, due_date, marking } = req.body;
-  db.get(`SELECT product_id, quantity, delivered FROM client_po_line_items WHERE id=? AND po_id=?`, [itemId, id], (e, row)=>{
+  db.get(`SELECT product_id, quantity, delivered FROM client_po_line_items WHERE id=? AND po_id=?`, [itemId, id], (e, row) => {
     if (e) return res.status(500).json({ error: e.message });
     if (!row) return res.status(404).json({ error: 'Item not found' });
-    const newQty = Number(quantity||0);
-    if (newQty < (row.delivered||0)) return res.status(400).json({ error: 'Quantity cannot be less than delivered' });
-    const up = Number(unit_price||0);
+    const newQty = Number(quantity || 0);
+    if (newQty < (row.delivered || 0)) return res.status(400).json({ error: 'Quantity cannot be less than delivered' });
+    const up = Number(unit_price || 0);
     const oldQty = Number(row.quantity || 0);
     const qtyDiff = newQty - oldQty;
 
     db.serialize(() => {
       db.run('BEGIN');
 
-      db.run(`UPDATE client_po_line_items SET product_id=?, quantity=?, unit_price=?, currency=?, due_date=?, marking=?, line_total=? WHERE id=? AND po_id=?`, [product_id, newQty, up, currency || 'INR', due_date || null, marking || '', newQty*up, itemId, id], function(err){
+      db.run(`UPDATE client_po_line_items SET product_id=?, quantity=?, unit_price=?, currency=?, due_date=?, marking=?, line_total=? WHERE id=? AND po_id=?`, [product_id, newQty, up, currency || 'INR', due_date || null, marking || '', newQty * up, itemId, id], function (err) {
         if (err) {
-          try { db.run('ROLLBACK'); } catch(_) {}
+          try { db.run('ROLLBACK'); } catch (_) { }
           return res.status(500).json({ error: err.message });
         }
 
@@ -1892,7 +1952,7 @@ app.put('/api/client-purchase-orders/:id/items/:itemId', (req, res) => {
         if (qtyDiff !== 0) {
           db.all('SELECT material, qty_per_unit FROM bom WHERE product_id = ?', [product_id], (bomErr, bomRows) => {
             if (bomErr) {
-              try { db.run('ROLLBACK'); } catch(_) {}
+              try { db.run('ROLLBACK'); } catch (_) { }
               return res.status(500).json({ error: bomErr.message });
             }
 
@@ -1921,24 +1981,24 @@ app.put('/api/client-purchase-orders/:id/items/:itemId', (req, res) => {
 
 app.delete('/api/client-purchase-orders/:id/items/:itemId', (req, res) => {
   const { id, itemId } = req.params;
-  db.get(`SELECT product_id, quantity, delivered FROM client_po_line_items WHERE id=? AND po_id=?`, [itemId, id], (e,row)=>{
+  db.get(`SELECT product_id, quantity, delivered FROM client_po_line_items WHERE id=? AND po_id=?`, [itemId, id], (e, row) => {
     if (e) return res.status(500).json({ error: e.message });
     if (!row) return res.status(404).json({ error: 'Item not found' });
-    if ((row.delivered||0) > 0) return res.status(400).json({ error: 'Cannot delete item with delivered quantity' });
+    if ((row.delivered || 0) > 0) return res.status(400).json({ error: 'Cannot delete item with delivered quantity' });
 
     db.serialize(() => {
       db.run('BEGIN');
 
-      db.run(`DELETE FROM client_po_line_items WHERE id=? AND po_id=?`, [itemId, id], function(err){
+      db.run(`DELETE FROM client_po_line_items WHERE id=? AND po_id=?`, [itemId, id], function (err) {
         if (err) {
-          try { db.run('ROLLBACK'); } catch(_) {}
+          try { db.run('ROLLBACK'); } catch (_) { }
           return res.status(500).json({ error: err.message });
         }
 
         // Release committed materials
         db.all('SELECT material, qty_per_unit FROM bom WHERE product_id = ?', [row.product_id], (bomErr, bomRows) => {
           if (bomErr) {
-            try { db.run('ROLLBACK'); } catch(_) {}
+            try { db.run('ROLLBACK'); } catch (_) { }
             return res.status(500).json({ error: bomErr.message });
           }
 
@@ -1982,17 +2042,17 @@ app.delete('/api/client-purchase-orders/:id', (req, res) => {
           db.run('BEGIN');
           db.run(`DELETE FROM client_po_line_items WHERE po_id=?`, [id], (delItemsErr) => {
             if (delItemsErr) {
-              try { db.run('ROLLBACK'); } catch(_) {}
+              try { db.run('ROLLBACK'); } catch (_) { }
               return res.status(500).json({ error: delItemsErr.message });
             }
             db.run(`DELETE FROM client_purchase_orders WHERE id=?`, [id], (delPOErr) => {
               if (delPOErr) {
-                try { db.run('ROLLBACK'); } catch(_) {}
+                try { db.run('ROLLBACK'); } catch (_) { }
                 return res.status(500).json({ error: delPOErr.message });
               }
               db.run('COMMIT', (commitErr) => {
                 if (commitErr) {
-                  try { db.run('ROLLBACK'); } catch(_) {}
+                  try { db.run('ROLLBACK'); } catch (_) { }
                   return res.status(500).json({ error: commitErr.message });
                 }
                 res.json({ message: 'Client PO deleted successfully' });
@@ -2270,7 +2330,7 @@ app.put('/api/client-po-line-items/:itemId/delivered', (req, res) => {
     if (deliveredQty < 0) return res.status(400).json({ error: 'Delivered quantity cannot be negative' });
     if (deliveredQty > totalQty) return res.status(400).json({ error: 'Delivered quantity cannot exceed ordered quantity' });
 
-    db.run(`UPDATE client_po_line_items SET delivered=? WHERE id=?`, [deliveredQty, itemId], function(err) {
+    db.run(`UPDATE client_po_line_items SET delivered=? WHERE id=?`, [deliveredQty, itemId], function (err) {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ message: 'Delivered quantity updated', delivered: deliveredQty });
     });
@@ -2280,7 +2340,7 @@ app.put('/api/client-po-line-items/:itemId/delivered', (req, res) => {
 // Aliases for Client PO used by UI (/api/purchase-orders)
 app.post('/api/purchase-orders', (req, res) => {
   let { id, customer_id, po_date, due_date, currency = 'INR', delivery_terms, payment_terms, advance_amount = 0, payment_days = 0, priority = 'Normal', status = 'Pending', notes = '', line_items = [], advance_percent = 0, balance_payment_terms = '', mode_of_delivery = '', expected_delivery_date = '' } = req.body;
-  const norm = (s)=>{ if(!s) return s; const m=String(s).replace(/\//g,'-').match(/^([0-3]\d)-([01]\d)-(\d{4})$/); return m? `${m[3]}-${m[2]}-${m[1]}` : s; };
+  const norm = (s) => { if (!s) return s; const m = String(s).replace(/\//g, '-').match(/^([0-3]\d)-([01]\d)-(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : s; };
   po_date = norm(po_date); due_date = norm(due_date); expected_delivery_date = norm(expected_delivery_date);
 
   db.serialize(() => {
@@ -2289,18 +2349,18 @@ app.post('/api/purchase-orders', (req, res) => {
       `INSERT INTO client_purchase_orders (id, customer_id, po_date, due_date, currency, delivery_terms, payment_terms, advance_amount, payment_days, priority, status, notes, advance_percent, balance_payment_terms, mode_of_delivery, expected_delivery_date)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, customer_id, po_date, due_date, currency, delivery_terms, payment_terms, advance_amount, payment_days, priority, status, notes, advance_percent, balance_payment_terms, mode_of_delivery, expected_delivery_date],
-      function(err) {
+      function (err) {
         if (err) {
-          try { db.run('ROLLBACK'); } catch(_){}
+          try { db.run('ROLLBACK'); } catch (_) { }
           return res.status(500).json({ error: err.message });
         }
 
         const stmt = db.prepare("INSERT INTO client_po_line_items (po_id, product_id, quantity, unit_price, line_total, delivered, currency) VALUES (?, ?, ?, ?, ?, 0, ?)");
         let failed = false;
 
-        (line_items||[]).forEach(item => {
-          const qty = Number(item.quantity||0);
-          const up = Number(item.unit_price||0);
+        (line_items || []).forEach(item => {
+          const qty = Number(item.quantity || 0);
+          const up = Number(item.unit_price || 0);
           const curr = item.currency || 'INR';
           stmt.run([id, item.product_id, qty, up, qty * up, curr], (itemErr) => {
             if (itemErr) failed = true;
@@ -2314,9 +2374,9 @@ app.post('/api/purchase-orders', (req, res) => {
           });
         });
 
-        stmt.finalize((e)=> {
+        stmt.finalize((e) => {
           if (e || failed) {
-            try { db.run('ROLLBACK'); } catch(_){}
+            try { db.run('ROLLBACK'); } catch (_) { }
             return res.status(500).json({ error: e?.message || 'Failed to create PO' });
           }
 
@@ -2335,7 +2395,7 @@ app.post('/api/purchase-orders', (req, res) => {
 
 app.put('/api/purchase-orders/:id', (req, res) => {
   const oldId = req.params.id;
-  let { id: newId, customer_id, po_date, due_date, currency='INR', delivery_terms, payment_terms, advance_amount=0, payment_days=0, priority='Normal', status='Pending', notes='', advance_percent, balance_payment_terms, mode_of_delivery, expected_delivery_date } = req.body;
+  let { id: newId, customer_id, po_date, due_date, currency = 'INR', delivery_terms, payment_terms, advance_amount = 0, payment_days = 0, priority = 'Normal', status = 'Pending', notes = '', advance_percent, balance_payment_terms, mode_of_delivery, expected_delivery_date } = req.body;
 
   // If no new ID provided in body, keep the old one
   const finalId = newId || oldId;
@@ -2345,7 +2405,7 @@ app.put('/api/purchase-orders/:id', (req, res) => {
   const finalBalancePaymentTerms = balance_payment_terms !== undefined ? balance_payment_terms : payment_terms;
   const finalModeOfDelivery = mode_of_delivery !== undefined ? mode_of_delivery : delivery_terms;
 
-  const norm = (s)=>{ if(!s) return s; const m=String(s).replace(/\//g,'-').match(/^([0-3]\d)-([01]\d)-(\d{4})$/); return m? `${m[3]}-${m[2]}-${m[1]}` : s; };
+  const norm = (s) => { if (!s) return s; const m = String(s).replace(/\//g, '-').match(/^([0-3]\d)-([01]\d)-(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : s; };
   po_date = norm(po_date); due_date = norm(due_date);
   expected_delivery_date = norm(expected_delivery_date);
 
@@ -2384,7 +2444,7 @@ app.put('/api/purchase-orders/:id', (req, res) => {
               db.run(
                 `UPDATE client_purchase_orders SET id=?, customer_id=?, po_date=?, due_date=?, currency=?, advance_percent=?, balance_payment_terms=?, mode_of_delivery=?, expected_delivery_date=?, priority=?, status=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
                 [finalId, customer_id, po_date, due_date, currency, finalAdvancePercent, finalBalancePaymentTerms, finalModeOfDelivery, expected_delivery_date, priority, status, notes, oldId],
-                function(err) {
+                function (err) {
                   if (err) {
                     db.run('ROLLBACK');
                     return res.status(500).json({ error: err.message });
@@ -2409,7 +2469,7 @@ app.put('/api/purchase-orders/:id', (req, res) => {
     db.run(
       `UPDATE client_purchase_orders SET customer_id=?, po_date=?, due_date=?, currency=?, advance_percent=?, balance_payment_terms=?, mode_of_delivery=?, expected_delivery_date=?, priority=?, status=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
       [customer_id, po_date, due_date, currency, finalAdvancePercent, finalBalancePaymentTerms, finalModeOfDelivery, expected_delivery_date, priority, status, notes, oldId],
-      function(err){ if (err) return res.status(500).json({ error: err.message }); res.json({ message: 'Client PO updated' }); }
+      function (err) { if (err) return res.status(500).json({ error: err.message }); res.json({ message: 'Client PO updated' }); }
     );
   }
 });
@@ -2432,7 +2492,7 @@ app.delete('/api/purchase-orders/:id', (req, res) => {
       db.all(`SELECT product_id, quantity FROM client_po_line_items WHERE po_id = ?`, [id], (itemErr, items) => {
         if (itemErr) return res.status(500).json({ error: itemErr.message });
 
-        db.serialize(()=>{
+        db.serialize(() => {
           db.run('BEGIN');
 
           // Uncommit inventory for all line items
@@ -2447,20 +2507,20 @@ app.delete('/api/purchase-orders/:id', (req, res) => {
 
           if (hard === 'true') {
             // Hard delete (permanent removal)
-            db.run(`DELETE FROM client_po_line_items WHERE po_id = ?`, [id], (e1)=>{
-              if (e1) { try{ db.run('ROLLBACK'); }catch(_){} return res.status(500).json({ error: e1.message }); }
-              db.run(`DELETE FROM client_purchase_orders WHERE id = ?`, [id], (e2)=>{
-                if (e2) { try{ db.run('ROLLBACK'); }catch(_){} return res.status(500).json({ error: e2.message }); }
+            db.run(`DELETE FROM client_po_line_items WHERE po_id = ?`, [id], (e1) => {
+              if (e1) { try { db.run('ROLLBACK'); } catch (_) { } return res.status(500).json({ error: e1.message }); }
+              db.run(`DELETE FROM client_purchase_orders WHERE id = ?`, [id], (e2) => {
+                if (e2) { try { db.run('ROLLBACK'); } catch (_) { } return res.status(500).json({ error: e2.message }); }
                 logAudit('client_purchase_orders', id, 'HARD_DELETE', po, null);
-                db.run('COMMIT', (cerr)=>{ if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message: 'Client PO permanently deleted' }); });
+                db.run('COMMIT', (cerr) => { if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message: 'Client PO permanently deleted' }); });
               });
             });
           } else {
             // Soft delete (mark as deleted)
-            db.run(`UPDATE client_purchase_orders SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [id], (delErr)=>{
-              if (delErr) { try{ db.run('ROLLBACK'); }catch(_){} return res.status(500).json({ error: delErr.message }); }
+            db.run(`UPDATE client_purchase_orders SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [id], (delErr) => {
+              if (delErr) { try { db.run('ROLLBACK'); } catch (_) { } return res.status(500).json({ error: delErr.message }); }
               logAudit('client_purchase_orders', id, 'SOFT_DELETE', po, null);
-              db.run('COMMIT', (cerr)=>{ if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message: 'Client PO deleted', can_undo: true }); });
+              db.run('COMMIT', (cerr) => { if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message: 'Client PO deleted', can_undo: true }); });
             });
           }
         });
@@ -2480,13 +2540,13 @@ app.post('/api/purchase-orders/bulk-delete', (req, res) => {
     db.get(`SELECT COUNT(*) as cnt FROM shipments WHERE po_id = ?`, [id], (e, row) => {
       if (e) { result.failed.push({ id, error: e.message }); return next(); }
       if ((row && row.cnt) > 0) { result.failed.push({ id, error: 'Has shipments' }); return next(); }
-      db.serialize(()=>{
+      db.serialize(() => {
         db.run('BEGIN');
-        db.run(`DELETE FROM client_po_line_items WHERE po_id = ?`, [id], (e1)=>{
-          if (e1) { try{ db.run('ROLLBACK'); }catch(_){}; result.failed.push({ id, error: e1.message }); return next(); }
-          db.run(`DELETE FROM client_purchase_orders WHERE id = ?`, [id], (e2)=>{
-            if (e2) { try{ db.run('ROLLBACK'); }catch(_){}; result.failed.push({ id, error: e2.message }); return next(); }
-            db.run('COMMIT', (cerr)=>{ if (cerr) { result.failed.push({ id, error: cerr.message }); } else { result.deleted += 1; } next(); });
+        db.run(`DELETE FROM client_po_line_items WHERE po_id = ?`, [id], (e1) => {
+          if (e1) { try { db.run('ROLLBACK'); } catch (_) { }; result.failed.push({ id, error: e1.message }); return next(); }
+          db.run(`DELETE FROM client_purchase_orders WHERE id = ?`, [id], (e2) => {
+            if (e2) { try { db.run('ROLLBACK'); } catch (_) { }; result.failed.push({ id, error: e2.message }); return next(); }
+            db.run('COMMIT', (cerr) => { if (cerr) { result.failed.push({ id, error: cerr.message }); } else { result.deleted += 1; } next(); });
           });
         });
       });
@@ -2514,7 +2574,7 @@ app.get('/api/vendor-purchase-orders', (req, res) => {
 
 app.get('/api/vendor-purchase-orders/:id', (req, res) => {
   const { id } = req.params;
-  
+
   db.get(`
     SELECT po.*, v.* 
     FROM vendor_purchase_orders po
@@ -2546,7 +2606,7 @@ app.post('/api/vendor-purchase-orders', (req, res) => {
     `INSERT INTO vendor_purchase_orders (id, vendor_id, po_date, due_date, currency, delivery_terms, payment_terms, status, notes)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [id, vendor_id, po_date, due_date || expected_delivery, currency || 'INR', delivery_terms, payment_terms, status || 'Pending', notes],
-    function(err) {
+    function (err) {
       if (err) {
         res.status(500).json({ error: err.message });
       } else {
@@ -2581,7 +2641,7 @@ app.post('/api/vendor-purchase-orders', (req, res) => {
 // Update vendor PO (header only)
 app.put('/api/vendor-purchase-orders/:id', (req, res) => {
   const { id } = req.params;
-  const { vendor_id, po_date, due_date, expected_delivery, currency='INR', delivery_terms, payment_terms, status, notes } = req.body;
+  const { vendor_id, po_date, due_date, expected_delivery, currency = 'INR', delivery_terms, payment_terms, status, notes } = req.body;
 
   // Get the old status first
   db.get('SELECT status FROM vendor_purchase_orders WHERE id = ?', [id], (err, oldRow) => {
@@ -2593,7 +2653,7 @@ app.put('/api/vendor-purchase-orders/:id', (req, res) => {
     db.run(
       `UPDATE vendor_purchase_orders SET vendor_id=?, po_date=?, due_date=?, currency=?, delivery_terms=?, payment_terms=?, status=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
       [vendor_id, po_date, due_date || expected_delivery, currency, delivery_terms, payment_terms, newStatus, notes, id],
-      function(err){
+      function (err) {
         if (err) return res.status(500).json({ error: err.message });
 
         // If status changed to "Completed", update inventory
@@ -2728,16 +2788,16 @@ app.post('/api/vendor-purchase-orders/:id/receive', (req, res) => {
   db.all('SELECT material_type, quantity, unit, unit_price FROM vendor_po_line_items WHERE po_id=?', [id], (err, items) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'No items to receive' });
-    const receiveUnit = (u)=> String(u||'kg').toLowerCase();
-    const isKg = (u)=> ['kg','kgs','kilogram','kilograms'].includes(receiveUnit(u));
-    db.serialize(()=>{
+    const receiveUnit = (u) => String(u || 'kg').toLowerCase();
+    const isKg = (u) => ['kg', 'kgs', 'kilogram', 'kilograms'].includes(receiveUnit(u));
+    db.serialize(() => {
       db.run('BEGIN');
-      try{
+      try {
         items.forEach(it => {
           const mat = it.material_type;
-          const qty = Number(it.quantity||0);
-          const unitPrice = Number(it.unit_price||0);
-          if (!mat || !(qty>0)) return;
+          const qty = Number(it.quantity || 0);
+          const unitPrice = Number(it.unit_price || 0);
+          if (!mat || !(qty > 0)) return;
           const unit = receiveUnit(it.unit);
           const qtyKg = isKg(unit) ? qty : qty; // extend here for other units
           const receivedValue = qtyKg * unitPrice;
@@ -2760,15 +2820,15 @@ app.post('/api/vendor-purchase-orders/:id/receive', (req, res) => {
                       average_cost_per_unit = excluded.average_cost_per_unit,
                       last_purchase_date = DATE('now'),
                       updated_at = CURRENT_TIMESTAMP`,
-                    [mat, qtyKg, receivedValue, newAvgCost]);
+              [mat, qtyKg, receivedValue, newAvgCost]);
             db.run(`INSERT INTO vendor_po_receipts (vpo_id, material, qty, unit) VALUES (?, ?, ?, ?)`, [id, mat, qtyKg, unit]);
           });
         });
-        db.run('COMMIT', (e)=>{
+        db.run('COMMIT', (e) => {
           if (e) return res.status(500).json({ error: e.message });
           res.json({ message: 'Received to raw materials with cost tracking', received: items.length });
         });
-      } catch(ex){ try{ db.run('ROLLBACK'); }catch(_){}; res.status(500).json({ error: 'Receive failed' }); }
+      } catch (ex) { try { db.run('ROLLBACK'); } catch (_) { }; res.status(500).json({ error: 'Receive failed' }); }
     });
   });
 });
@@ -2779,24 +2839,24 @@ app.post('/api/vendor-purchase-orders/:id/receive-items', (req, res) => {
   const body = req.body || {};
   const items = Array.isArray(body.items) ? body.items : [];
   if (!items.length) return res.status(400).json({ error: 'No items provided' });
-  const normUnit = (u)=> String(u||'kg').trim().toLowerCase();
-  const toKg = (qty, unit)=>{
+  const normUnit = (u) => String(u || 'kg').trim().toLowerCase();
+  const toKg = (qty, unit) => {
     const u = normUnit(unit);
-    const q = Number(qty||0);
-    if (u==='kg' || u==='kgs' || u==='kilogram' || u==='kilograms') return q;
-    if (u==='g' || u==='gram' || u==='grams') return q/1000;
-    if (u==='t' || u==='ton' || u==='tonne' || u==='mt') return q*1000;
+    const q = Number(qty || 0);
+    if (u === 'kg' || u === 'kgs' || u === 'kilogram' || u === 'kilograms') return q;
+    if (u === 'g' || u === 'gram' || u === 'grams') return q / 1000;
+    if (u === 't' || u === 'ton' || u === 'tonne' || u === 'mt') return q * 1000;
     // default assume kg
     return q;
   };
-  db.serialize(()=>{
+  db.serialize(() => {
     db.run('BEGIN');
-    try{
+    try {
       items.forEach(it => {
         const mat = it.material || it.item;
         const qtyKg = toKg(it.qty, it.unit);
         const unitPrice = Number(it.unit_price || 0);
-        if (!mat || !(qtyKg>0)) return;
+        if (!mat || !(qtyKg > 0)) return;
         const receivedValue = qtyKg * unitPrice;
 
         // Weighted average costing
@@ -2817,93 +2877,93 @@ app.post('/api/vendor-purchase-orders/:id/receive-items', (req, res) => {
                     average_cost_per_unit = excluded.average_cost_per_unit,
                     last_purchase_date = DATE('now'),
                     updated_at = CURRENT_TIMESTAMP`,
-                  [mat, qtyKg, receivedValue, newAvgCost]);
+            [mat, qtyKg, receivedValue, newAvgCost]);
           db.run(`INSERT INTO vendor_po_receipts (vpo_id, material, qty, unit) VALUES (?, ?, ?, ?)`, [id, mat, qtyKg, normUnit(it.unit)]);
         });
       });
-      db.run('COMMIT', (e)=>{
+      db.run('COMMIT', (e) => {
         if (e) return res.status(500).json({ error: e.message });
-        res.json({ message:'Receipt posted with cost tracking', received: items.length });
+        res.json({ message: 'Receipt posted with cost tracking', received: items.length });
       });
-    } catch(ex){ try{ db.run('ROLLBACK'); }catch(_){}; res.status(500).json({ error: 'Receive failed' }); }
+    } catch (ex) { try { db.run('ROLLBACK'); } catch (_) { }; res.status(500).json({ error: 'Receive failed' }); }
   });
 });
 
 // ============= JOB WORK (Cores) APIs =============
 // Orders
 app.get('/api/jobwork/orders', (req, res) => {
-  db.all(`SELECT * FROM job_work_orders ORDER BY jw_date DESC`, (err, rows)=>{
+  db.all(`SELECT * FROM job_work_orders ORDER BY jw_date DESC`, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(rows||[]);
+    res.json(rows || []);
   });
 });
 app.post('/api/jobwork/orders', (req, res) => {
-  const { id, vendor_id, jw_date, due_date, job_type='Steel Core Production', status='Open', notes='', raw_steel_material, steel_consumed, cores_produced, cores_rejected, core_product_id, unit_rate, total_cost } = req.body||{};
-  if (!id || !jw_date) return res.status(400).json({ error:'id and jw_date required' });
+  const { id, vendor_id, jw_date, due_date, job_type = 'Steel Core Production', status = 'Open', notes = '', raw_steel_material, steel_consumed, cores_produced, cores_rejected, core_product_id, unit_rate, total_cost } = req.body || {};
+  if (!id || !jw_date) return res.status(400).json({ error: 'id and jw_date required' });
 
   db.run(`INSERT INTO job_work_orders (id, vendor_id, jw_date, due_date, job_type, status, notes, raw_steel_material, steel_consumed, cores_produced, cores_rejected, core_product_id, unit_rate, total_cost, created_at, updated_at)
           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`,
-          [id, vendor_id||'', jw_date, due_date||'', job_type, status, notes, raw_steel_material||null, steel_consumed||null, cores_produced||null, cores_rejected||null, core_product_id||null, unit_rate||0, total_cost||0],
-          function(err){
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ message:'JWO created' });
-  });
+    [id, vendor_id || '', jw_date, due_date || '', job_type, status, notes, raw_steel_material || null, steel_consumed || null, cores_produced || null, cores_rejected || null, core_product_id || null, unit_rate || 0, total_cost || 0],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: 'JWO created' });
+    });
 });
 app.put('/api/jobwork/orders/:id', (req, res) => {
   const { id } = req.params;
-  const { vendor_id, jw_date, due_date, job_type, status, notes, raw_steel_material, steel_consumed, cores_produced, cores_rejected, core_product_id, unit_rate, total_cost } = req.body||{};
+  const { vendor_id, jw_date, due_date, job_type, status, notes, raw_steel_material, steel_consumed, cores_produced, cores_rejected, core_product_id, unit_rate, total_cost } = req.body || {};
   db.run(`UPDATE job_work_orders SET vendor_id=?, jw_date=?, due_date=?, job_type=?, status=?, notes=?, raw_steel_material=?, steel_consumed=?, cores_produced=?, cores_rejected=?, core_product_id=?, unit_rate=?, total_cost=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-    [vendor_id||'', jw_date||'', due_date||'', job_type||'Steel Core Production', status||'Open', notes||'', raw_steel_material||null, steel_consumed||null, cores_produced||null, cores_rejected||null, core_product_id||null, unit_rate||0, total_cost||0, id], function(err){
+    [vendor_id || '', jw_date || '', due_date || '', job_type || 'Steel Core Production', status || 'Open', notes || '', raw_steel_material || null, steel_consumed || null, cores_produced || null, cores_rejected || null, core_product_id || null, unit_rate || 0, total_cost || 0, id], function (err) {
       if (err) return res.status(500).json({ error: err.message });
-      res.json({ message:'JWO updated' });
+      res.json({ message: 'JWO updated' });
     });
 });
-app.delete('/api/jobwork/orders/:id', (req,res)=>{
+app.delete('/api/jobwork/orders/:id', (req, res) => {
   const { id } = req.params;
-  db.serialize(()=>{
+  db.serialize(() => {
     db.run('BEGIN');
     db.run('DELETE FROM job_work_items WHERE order_id=?', [id]);
     db.run('DELETE FROM job_work_receipts WHERE order_id=?', [id]);
-    db.run('DELETE FROM job_work_orders WHERE id=?', [id], function(err){
-      if (err){ try{ db.run('ROLLBACK'); }catch(_){}; return res.status(500).json({ error: err.message }); }
-      db.run('COMMIT', (e)=>{ if (e) return res.status(500).json({ error: e.message }); res.json({ message:'JWO deleted' }); });
+    db.run('DELETE FROM job_work_orders WHERE id=?', [id], function (err) {
+      if (err) { try { db.run('ROLLBACK'); } catch (_) { }; return res.status(500).json({ error: err.message }); }
+      db.run('COMMIT', (e) => { if (e) return res.status(500).json({ error: e.message }); res.json({ message: 'JWO deleted' }); });
     });
   });
 });
 // Items
-app.get('/api/jobwork/orders/:id/items', (req,res)=>{
-  db.all('SELECT * FROM job_work_items WHERE order_id=?', [req.params.id], (err, rows)=>{
+app.get('/api/jobwork/orders/:id/items', (req, res) => {
+  db.all('SELECT * FROM job_work_items WHERE order_id=?', [req.params.id], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(rows||[]);
+    res.json(rows || []);
   });
 });
-app.post('/api/jobwork/orders/:id/items', (req,res)=>{
-  const { product_id, qty } = req.body||{}; const { id } = req.params;
-  if (!product_id || !(Number(qty)>0)) return res.status(400).json({ error:'product_id and qty required' });
-  db.run('INSERT INTO job_work_items (order_id, product_id, qty) VALUES (?,?,?)', [id, product_id, Number(qty)], function(err){
-    if (err) return res.status(500).json({ error: err.message }); res.json({ message:'Item added' });
+app.post('/api/jobwork/orders/:id/items', (req, res) => {
+  const { product_id, qty } = req.body || {}; const { id } = req.params;
+  if (!product_id || !(Number(qty) > 0)) return res.status(400).json({ error: 'product_id and qty required' });
+  db.run('INSERT INTO job_work_items (order_id, product_id, qty) VALUES (?,?,?)', [id, product_id, Number(qty)], function (err) {
+    if (err) return res.status(500).json({ error: err.message }); res.json({ message: 'Item added' });
   });
 });
-app.delete('/api/jobwork/orders/:id/items/:itemId', (req,res)=>{
-  db.run('DELETE FROM job_work_items WHERE id=? AND order_id=?', [req.params.itemId, req.params.id], function(err){
-    if (err) return res.status(500).json({ error: err.message }); res.json({ message:'Item deleted' });
+app.delete('/api/jobwork/orders/:id/items/:itemId', (req, res) => {
+  db.run('DELETE FROM job_work_items WHERE id=? AND order_id=?', [req.params.itemId, req.params.id], function (err) {
+    if (err) return res.status(500).json({ error: err.message }); res.json({ message: 'Item deleted' });
   });
 });
 // Receipts - handle Rod Making and Plating job work
-app.post('/api/jobwork/orders/:id/receive', (req,res)=>{
+app.post('/api/jobwork/orders/:id/receive', (req, res) => {
   const { id } = req.params; const items = Array.isArray(req.body?.items) ? req.body.items : [];
-  if (!items.length) return res.status(400).json({ error:'No items' });
+  if (!items.length) return res.status(400).json({ error: 'No items' });
 
   // Get the job work order to determine job_type
-  db.get('SELECT job_type, raw_steel_material, steel_consumed, cores_produced, cores_rejected, core_product_id FROM job_work_orders WHERE id=?', [id], (err, order)=>{
+  db.get('SELECT job_type, raw_steel_material, steel_consumed, cores_produced, cores_rejected, core_product_id FROM job_work_orders WHERE id=?', [id], (err, order) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!order) return res.status(404).json({ error: 'Job work order not found' });
 
     const jobType = order.job_type || 'Steel Core Production';
 
-    db.serialize(()=>{
+    db.serialize(() => {
       db.run('BEGIN');
-      try{
+      try {
         // Handle Steel Core Production separately (doesn't use items)
         if (jobType === 'Steel Core Production') {
           const pid = order.core_product_id;
@@ -2936,13 +2996,13 @@ app.post('/api/jobwork/orders/:id/receive', (req,res)=>{
           // Update job work order status to Completed
           db.run('UPDATE job_work_orders SET status = ? WHERE id = ?', ['Completed', id]);
 
-          db.run('COMMIT', (e)=>{ if(e) return res.status(500).json({ error:e.message }); res.json({ message:`Steel Core Production job work received`, cores_produced: coresProduced }); });
+          db.run('COMMIT', (e) => { if (e) return res.status(500).json({ error: e.message }); res.json({ message: `Steel Core Production job work received`, cores_produced: coresProduced }); });
           return;
         }
 
-        items.forEach(it=>{
-          const pid = it.product_id; const qty = Number(it.qty||0);
-          if (!pid || !(qty>0)) return;
+        items.forEach(it => {
+          const pid = it.product_id; const qty = Number(it.qty || 0);
+          if (!pid || !(qty > 0)) return;
 
           if (jobType === 'Rod Making') {
             // Rod Making: Raw Steel → Steel Rods
@@ -2951,7 +3011,7 @@ app.post('/api/jobwork/orders/:id/receive', (req,res)=>{
                     ON CONFLICT(product_id) DO UPDATE SET steel_rods = steel_rods + excluded.steel_rods, updated_at=CURRENT_TIMESTAMP`, [pid, qty]);
 
             // Consume raw steel based on BOM with weighted average costing
-            db.get('SELECT qty_per_unit FROM bom WHERE product_id=? AND material=?', [pid, 'Steel'], (e, bom)=>{
+            db.get('SELECT qty_per_unit FROM bom WHERE product_id=? AND material=?', [pid, 'Steel'], (e, bom) => {
               if (!e && bom) {
                 const steelConsumed = qty * Number(bom.qty_per_unit || 0);
                 db.get('SELECT average_cost_per_unit FROM raw_materials_inventory WHERE material = ?', ['Steel'], (_err6, costRow) => {
@@ -2972,7 +3032,7 @@ app.post('/api/jobwork/orders/:id/receive', (req,res)=>{
                     ON CONFLICT(product_id) DO UPDATE SET plated = plated + excluded.plated, steel_rods = steel_rods - ?, updated_at=CURRENT_TIMESTAMP`, [pid, qty, qty]);
 
             // Consume copper anode based on BOM with weighted average costing
-            db.get('SELECT qty_per_unit FROM bom WHERE product_id=? AND material=?', [pid, 'Copper Anode'], (e, bom)=>{
+            db.get('SELECT qty_per_unit FROM bom WHERE product_id=? AND material=?', [pid, 'Copper Anode'], (e, bom) => {
               if (!e && bom) {
                 const copperConsumed = qty * Number(bom.qty_per_unit || 0);
                 db.get('SELECT average_cost_per_unit FROM raw_materials_inventory WHERE material = ?', ['Copper Anode'], (_err7, costRow) => {
@@ -2994,8 +3054,8 @@ app.post('/api/jobwork/orders/:id/receive', (req,res)=>{
         // Update job work order status to Completed
         db.run('UPDATE job_work_orders SET status = ? WHERE id = ?', ['Completed', id]);
 
-        db.run('COMMIT', (e)=>{ if(e) return res.status(500).json({ error:e.message }); res.json({ message:`${jobType} job work received`, received: items.length }); });
-      }catch(ex){ try{ db.run('ROLLBACK'); }catch(_){}; res.status(500).json({ error:'Receipt failed: ' + ex.message }); }
+        db.run('COMMIT', (e) => { if (e) return res.status(500).json({ error: e.message }); res.json({ message: `${jobType} job work received`, received: items.length }); });
+      } catch (ex) { try { db.run('ROLLBACK'); } catch (_) { }; res.status(500).json({ error: 'Receipt failed: ' + ex.message }); }
     });
   });
 });
@@ -3014,24 +3074,24 @@ app.get('/api/bom/:product_id', (req, res) => {
   });
 });
 app.post('/api/bom', (req, res) => {
-  const { product_id, material, qty_per_unit } = req.body||{};
-  if (!product_id || !material || !(qty_per_unit>0)) return res.status(400).json({ error:'product_id, material, qty_per_unit required' });
-  db.run('INSERT INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?) ON CONFLICT(product_id,material) DO UPDATE SET qty_per_unit=excluded.qty_per_unit', [product_id, material, qty_per_unit], function(err){
+  const { product_id, material, qty_per_unit } = req.body || {};
+  if (!product_id || !material || !(qty_per_unit > 0)) return res.status(400).json({ error: 'product_id, material, qty_per_unit required' });
+  db.run('INSERT INTO bom (product_id, material, qty_per_unit) VALUES (?, ?, ?) ON CONFLICT(product_id,material) DO UPDATE SET qty_per_unit=excluded.qty_per_unit', [product_id, material, qty_per_unit], function (err) {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ message:'BOM saved' });
+    res.json({ message: 'BOM saved' });
   });
 });
 app.delete('/api/bom/:product_id/:material', (req, res) => {
-  db.run('DELETE FROM bom WHERE product_id=? AND material=?', [req.params.product_id, req.params.material], function(err){
+  db.run('DELETE FROM bom WHERE product_id=? AND material=?', [req.params.product_id, req.params.material], function (err) {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ message:'BOM deleted', changes: this.changes });
+    res.json({ message: 'BOM deleted', changes: this.changes });
   });
 });
 
 // Vendor PO line items CRUD
 app.get('/api/vendor-purchase-orders/:id/items', (req, res) => {
   const { id } = req.params;
-  db.all(`SELECT * FROM vendor_po_line_items WHERE po_id = ? ORDER BY id`, [id], (err, rows)=>{
+  db.all(`SELECT * FROM vendor_po_line_items WHERE po_id = ? ORDER BY id`, [id], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
@@ -3055,9 +3115,9 @@ app.post('/api/vendor-purchase-orders/:id/items', (req, res) => {
       `INSERT INTO vendor_po_line_items (po_id, item_type, material_type, product_id, product_stage, quantity, unit_price, line_total, description, unit)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, item_type, material_type, product_id, product_stage, qty, unit_price, qty * unit_price, description, unit],
-      function(err) {
+      function (err) {
         if (err) {
-          try { db.run('ROLLBACK'); } catch(_) {}
+          try { db.run('ROLLBACK'); } catch (_) { }
           return res.status(500).json({ error: err.message });
         }
 
@@ -3069,7 +3129,7 @@ app.post('/api/vendor-purchase-orders/:id/items', (req, res) => {
             [qty, material_type],
             (e2) => {
               if (e2) {
-                try { db.run('ROLLBACK'); } catch(_) {}
+                try { db.run('ROLLBACK'); } catch (_) { }
                 return res.status(500).json({ error: e2.message });
               }
               db.run('COMMIT', (cerr) => {
@@ -3096,22 +3156,22 @@ app.post('/api/vendor-purchase-orders/:id/items', (req, res) => {
 });
 
 app.put('/api/vendor-purchase-orders/:id/items/:itemId', (req, res) => {
-  const { id, itemId } = req.params; const material_type = (req.body.material_type || req.body.item || '').toString(); const quantity = (req.body.quantity!=null? req.body.quantity : req.body.qty); const unit_price = req.body.unit_price;
-  db.get(`SELECT material_type, quantity FROM vendor_po_line_items WHERE id=? AND po_id=?`, [itemId, id], (e, row)=>{
+  const { id, itemId } = req.params; const material_type = (req.body.material_type || req.body.item || '').toString(); const quantity = (req.body.quantity != null ? req.body.quantity : req.body.qty); const unit_price = req.body.unit_price;
+  db.get(`SELECT material_type, quantity FROM vendor_po_line_items WHERE id=? AND po_id=?`, [itemId, id], (e, row) => {
     if (e) return res.status(500).json({ error: e.message });
     if (!row) return res.status(404).json({ error: 'Item not found' });
-    const oldQty = Number(row.quantity||0); const newQty = Number(quantity||0); const diff = newQty - oldQty;
-    db.serialize(()=>{
+    const oldQty = Number(row.quantity || 0); const newQty = Number(quantity || 0); const diff = newQty - oldQty;
+    db.serialize(() => {
       db.run('BEGIN');
-      db.run(`UPDATE vendor_po_line_items SET material_type=?, quantity=?, unit_price=?, line_total=? WHERE id=? AND po_id=?`, [material_type, newQty, Number(unit_price||0), newQty*Number(unit_price||0), itemId, id], (e1)=>{
-        if (e1) { try{ db.run('ROLLBACK'); }catch(_){}; return res.status(500).json({ error: e1.message }); }
+      db.run(`UPDATE vendor_po_line_items SET material_type=?, quantity=?, unit_price=?, line_total=? WHERE id=? AND po_id=?`, [material_type, newQty, Number(unit_price || 0), newQty * Number(unit_price || 0), itemId, id], (e1) => {
+        if (e1) { try { db.run('ROLLBACK'); } catch (_) { }; return res.status(500).json({ error: e1.message }); }
         if (diff !== 0) {
-          db.run(`UPDATE raw_materials_inventory SET committed_stock = committed_stock + ? WHERE material = ?`, [diff, material_type], (e2)=>{
-            if (e2) { try{ db.run('ROLLBACK'); }catch(_){}; return res.status(500).json({ error: e2.message }); }
-            db.run('COMMIT', (cerr)=>{ if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message: 'Item updated' }); });
+          db.run(`UPDATE raw_materials_inventory SET committed_stock = committed_stock + ? WHERE material = ?`, [diff, material_type], (e2) => {
+            if (e2) { try { db.run('ROLLBACK'); } catch (_) { }; return res.status(500).json({ error: e2.message }); }
+            db.run('COMMIT', (cerr) => { if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message: 'Item updated' }); });
           });
         } else {
-          db.run('COMMIT', (cerr)=>{ if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message: 'Item updated' }); });
+          db.run('COMMIT', (cerr) => { if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message: 'Item updated' }); });
         }
       });
     });
@@ -3120,18 +3180,18 @@ app.put('/api/vendor-purchase-orders/:id/items/:itemId', (req, res) => {
 
 app.delete('/api/vendor-purchase-orders/:id/items/:itemId', (req, res) => {
   const { id, itemId } = req.params;
-  db.get(`SELECT material_type, quantity, received FROM vendor_po_line_items WHERE id=? AND po_id=?`, [itemId, id], (e,row)=>{
+  db.get(`SELECT material_type, quantity, received FROM vendor_po_line_items WHERE id=? AND po_id=?`, [itemId, id], (e, row) => {
     if (e) return res.status(500).json({ error: e.message });
     if (!row) return res.status(404).json({ error: 'Item not found' });
-    if (Number(row.received||0) > 0) return res.status(400).json({ error: 'Cannot delete item with received quantity' });
-    const qty = Number(row.quantity||0);
-    db.serialize(()=>{
+    if (Number(row.received || 0) > 0) return res.status(400).json({ error: 'Cannot delete item with received quantity' });
+    const qty = Number(row.quantity || 0);
+    db.serialize(() => {
       db.run('BEGIN');
-      db.run(`DELETE FROM vendor_po_line_items WHERE id=? AND po_id=?`, [itemId, id], (e1)=>{
-        if (e1) { try{ db.run('ROLLBACK'); }catch(_){}; return res.status(500).json({ error: e1.message }); }
-        db.run(`UPDATE raw_materials_inventory SET committed_stock = MAX(committed_stock - ?, 0) WHERE material = ?`, [qty, row.material_type], (e2)=>{
-          if (e2) { try{ db.run('ROLLBACK'); }catch(_){}; return res.status(500).json({ error: e2.message }); }
-          db.run('COMMIT', (cerr)=>{ if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message: 'Item deleted' }); });
+      db.run(`DELETE FROM vendor_po_line_items WHERE id=? AND po_id=?`, [itemId, id], (e1) => {
+        if (e1) { try { db.run('ROLLBACK'); } catch (_) { }; return res.status(500).json({ error: e1.message }); }
+        db.run(`UPDATE raw_materials_inventory SET committed_stock = MAX(committed_stock - ?, 0) WHERE material = ?`, [qty, row.material_type], (e2) => {
+          if (e2) { try { db.run('ROLLBACK'); } catch (_) { }; return res.status(500).json({ error: e2.message }); }
+          db.run('COMMIT', (cerr) => { if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message: 'Item deleted' }); });
         });
       });
     });
@@ -3147,14 +3207,14 @@ app.post('/api/vendor-purchase-orders/bulk-delete', (req, res) => {
     const id = ids.shift();
     db.all(`SELECT material_type, quantity FROM vendor_po_line_items WHERE po_id = ?`, [id], (e, rows) => {
       if (e) { result.failed.push({ id, error: e.message }); return next(); }
-      db.serialize(()=>{
+      db.serialize(() => {
         db.run('BEGIN');
-        (rows||[]).forEach(r => { db.run(`UPDATE raw_materials_inventory SET committed_stock = MAX(committed_stock - ?, 0) WHERE material = ?`, [Number(r.quantity||0), r.material_type]); });
-        db.run(`DELETE FROM vendor_po_line_items WHERE po_id = ?`, [id], (e1)=>{
-          if (e1) { try{ db.run('ROLLBACK'); }catch(_){}; result.failed.push({ id, error: e1.message }); return next(); }
-          db.run(`DELETE FROM vendor_purchase_orders WHERE id = ?`, [id], (e2)=>{
-            if (e2) { try{ db.run('ROLLBACK'); }catch(_){}; result.failed.push({ id, error: e2.message }); return next(); }
-            db.run('COMMIT', (cerr)=>{ if (cerr) { result.failed.push({ id, error: cerr.message }); } else { result.deleted += 1; } next(); });
+        (rows || []).forEach(r => { db.run(`UPDATE raw_materials_inventory SET committed_stock = MAX(committed_stock - ?, 0) WHERE material = ?`, [Number(r.quantity || 0), r.material_type]); });
+        db.run(`DELETE FROM vendor_po_line_items WHERE po_id = ?`, [id], (e1) => {
+          if (e1) { try { db.run('ROLLBACK'); } catch (_) { }; result.failed.push({ id, error: e1.message }); return next(); }
+          db.run(`DELETE FROM vendor_purchase_orders WHERE id = ?`, [id], (e2) => {
+            if (e2) { try { db.run('ROLLBACK'); } catch (_) { }; result.failed.push({ id, error: e2.message }); return next(); }
+            db.run('COMMIT', (cerr) => { if (cerr) { result.failed.push({ id, error: cerr.message }); } else { result.deleted += 1; } next(); });
           });
         });
       });
@@ -3247,32 +3307,32 @@ app.post('/api/shipments', (req, res) => {
         db.run(
           "INSERT INTO shipments (id, po_id, shipment_date, container_number, bl_number, bl_date, notes, carrier, destination, tracking_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
           [id, po_id, shipment_date, container_number, bl_number, bl_date, notes, carrier, destination, tracking_number],
-          function(err) {
+          function (err) {
             if (err) {
-              try { db.run('ROLLBACK'); } catch(_){}
+              try { db.run('ROLLBACK'); } catch (_) { }
               return res.status(500).json({ error: err.message });
             }
             const stmt = db.prepare("INSERT INTO shipment_items (shipment_id, product_id, quantity) VALUES (?, ?, ?)");
             let failed = false;
-            (items||[]).forEach(item => {
+            (items || []).forEach(item => {
               if (failed) return;
-              const qty = Number(item.quantity||0);
-              stmt.run([id, item.product_id, qty], (e)=>{ if(e){ failed = true; }});
+              const qty = Number(item.quantity || 0);
+              stmt.run([id, item.product_id, qty], (e) => { if (e) { failed = true; } });
               db.run(
                 "UPDATE client_po_line_items SET delivered = delivered + ? WHERE po_id = ? AND product_id = ?",
                 [qty, po_id, item.product_id],
-                (e)=>{ if(e){ failed = true; }}
+                (e) => { if (e) { failed = true; } }
               );
               db.run(
                 `UPDATE inventory SET stamped = MAX(stamped - ?, 0), updated_at = CURRENT_TIMESTAMP WHERE product_id = ?`,
                 [qty, item.product_id],
-                (e)=>{ if(e){ failed = true; }}
+                (e) => { if (e) { failed = true; } }
               );
             });
             stmt.finalize((err) => {
               if (err || failed) {
-                try { db.run('ROLLBACK'); } catch(_){}
-                return res.status(500).json({ error: (err&&err.message) || 'Failed to save shipment items' });
+                try { db.run('ROLLBACK'); } catch (_) { }
+                return res.status(500).json({ error: (err && err.message) || 'Failed to save shipment items' });
               }
               db.run('COMMIT', (cerr) => {
                 if (cerr) return res.status(500).json({ error: cerr.message });
@@ -3308,16 +3368,16 @@ app.delete('/api/shipments/:id', (req, res) => {
       db.serialize(() => {
         db.run('BEGIN');
         let failed = false;
-        (items||[]).forEach(it => {
-          const qty = Number(it.quantity||0);
-          db.run(`UPDATE client_po_line_items SET delivered = MAX(delivered - ?, 0) WHERE po_id = ? AND product_id = ?`, [qty, ship.po_id, it.product_id], (e)=>{ if(e){ failed=true; }});
-          db.run(`UPDATE inventory SET stamped = stamped + ?, updated_at=CURRENT_TIMESTAMP WHERE product_id = ?`, [qty, it.product_id], (e)=>{ if(e){ failed=true; }});
+        (items || []).forEach(it => {
+          const qty = Number(it.quantity || 0);
+          db.run(`UPDATE client_po_line_items SET delivered = MAX(delivered - ?, 0) WHERE po_id = ? AND product_id = ?`, [qty, ship.po_id, it.product_id], (e) => { if (e) { failed = true; } });
+          db.run(`UPDATE inventory SET stamped = stamped + ?, updated_at=CURRENT_TIMESTAMP WHERE product_id = ?`, [qty, it.product_id], (e) => { if (e) { failed = true; } });
         });
         db.run(`DELETE FROM shipment_items WHERE shipment_id = ?`, [id], (e3) => {
           if (e3) { failed = true; }
           db.run(`DELETE FROM shipments WHERE id = ?`, [id], (e4) => {
             if (e4) { failed = true; }
-            if (failed) { try { db.run('ROLLBACK'); } catch(_){} return res.status(500).json({ error: 'Failed to delete shipment' }); }
+            if (failed) { try { db.run('ROLLBACK'); } catch (_) { } return res.status(500).json({ error: 'Failed to delete shipment' }); }
             db.run('COMMIT', (cerr) => {
               if (cerr) return res.status(500).json({ error: cerr.message });
               res.json({ message: 'Shipment deleted' });
@@ -3335,7 +3395,7 @@ app.put('/api/shipments/:id', (req, res) => {
   const { po_id, shipment_date, container_number, bl_number, bl_date, notes, carrier, destination, tracking_number } = req.body;
   db.run(`UPDATE shipments SET po_id=?, shipment_date=?, container_number=?, bl_number=?, bl_date=?, notes=?, carrier=?, destination=?, tracking_number=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
     [po_id, shipment_date, container_number, bl_number, bl_date, notes, carrier, destination, tracking_number, id],
-    function(err){ if (err) return res.status(500).json({ error: err.message }); res.json({ message: 'Shipment updated' }); }
+    function (err) { if (err) return res.status(500).json({ error: err.message }); res.json({ message: 'Shipment updated' }); }
   );
 });
 
@@ -3351,20 +3411,20 @@ app.post('/api/shipments/bulk-delete', (req, res) => {
       if (err || !ship) { result.failed.push({ id, error: err ? err.message : 'Not found' }); return next(); }
       db.all(`SELECT * FROM shipment_items WHERE shipment_id = ?`, [id], (e2, items) => {
         if (e2) { result.failed.push({ id, error: e2.message }); return next(); }
-        db.serialize(()=>{
+        db.serialize(() => {
           db.run('BEGIN');
           let failed = false;
-          (items||[]).forEach(it => {
-            const qty = Number(it.quantity||0);
-            db.run(`UPDATE client_po_line_items SET delivered = MAX(delivered - ?, 0) WHERE po_id = ? AND product_id = ?`, [qty, ship.po_id, it.product_id], (e)=>{ if(e){ failed=true; }});
-            db.run(`UPDATE inventory SET stamped = stamped + ?, updated_at=CURRENT_TIMESTAMP WHERE product_id = ?`, [qty, it.product_id], (e)=>{ if(e){ failed=true; }});
+          (items || []).forEach(it => {
+            const qty = Number(it.quantity || 0);
+            db.run(`UPDATE client_po_line_items SET delivered = MAX(delivered - ?, 0) WHERE po_id = ? AND product_id = ?`, [qty, ship.po_id, it.product_id], (e) => { if (e) { failed = true; } });
+            db.run(`UPDATE inventory SET stamped = stamped + ?, updated_at=CURRENT_TIMESTAMP WHERE product_id = ?`, [qty, it.product_id], (e) => { if (e) { failed = true; } });
           });
-          db.run(`DELETE FROM shipment_items WHERE shipment_id = ?`, [id], (e3)=>{
+          db.run(`DELETE FROM shipment_items WHERE shipment_id = ?`, [id], (e3) => {
             if (e3) { failed = true; }
-            db.run(`DELETE FROM shipments WHERE id = ?`, [id], (e4)=>{
+            db.run(`DELETE FROM shipments WHERE id = ?`, [id], (e4) => {
               if (e4) { failed = true; }
-              if (failed) { try{ db.run('ROLLBACK'); }catch(_){}; result.failed.push({ id, error: 'Failed to delete' }); return next(); }
-              db.run('COMMIT', (cerr)=>{ if(cerr){ result.failed.push({ id, error: cerr.message }); } else { result.deleted += 1; } next(); });
+              if (failed) { try { db.run('ROLLBACK'); } catch (_) { }; result.failed.push({ id, error: 'Failed to delete' }); return next(); }
+              db.run('COMMIT', (cerr) => { if (cerr) { result.failed.push({ id, error: cerr.message }); } else { result.deleted += 1; } next(); });
             });
           });
         });
@@ -3377,25 +3437,25 @@ app.post('/api/shipments/bulk-delete', (req, res) => {
 // Shipment items CRUD with inventory/delivered adjustments
 app.get('/api/shipments/:id/items', (req, res) => {
   const { id } = req.params;
-  db.all(`SELECT si.*, p.description as product_description FROM shipment_items si LEFT JOIN products p ON si.product_id = p.id WHERE si.shipment_id=? ORDER BY si.id`, [id], (err, rows)=>{
+  db.all(`SELECT si.*, p.description as product_description FROM shipment_items si LEFT JOIN products p ON si.product_id = p.id WHERE si.shipment_id=? ORDER BY si.id`, [id], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message }); res.json(rows);
   });
 });
 
 app.post('/api/shipments/:id/items', (req, res) => {
-  const { id } = req.params; const { product_id, quantity=0 } = req.body; const qty = Number(quantity||0);
-  if (!product_id || qty<=0) return res.status(400).json({ error:'product_id and positive quantity required' });
-  db.get(`SELECT po_id FROM shipments WHERE id=?`, [id], (e, ship)=>{
+  const { id } = req.params; const { product_id, quantity = 0 } = req.body; const qty = Number(quantity || 0);
+  if (!product_id || qty <= 0) return res.status(400).json({ error: 'product_id and positive quantity required' });
+  db.get(`SELECT po_id FROM shipments WHERE id=?`, [id], (e, ship) => {
     if (e || !ship) return res.status(404).json({ error: 'Shipment not found' });
-    db.serialize(()=>{
+    db.serialize(() => {
       db.run('BEGIN');
-      db.run(`INSERT INTO shipment_items (shipment_id, product_id, quantity) VALUES (?, ?, ?)`, [id, product_id, qty], function(err){
-        if (err) { try{ db.run('ROLLBACK'); }catch(_){}; return res.status(500).json({ error: err.message }); }
-        db.run(`UPDATE client_po_line_items SET delivered = delivered + ? WHERE po_id = ? AND product_id = ?`, [qty, ship.po_id, product_id], (e2)=>{
-          if (e2) { try{ db.run('ROLLBACK'); }catch(_){}; return res.status(500).json({ error: e2.message }); }
-          db.run(`UPDATE inventory SET stamped = MAX(stamped - ?, 0), updated_at=CURRENT_TIMESTAMP WHERE product_id = ?`, [qty, product_id], (e3)=>{
-            if (e3) { try{ db.run('ROLLBACK'); }catch(_){}; return res.status(500).json({ error: e3.message }); }
-            db.run('COMMIT', (cerr)=>{ if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message:'Item added', id: this.lastID }); });
+      db.run(`INSERT INTO shipment_items (shipment_id, product_id, quantity) VALUES (?, ?, ?)`, [id, product_id, qty], function (err) {
+        if (err) { try { db.run('ROLLBACK'); } catch (_) { }; return res.status(500).json({ error: err.message }); }
+        db.run(`UPDATE client_po_line_items SET delivered = delivered + ? WHERE po_id = ? AND product_id = ?`, [qty, ship.po_id, product_id], (e2) => {
+          if (e2) { try { db.run('ROLLBACK'); } catch (_) { }; return res.status(500).json({ error: e2.message }); }
+          db.run(`UPDATE inventory SET stamped = MAX(stamped - ?, 0), updated_at=CURRENT_TIMESTAMP WHERE product_id = ?`, [qty, product_id], (e3) => {
+            if (e3) { try { db.run('ROLLBACK'); } catch (_) { }; return res.status(500).json({ error: e3.message }); }
+            db.run('COMMIT', (cerr) => { if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message: 'Item added', id: this.lastID }); });
           });
         });
       });
@@ -3404,14 +3464,14 @@ app.post('/api/shipments/:id/items', (req, res) => {
 });
 
 app.put('/api/shipments/:id/items/:itemId', (req, res) => {
-  const { id, itemId } = req.params; const { product_id, quantity } = req.body; const newQty = Number(quantity||0);
-  db.get(`SELECT * FROM shipment_items WHERE id=? AND shipment_id=?`, [itemId, id], (e,row)=>{
-    if (e || !row) return res.status(404).json({ error:'Item not found' });
-    const oldQty = Number(row.quantity||0); const oldPid = row.product_id; const newPid = product_id||oldPid;
+  const { id, itemId } = req.params; const { product_id, quantity } = req.body; const newQty = Number(quantity || 0);
+  db.get(`SELECT * FROM shipment_items WHERE id=? AND shipment_id=?`, [itemId, id], (e, row) => {
+    if (e || !row) return res.status(404).json({ error: 'Item not found' });
+    const oldQty = Number(row.quantity || 0); const oldPid = row.product_id; const newPid = product_id || oldPid;
     const deltaOld = -oldQty; const deltaNew = newQty;
-    db.get(`SELECT po_id FROM shipments WHERE id=?`, [id], (e2, ship)=>{
-      if (e2 || !ship) return res.status(404).json({ error:'Shipment not found' });
-      db.serialize(()=>{
+    db.get(`SELECT po_id FROM shipments WHERE id=?`, [id], (e2, ship) => {
+      if (e2 || !ship) return res.status(404).json({ error: 'Shipment not found' });
+      db.serialize(() => {
         db.run('BEGIN');
         // rollback old
         db.run(`UPDATE client_po_line_items SET delivered = MAX(delivered + ?, 0) WHERE po_id=? AND product_id=?`, [deltaOld, ship.po_id, oldPid]);
@@ -3419,9 +3479,9 @@ app.put('/api/shipments/:id/items/:itemId', (req, res) => {
         // apply new
         db.run(`UPDATE client_po_line_items SET delivered = delivered + ? WHERE po_id=? AND product_id=?`, [deltaNew, ship.po_id, newPid]);
         db.run(`UPDATE inventory SET stamped = MAX(stamped - ?, 0), updated_at=CURRENT_TIMESTAMP WHERE product_id=?`, [deltaNew, newPid]);
-        db.run(`UPDATE shipment_items SET product_id=?, quantity=? WHERE id=? AND shipment_id=?`, [newPid, newQty, itemId, id], (e3)=>{
-          if (e3) { try{ db.run('ROLLBACK'); }catch(_){}; return res.status(500).json({ error:e3.message }); }
-          db.run('COMMIT', (cerr)=>{ if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message:'Item updated' }); });
+        db.run(`UPDATE shipment_items SET product_id=?, quantity=? WHERE id=? AND shipment_id=?`, [newPid, newQty, itemId, id], (e3) => {
+          if (e3) { try { db.run('ROLLBACK'); } catch (_) { }; return res.status(500).json({ error: e3.message }); }
+          db.run('COMMIT', (cerr) => { if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message: 'Item updated' }); });
         });
       });
     });
@@ -3430,18 +3490,18 @@ app.put('/api/shipments/:id/items/:itemId', (req, res) => {
 
 app.delete('/api/shipments/:id/items/:itemId', (req, res) => {
   const { id, itemId } = req.params;
-  db.get(`SELECT * FROM shipment_items WHERE id=? AND shipment_id=?`, [itemId, id], (e,row)=>{
-    if (e || !row) return res.status(404).json({ error:'Item not found' });
-    const qty = Number(row.quantity||0); const pid = row.product_id;
-    db.get(`SELECT po_id FROM shipments WHERE id=?`, [id], (e2, ship)=>{
-      if (e2 || !ship) return res.status(404).json({ error:'Shipment not found' });
-      db.serialize(()=>{
+  db.get(`SELECT * FROM shipment_items WHERE id=? AND shipment_id=?`, [itemId, id], (e, row) => {
+    if (e || !row) return res.status(404).json({ error: 'Item not found' });
+    const qty = Number(row.quantity || 0); const pid = row.product_id;
+    db.get(`SELECT po_id FROM shipments WHERE id=?`, [id], (e2, ship) => {
+      if (e2 || !ship) return res.status(404).json({ error: 'Shipment not found' });
+      db.serialize(() => {
         db.run('BEGIN');
         db.run(`UPDATE client_po_line_items SET delivered = MAX(delivered - ?, 0) WHERE po_id=? AND product_id=?`, [qty, ship.po_id, pid]);
         db.run(`UPDATE inventory SET stamped = stamped + ?, updated_at=CURRENT_TIMESTAMP WHERE product_id=?`, [qty, pid]);
-        db.run(`DELETE FROM shipment_items WHERE id=? AND shipment_id=?`, [itemId, id], (e3)=>{
-          if (e3) { try{ db.run('ROLLBACK'); }catch(_){}; return res.status(500).json({ error:e3.message }); }
-          db.run('COMMIT', (cerr)=>{ if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message:'Item deleted' }); });
+        db.run(`DELETE FROM shipment_items WHERE id=? AND shipment_id=?`, [itemId, id], (e3) => {
+          if (e3) { try { db.run('ROLLBACK'); } catch (_) { }; return res.status(500).json({ error: e3.message }); }
+          db.run('COMMIT', (cerr) => { if (cerr) return res.status(500).json({ error: cerr.message }); res.json({ message: 'Item deleted' }); });
         });
       });
     });
@@ -3508,7 +3568,7 @@ app.post('/api/shipments/:id/refresh-tracking', async (req, res) => {
            SET tracking_status=?, carrier_detected=?, estimated_delivery=?, tracking_last_updated=CURRENT_TIMESTAMP
            WHERE id=?`,
           [status, carrierDetected, estimatedDelivery, id],
-          function(updateErr) {
+          function (updateErr) {
             if (updateErr) {
               return res.status(500).json({ error: updateErr.message });
             }
@@ -3668,7 +3728,7 @@ app.post('/api/inventory/allocations/assign', (req, res) => {
         LIMIT 1
       `;
 
-      db.run(updateSql, [po_id, product_id, stage, marking_type, marking_text, marking_text, quantity], function(updateErr) {
+      db.run(updateSql, [po_id, product_id, stage, marking_type, marking_text, marking_text, quantity], function (updateErr) {
         if (updateErr) {
           console.error('Error updating allocation:', updateErr);
           return res.status(500).json({ error: updateErr.message });
@@ -3762,7 +3822,7 @@ app.post('/api/inventory/allocations/deallocate', (req, res) => {
       AND allocated_po_id = ?
   `;
 
-  db.run(updateSql, [product_id, stage, marking_type, marking_text, marking_text, po_id], function(err) {
+  db.run(updateSql, [product_id, stage, marking_type, marking_text, marking_text, po_id], function (err) {
     if (err) {
       console.error('Error deallocating:', err);
       return res.status(500).json({ error: err.message });
@@ -4016,8 +4076,8 @@ app.post('/api/shipments/validate-markings', (req, res) => {
               message: hasWarnings
                 ? `Warning: Some products have insufficient marked inventory`
                 : isValid
-                ? 'All marking requirements validated successfully'
-                : 'Validation failed with errors'
+                  ? 'All marking requirements validated successfully'
+                  : 'Validation failed with errors'
             });
           }
         });
@@ -4070,7 +4130,7 @@ app.post('/api/production', (req, res) => {
         entry.marking_type || 'unmarked',
         entry.marking_text || null,
         entry.allocated_po_id || null
-      ], function(histErr) {
+      ], function (histErr) {
         if (histErr) {
           failed = true;
           failedMsg = histErr.message;
@@ -4078,7 +4138,7 @@ app.post('/api/production', (req, res) => {
           processedCount++;
           if (processedCount === totalEntries) {
             stmt.finalize();
-            try { db.run('ROLLBACK'); } catch(_){}
+            try { db.run('ROLLBACK'); } catch (_) { }
             return res.status(500).json({ error: failedMsg });
           }
           return;
@@ -4126,7 +4186,7 @@ app.post('/api/production', (req, res) => {
             processedCount++;
             if (processedCount === totalEntries) {
               stmt.finalize();
-              try { db.run('ROLLBACK'); } catch(_){}
+              try { db.run('ROLLBACK'); } catch (_) { }
               return res.status(500).json({ error: failedMsg });
             }
             return;
@@ -4154,8 +4214,8 @@ app.post('/api/production', (req, res) => {
           // CRITICAL: Consume raw materials based on BOM for stamped (finished) quantity
           // NOTE: Steel is already consumed at Job Work/Drawing stage when converting raw steel to steel_rods
           // Only consume copper and other materials that are used during plating/stamping
-          const stampedUnits = Number(entry.stamped||0);
-          if (stampedUnits > 0){
+          const stampedUnits = Number(entry.stamped || 0);
+          if (stampedUnits > 0) {
             db.all('SELECT material, qty_per_unit FROM bom WHERE product_id = ?', [entry.product_id], (bomErr, bomRows) => {
               if (bomErr) {
                 console.warn('BOM fetch warning:', bomErr.message);
@@ -4181,17 +4241,17 @@ app.post('/api/production', (req, res) => {
                                   total_value = MAX(0, total_value - ?),
                                   updated_at = CURRENT_TIMESTAMP
                               WHERE material = ?`,
-                              [totalRequired, consumedValue, bom.material], (matErr) => {
-                        if (matErr) {
-                          console.warn(`Raw material deduction warning for ${bom.material}:`, matErr.message);
-                        } else {
-                          // Log the material consumption with cost
-                          logAudit('raw_materials_inventory', bom.material, 'CONSUMED',
-                            null,
-                            { product_id: entry.product_id, quantity: totalRequired, cost: consumedValue, production_date: date }
-                          );
-                        }
-                      });
+                        [totalRequired, consumedValue, bom.material], (matErr) => {
+                          if (matErr) {
+                            console.warn(`Raw material deduction warning for ${bom.material}:`, matErr.message);
+                          } else {
+                            // Log the material consumption with cost
+                            logAudit('raw_materials_inventory', bom.material, 'CONSUMED',
+                              null,
+                              { product_id: entry.product_id, quantity: totalRequired, cost: consumedValue, production_date: date }
+                            );
+                          }
+                        });
                     });
                   }
                 });
@@ -4206,7 +4266,7 @@ app.post('/api/production', (req, res) => {
           if (processedCount === totalEntries) {
             stmt.finalize((finErr) => {
               if (finErr || failed) {
-                try { db.run('ROLLBACK'); } catch(_){}
+                try { db.run('ROLLBACK'); } catch (_) { }
                 return res.status(500).json({ error: failedMsg || finErr?.message || 'Production save failed' });
               }
               db.run('COMMIT', (cerr) => {
@@ -4264,32 +4324,32 @@ app.put('/api/production/:id', (req, res) => {
             marking_type = ?, marking_text = ?, notes = ?
         WHERE id = ?
       `, [production_date, plated || 0, machined || 0, qc || 0, stamped || 0, rejected || 0,
-          marking_type || 'unmarked', marking_text || '', notes || '', id], function(updateErr) {
-        if (updateErr) {
-          db.run('ROLLBACK');
-          return res.status(500).json({ error: updateErr.message });
-        }
+        marking_type || 'unmarked', marking_text || '', notes || '', id], function (updateErr) {
+          if (updateErr) {
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: updateErr.message });
+          }
 
-        // Reverse old inventory changes and apply new ones
-        const oldPlated = Number(oldEntry.plated || 0);
-        const oldMachined = Number(oldEntry.machined || 0);
-        const oldQC = Number(oldEntry.qc || 0);
-        const oldStamped = Number(oldEntry.stamped || 0);
+          // Reverse old inventory changes and apply new ones
+          const oldPlated = Number(oldEntry.plated || 0);
+          const oldMachined = Number(oldEntry.machined || 0);
+          const oldQC = Number(oldEntry.qc || 0);
+          const oldStamped = Number(oldEntry.stamped || 0);
 
-        const newPlated = Number(plated || 0);
-        const newMachined = Number(machined || 0);
-        const newQC = Number(qc || 0);
-        const newStamped = Number(stamped || 0);
+          const newPlated = Number(plated || 0);
+          const newMachined = Number(machined || 0);
+          const newQC = Number(qc || 0);
+          const newStamped = Number(stamped || 0);
 
-        // Calculate net inventory delta (new - old)
-        const deltaPlated = newPlated - oldPlated;
-        const deltaMachined = newMachined - oldMachined;
-        const deltaQC = newQC - oldQC;
-        const deltaStamped = newStamped - oldStamped;
+          // Calculate net inventory delta (new - old)
+          const deltaPlated = newPlated - oldPlated;
+          const deltaMachined = newMachined - oldMachined;
+          const deltaQC = newQC - oldQC;
+          const deltaStamped = newStamped - oldStamped;
 
-        // Update inventory with net delta
-        // Same sequential flow logic as original production POST
-        db.run(`
+          // Update inventory with net delta
+          // Same sequential flow logic as original production POST
+          db.run(`
           INSERT INTO inventory (product_id, steel_rods, plated, machined, qc, stamped, updated_at)
           VALUES (?, 0, 0, 0, 0, 0, CURRENT_TIMESTAMP)
           ON CONFLICT(product_id) DO UPDATE SET
@@ -4300,27 +4360,27 @@ app.put('/api/production/:id', (req, res) => {
             stamped = stamped + ?,
             updated_at = CURRENT_TIMESTAMP
         `, [
-          oldEntry.product_id,
-          deltaPlated,
-          deltaMachined, deltaQC, deltaStamped, deltaPlated,
-          deltaQC, deltaStamped, deltaMachined,
-          deltaStamped, deltaQC,
-          deltaStamped
-        ], (invErr) => {
-          if (invErr) {
-            db.run('ROLLBACK');
-            return res.status(500).json({ error: `Inventory update error: ${invErr.message}` });
-          }
-
-          db.run('COMMIT', (commitErr) => {
-            if (commitErr) {
+            oldEntry.product_id,
+            deltaPlated,
+            deltaMachined, deltaQC, deltaStamped, deltaPlated,
+            deltaQC, deltaStamped, deltaMachined,
+            deltaStamped, deltaQC,
+            deltaStamped
+          ], (invErr) => {
+            if (invErr) {
               db.run('ROLLBACK');
-              return res.status(500).json({ error: commitErr.message });
+              return res.status(500).json({ error: `Inventory update error: ${invErr.message}` });
             }
-            res.json({ message: 'Production entry updated successfully' });
+
+            db.run('COMMIT', (commitErr) => {
+              if (commitErr) {
+                db.run('ROLLBACK');
+                return res.status(500).json({ error: commitErr.message });
+              }
+              res.json({ message: 'Production entry updated successfully' });
+            });
           });
         });
-      });
     });
   });
 });
@@ -4909,33 +4969,33 @@ app.post('/api/stock-adjustments', (req, res) => {
       INSERT INTO stock_adjustments (adjustment_date, product_id, stage, quantity, adjustment_type, reason, notes, created_by)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `, [adjustment_date, product_id, dbStage, Number(quantity), adjustment_type, reason, notes || '', created_by || 'system'],
-    function(err) {
-      if (err) {
-        db.run('ROLLBACK');
-        return res.status(500).json({ error: err.message });
-      }
+      function (err) {
+        if (err) {
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: err.message });
+        }
 
-      const adjustmentId = this.lastID;
+        const adjustmentId = this.lastID;
 
-      // Update inventory (use dbStage for column name)
-      db.run(`
+        // Update inventory (use dbStage for column name)
+        db.run(`
         INSERT INTO inventory (product_id, ${dbStage})
         VALUES (?, ?)
         ON CONFLICT(product_id) DO UPDATE SET
           ${dbStage} = ${dbStage} + excluded.${dbStage},
           updated_at = CURRENT_TIMESTAMP
       `, [product_id, Number(quantity)], (invErr) => {
-        if (invErr) {
-          db.run('ROLLBACK');
-          return res.status(500).json({ error: invErr.message });
-        }
+          if (invErr) {
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: invErr.message });
+          }
 
-        db.run('COMMIT', (commitErr) => {
-          if (commitErr) return res.status(500).json({ error: commitErr.message });
-          res.json({ message: 'Stock adjustment created successfully', id: adjustmentId });
+          db.run('COMMIT', (commitErr) => {
+            if (commitErr) return res.status(500).json({ error: commitErr.message });
+            res.json({ message: 'Stock adjustment created successfully', id: adjustmentId });
+          });
         });
       });
-    });
   });
 });
 
@@ -5023,7 +5083,7 @@ app.post('/api/drawing-operations', (req, res) => {
       Number(cores_produced),
       Number(cores_rejected || 0),
       notes || ''
-    ], function(err) {
+    ], function (err) {
       if (err) {
         db.run('ROLLBACK');
         return res.status(500).json({ error: err.message });
@@ -5242,7 +5302,7 @@ app.post('/api/raw-materials', (req, res) => {
     `INSERT INTO raw_materials (material, current_stock, reorder_level, last_purchase_date)
      VALUES (?, ?, ?, ?)`,
     [material, Number(current_stock || 0), Number(reorder_level || 0), last_purchase_date || null],
-    function(err) {
+    function (err) {
       if (err) {
         if (err.message.includes('UNIQUE')) {
           return res.status(400).json({ error: 'Material already exists' });
@@ -5266,7 +5326,7 @@ app.put('/api/raw-materials/:material', (req, res) => {
          updated_at = CURRENT_TIMESTAMP
      WHERE material = ?`,
     [Number(current_stock || 0), Number(reorder_level || 0), last_purchase_date || null, material],
-    function(err) {
+    function (err) {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
@@ -5281,7 +5341,7 @@ app.put('/api/raw-materials/:material', (req, res) => {
 app.delete('/api/raw-materials/:material', (req, res) => {
   const { material } = req.params;
 
-  db.run('DELETE FROM raw_materials_inventory WHERE material = ?', [material], function(err) {
+  db.run('DELETE FROM raw_materials_inventory WHERE material = ?', [material], function (err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -5299,7 +5359,7 @@ app.get('/api/production', (req, res) => {
   const args = [];
   if (from) { where.push("production_date >= ?"); args.push(from); }
   if (to) { where.push("production_date <= ?"); args.push(to); }
-  const sql = `SELECT ph.*, p.description as product_description FROM production_history ph LEFT JOIN products p ON p.id = ph.product_id ${where.length?('WHERE '+where.join(' AND ')):''} ORDER BY production_date DESC, id DESC LIMIT ?`;
+  const sql = `SELECT ph.*, p.description as product_description FROM production_history ph LEFT JOIN products p ON p.id = ph.product_id ${where.length ? ('WHERE ' + where.join(' AND ')) : ''} ORDER BY production_date DESC, id DESC LIMIT ?`;
   args.push(Number(limit));
   db.all(sql, args, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -5309,14 +5369,14 @@ app.get('/api/production', (req, res) => {
 
 app.get('/api/dashboard/stats', (req, res) => {
   const stats = {};
-  
+
   // Fixed: stamped is finished goods, not WIP (removed from WIP calculation)
   db.get("SELECT SUM(plated + machined + qc) as total_wip FROM inventory", (_err, row) => {
     stats.total_wip = row ? row.total_wip || 0 : 0;
-    
+
     db.get("SELECT SUM(stamped) as total_finished FROM inventory", (err, row) => {
       stats.total_finished = row ? row.total_finished || 0 : 0;
-      
+
       db.get(`
         SELECT SUM(li.quantity - li.delivered) as pending
         FROM client_po_line_items li
@@ -5335,7 +5395,7 @@ app.get('/api/dashboard/stats', (req, res) => {
             AND po.status NOT IN ('Completed', 'Cancelled')
         `, (err, row) => {
           stats.overdue_orders = row ? row.overdue || 0 : 0;
-          
+
           res.json(stats);
         });
       });
@@ -5485,7 +5545,7 @@ app.post('/api/dashboard/cleanup-bad-pdf-paths', (req, res) => {
     WHERE pdf_path IS NOT NULL
       AND (pdf_path LIKE '%app.restored.js%'
            OR pdf_path NOT LIKE '%.pdf')
-  `, function(err) {
+  `, function (err) {
     if (err) return res.status(500).json({ error: err.message });
     res.json({
       message: 'Cleaned up bad PDF paths',
@@ -5556,7 +5616,7 @@ app.delete('/api/dashboard/cleanup-orphaned-items', (req, res) => {
     db.run(`
       DELETE FROM client_po_line_items
       WHERE po_id NOT IN (SELECT id FROM client_purchase_orders)
-    `, function(err) {
+    `, function (err) {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
@@ -5569,7 +5629,7 @@ app.delete('/api/dashboard/cleanup-orphaned-items', (req, res) => {
           SELECT id FROM client_purchase_orders
           WHERE status IN ('Completed', 'Cancelled')
         )
-      `, function(err) {
+      `, function (err) {
         if (err) {
           return res.status(500).json({ error: err.message });
         }
@@ -5588,7 +5648,7 @@ app.delete('/api/dashboard/cleanup-orphaned-items', (req, res) => {
 
 // Emergency cleanup - delete ALL line items (use when you have 0 orders)
 app.delete('/api/dashboard/emergency-cleanup-all-line-items', (req, res) => {
-  db.run(`DELETE FROM client_po_line_items`, function(err) {
+  db.run(`DELETE FROM client_po_line_items`, function (err) {
     if (err) return res.status(500).json({ error: err.message });
     res.json({
       message: 'Emergency cleanup: ALL line items deleted',
@@ -5609,7 +5669,7 @@ app.put('/api/raw-materials/:material', (req, res) => {
        last_purchase_date = ?
      WHERE material = ?`,
     [Number(current_stock || 0), Number(reorder_level || 0), last_purchase_date || null, material],
-    function(err) {
+    function (err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) {
         return res.status(404).json({ error: 'Material not found' });
@@ -5625,90 +5685,90 @@ if (upload && pdfParse) {
   app.post('/api/import/vendor-po/preview', upload.single('file'), (req, res) => handleVendorPoPreview(req, res, true));
 
   // Import Customer (preview + confirm)
-  function parseCustomerFromText(text){
+  function parseCustomerFromText(text) {
     const out = {};
-    const id = text.match(/Customer\s*(?:ID|#|Number)?\s*[:\-]?\s*([A-Z0-9\-]+)/i); if(id) out.id = id[1];
-    const name = text.match(/Customer\s*Name\s*[:\-]?\s*([A-Za-z0-9 &\-]+)/i) || text.match(/Name\s*[:\-]?\s*([A-Za-z0-9 .,&\-]+)/i); if(name) out.name = name[1];
-    const phone = text.match(/Phone\s*[:\-]?\s*([+()0-9\-\s]+)/i); if(phone) out.phone = phone[1].trim();
-    const email = text.match(/Email\s*[:\-]?\s*([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i); if(email) out.email = email[1];
+    const id = text.match(/Customer\s*(?:ID|#|Number)?\s*[:\-]?\s*([A-Z0-9\-]+)/i); if (id) out.id = id[1];
+    const name = text.match(/Customer\s*Name\s*[:\-]?\s*([A-Za-z0-9 &\-]+)/i) || text.match(/Name\s*[:\-]?\s*([A-Za-z0-9 .,&\-]+)/i); if (name) out.name = name[1];
+    const phone = text.match(/Phone\s*[:\-]?\s*([+()0-9\-\s]+)/i); if (phone) out.phone = phone[1].trim();
+    const email = text.match(/Email\s*[:\-]?\s*([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i); if (email) out.email = email[1];
     return out;
   }
   app.post('/api/import/customer/preview', upload.single('file'), async (req, res) => {
-    try{
-      const dir = path.join(__dirname, 'uploads', 'customers'); fs.mkdirSync(dir, { recursive:true });
+    try {
+      const dir = path.join(__dirname, 'uploads', 'customers'); fs.mkdirSync(dir, { recursive: true });
       const token = `customer_${Date.now()}_${Math.random().toString(36).slice(2)}.pdf`;
       fs.writeFileSync(path.join(dir, token), req.file.buffer);
-      const data = await pdfParse(req.file.buffer); const text = data.text||''; const customer = parseCustomerFromText(text);
+      const data = await pdfParse(req.file.buffer); const text = data.text || ''; const customer = parseCustomerFromText(text);
       res.json({ customer, text, file_token: token });
-    }catch(e){ res.status(500).json({ error:'Failed to parse PDF' }); }
+    } catch (e) { res.status(500).json({ error: 'Failed to parse PDF' }); }
   });
   app.post('/api/import/customer/confirm', (req, res) => {
-    const { id, name, contact_person='', phone='', email='', office_address='', warehouse_address='' } = req.body||{};
+    const { id, name, contact_person = '', phone = '', email = '', office_address = '', warehouse_address = '' } = req.body || {};
     const cid = id && String(id).trim() ? String(id).trim() : `CUST-${Date.now().toString().slice(-4)}`;
     db.run(`INSERT INTO customers (id, name, office_address, warehouse_address, contact_person, phone, email) VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET name=excluded.name, office_address=excluded.office_address, warehouse_address=excluded.warehouse_address, contact_person=excluded.contact_person, phone=excluded.phone, email=excluded.email`,
-      [cid, name||cid, office_address, warehouse_address, contact_person, phone, email], function(err){
+      [cid, name || cid, office_address, warehouse_address, contact_person, phone, email], function (err) {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ message:'Customer imported', id: cid });
+        res.json({ message: 'Customer imported', id: cid });
       });
   });
 
   // Import Vendor (preview + confirm)
-  function parseVendorInfoFromText(text){
+  function parseVendorInfoFromText(text) {
     const out = {};
-    const id = text.match(/Vendor\s*(?:ID|#|Number)?\s*[:\-]?\s*([A-Z0-9\-]+)/i); if(id) out.id = id[1];
-    const name = text.match(/Vendor\s*Name\s*[:\-]?\s*([A-Za-z0-9 &\-]+)/i) || text.match(/Name\s*[:\-]?\s*([A-Za-z0-9 .,&\-]+)/i); if(name) out.name = name[1];
-    const phone = text.match(/Phone\s*[:\-]?\s*([+()0-9\-\s]+)/i); if(phone) out.phone = phone[1].trim();
-    const email = text.match(/Email\s*[:\-]?\s*([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i); if(email) out.email = email[1];
+    const id = text.match(/Vendor\s*(?:ID|#|Number)?\s*[:\-]?\s*([A-Z0-9\-]+)/i); if (id) out.id = id[1];
+    const name = text.match(/Vendor\s*Name\s*[:\-]?\s*([A-Za-z0-9 &\-]+)/i) || text.match(/Name\s*[:\-]?\s*([A-Za-z0-9 .,&\-]+)/i); if (name) out.name = name[1];
+    const phone = text.match(/Phone\s*[:\-]?\s*([+()0-9\-\s]+)/i); if (phone) out.phone = phone[1].trim();
+    const email = text.match(/Email\s*[:\-]?\s*([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i); if (email) out.email = email[1];
     return out;
   }
   app.post('/api/import/vendor/preview', upload.single('file'), async (req, res) => {
-    try{
-      const dir = path.join(__dirname, 'uploads', 'vendors'); fs.mkdirSync(dir, { recursive:true });
+    try {
+      const dir = path.join(__dirname, 'uploads', 'vendors'); fs.mkdirSync(dir, { recursive: true });
       const token = `vendor_${Date.now()}_${Math.random().toString(36).slice(2)}.pdf`;
       fs.writeFileSync(path.join(dir, token), req.file.buffer);
-      const data = await pdfParse(req.file.buffer); const text = data.text||''; const vendor = parseVendorInfoFromText(text);
+      const data = await pdfParse(req.file.buffer); const text = data.text || ''; const vendor = parseVendorInfoFromText(text);
       res.json({ vendor, text, file_token: token });
-    }catch(e){ res.status(500).json({ error:'Failed to parse PDF' }); }
+    } catch (e) { res.status(500).json({ error: 'Failed to parse PDF' }); }
   });
   app.post('/api/import/vendor/confirm', (req, res) => {
-    const { id, name, contact_person='', phone='', email='', office_address='' } = req.body||{};
+    const { id, name, contact_person = '', phone = '', email = '', office_address = '' } = req.body || {};
     const vid = id && String(id).trim() ? String(id).trim() : `VEND-${Date.now().toString().slice(-4)}`;
     db.run(`INSERT INTO vendors (id, name, contact_person, phone, email, office_address) VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET name=excluded.name, contact_person=excluded.contact_person, phone=excluded.phone, email=excluded.email, office_address=excluded.office_address`,
-      [vid, name||vid, contact_person, phone, email, office_address], function(err){
+      [vid, name || vid, contact_person, phone, email, office_address], function (err) {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ message:'Vendor imported', id: vid });
+        res.json({ message: 'Vendor imported', id: vid });
       });
   });
 
   // Confirm Client PO: auto-create customer if needed, and optional line items
   app.post('/api/import/client-po/confirm', (req, res) => {
     let { id, customer_id, customer_name, po_date, due_date, currency = 'INR', status = 'Pending', notes = '', marking = '', delivery_terms = null, payment_terms = null, items = [], file_token = '' } = req.body;
-    const norm = (s)=>{ if(!s) return s; const m=String(s).replace(/\//g,'-').match(/^([0-3]\d)-([01]\d)-(\d{4})$/); return m? `${m[3]}-${m[2]}-${m[1]}` : s; };
+    const norm = (s) => { if (!s) return s; const m = String(s).replace(/\//g, '-').match(/^([0-3]\d)-([01]\d)-(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : s; };
     po_date = norm(po_date); due_date = norm(due_date);
     if (!id || !po_date || !due_date) return res.status(400).json({ error: 'Missing required fields (id, po_date, due_date)' });
 
-    function genCustomerId(name){
-      const base = (name || 'CUST').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6) || 'CUST';
+    function genCustomerId(name) {
+      const base = (name || 'CUST').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'CUST';
       const suffix = Date.now().toString().slice(-4);
       return `${base}-${suffix}`;
     }
 
-    function ensureCustomer(cb){
+    function ensureCustomer(cb) {
       if (customer_id) {
         db.get("SELECT id FROM customers WHERE id=?", [customer_id], (err, row) => {
           if (err) return res.status(500).json({ error: err.message });
           if (row) return cb(customer_id);
           if (!customer_name) return res.status(400).json({ error: 'Customer does not exist. Provide customer_name to auto-create.' });
-          db.run("INSERT INTO customers (id, name) VALUES (?, ?)", [customer_id, customer_name], (err2)=>{
+          db.run("INSERT INTO customers (id, name) VALUES (?, ?)", [customer_id, customer_name], (err2) => {
             if (err2) return res.status(500).json({ error: err2.message });
             cb(customer_id);
           });
         });
       } else if (customer_name) {
         const newId = genCustomerId(customer_name);
-        db.run("INSERT INTO customers (id, name) VALUES (?, ?)", [newId, customer_name], (err)=>{
+        db.run("INSERT INTO customers (id, name) VALUES (?, ?)", [newId, customer_name], (err) => {
           if (err) return res.status(500).json({ error: err.message });
           cb(newId);
         });
@@ -5717,8 +5777,8 @@ if (upload && pdfParse) {
       }
     }
 
-    function ensureProduct(item, cb){
-      if (item.product_id){
+    function ensureProduct(item, cb) {
+      if (item.product_id) {
         // assume exists or let insert fail later if wrong
         return cb(item.product_id);
       }
@@ -5726,13 +5786,13 @@ if (upload && pdfParse) {
       // Create new product from fields
       const pid = item.new_product_id && String(item.new_product_id).trim() ? String(item.new_product_id).trim() : `P${Date.now().toString().slice(-6)}`;
       // Units: diameter in mm or inches, length in mm/ft/in, coating in µm
-      function toMm(val, unit){ const n=Number(val||0); if (unit==='in') return n*25.4; if(unit==='ft') return n*304.8; return n; }
-      const steel_diameter = toMm(item.diameter_value, item.diameter_unit||'mm');
-      const length = toMm(item.length_value, item.length_unit||'mm');
-      const coating = Number(item.coating_um||0);
-      const desc = item.description || `${(steel_diameter).toFixed(1)}mm x ${(length/304.8).toFixed(1)}ft - ${coating}µm`;
+      function toMm(val, unit) { const n = Number(val || 0); if (unit === 'in') return n * 25.4; if (unit === 'ft') return n * 304.8; return n; }
+      const steel_diameter = toMm(item.diameter_value, item.diameter_unit || 'mm');
+      const length = toMm(item.length_value, item.length_unit || 'mm');
+      const coating = Number(item.coating_um || 0);
+      const desc = item.description || `${(steel_diameter).toFixed(1)}mm x ${(length / 304.8).toFixed(1)}ft - ${coating}µm`;
       db.run("INSERT INTO products (id, description, steel_diameter, copper_coating, length, active) VALUES (?, ?, ?, ?, ?, 1)",
-        [pid, desc, steel_diameter, coating, length], (err)=>{
+        [pid, desc, steel_diameter, coating, length], (err) => {
           if (err) return cb(null);
           cb(pid);
         });
@@ -5743,27 +5803,27 @@ if (upload && pdfParse) {
         if (checkErr) return res.status(500).json({ error: checkErr.message });
         if (existing) return res.status(409).json({ error: 'Client PO ID already exists. Update the PO ID before confirming.' });
 
-        const pdfPath = file_token ? path.join('uploads','client_po', file_token) : null;
+        const pdfPath = file_token ? path.join('uploads', 'client_po', file_token) : null;
         db.run(`INSERT INTO client_purchase_orders (id, customer_id, po_date, due_date, currency, delivery_terms, payment_terms, status, notes, marking, pdf_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [id, finalCustomerId, po_date, due_date, currency, delivery_terms, payment_terms, status, notes, marking, pdfPath], function(err){
+          [id, finalCustomerId, po_date, due_date, currency, delivery_terms, payment_terms, status, notes, marking, pdfPath], function (err) {
             if (err) return res.status(500).json({ error: err.message });
-            if (Array.isArray(items) && items.length){
+            if (Array.isArray(items) && items.length) {
               const runItems = [...items];
               const stmt = db.prepare("INSERT INTO client_po_line_items (po_id, product_id, quantity, unit_price, line_total, delivered, currency) VALUES (?, ?, ?, ?, ?, 0, ?)");
-              (function next(){
+              (function next() {
                 const it = runItems.shift();
-                if (!it){
-                  stmt.finalize((e)=>{
+                if (!it) {
+                  stmt.finalize((e) => {
                     if (e) return res.status(500).json({ error: e.message });
                     res.json({ message: 'Client PO registered with items', customer_id: finalCustomerId });
                   });
                   return;
                 }
-                ensureProduct(it, (productId)=>{
+                ensureProduct(it, (productId) => {
                   const pid = productId || it.product_id;
-                  const qty = Number(it.quantity||0); const up = Number(it.unit_price||0); const curr = it.currency || 'INR';
-                  if (!pid){ return next(); }
-                  stmt.run([id, pid, qty, up, qty*up, curr], ()=> next());
+                  const qty = Number(it.quantity || 0); const up = Number(it.unit_price || 0); const curr = it.currency || 'INR';
+                  if (!pid) { return next(); }
+                  stmt.run([id, pid, qty, up, qty * up, curr], () => next());
                 });
               })();
             } else {
@@ -5773,32 +5833,32 @@ if (upload && pdfParse) {
       });
     });
   });
-  
+
   // Confirm Vendor PO: auto-create vendor and optional items
   app.post('/api/import/vendor-po/confirm', (req, res) => {
     const { id, vendor_id, vendor_name, contact_person, phone, email, po_date, due_date, status = 'Pending', notes = '', items = [], file_token = '' } = req.body;
     if (!id || !po_date || !due_date) return res.status(400).json({ error: 'Missing required fields (id, po_date, due_date)' });
 
-    function genVendorId(name){
-      const base = (name || 'VEND').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6) || 'VEND';
+    function genVendorId(name) {
+      const base = (name || 'VEND').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'VEND';
       const suffix = Date.now().toString().slice(-4);
       return `${base}-${suffix}`;
     }
 
-    function ensureVendor(cb){
+    function ensureVendor(cb) {
       if (vendor_id) {
         db.get("SELECT id FROM vendors WHERE id=?", [vendor_id], (err, row) => {
           if (err) return res.status(500).json({ error: err.message });
           if (row) return cb(vendor_id);
           if (!vendor_name) return res.status(400).json({ error: 'Vendor does not exist. Provide vendor_name to auto-create.' });
-          db.run("INSERT INTO vendors (id, name, contact_person, phone, email) VALUES (?, ?, ?, ?, ?)", [vendor_id, vendor_name, contact_person||'', phone||'', email||''], (err2)=>{
+          db.run("INSERT INTO vendors (id, name, contact_person, phone, email) VALUES (?, ?, ?, ?, ?)", [vendor_id, vendor_name, contact_person || '', phone || '', email || ''], (err2) => {
             if (err2) return res.status(500).json({ error: err2.message });
             cb(vendor_id);
           });
         });
       } else if (vendor_name) {
         const newId = genVendorId(vendor_name);
-        db.run("INSERT INTO vendors (id, name, contact_person, phone, email) VALUES (?, ?, ?, ?, ?)", [newId, vendor_name, contact_person||'', phone||'', email||''], (err)=>{
+        db.run("INSERT INTO vendors (id, name, contact_person, phone, email) VALUES (?, ?, ?, ?, ?)", [newId, vendor_name, contact_person || '', phone || '', email || ''], (err) => {
           if (err) return res.status(500).json({ error: err.message });
           cb(newId);
         });
@@ -5808,14 +5868,14 @@ if (upload && pdfParse) {
     }
 
     ensureVendor((finalVendorId) => {
-      const pdfPath = file_token ? path.join('uploads','vendor_po', file_token) : null;
+      const pdfPath = file_token ? path.join('uploads', 'vendor_po', file_token) : null;
       db.run(`INSERT INTO vendor_purchase_orders (id, vendor_id, po_date, due_date, status, notes, pdf_path) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [id, finalVendorId, po_date, due_date, status, notes, pdfPath], function(err){
+        [id, finalVendorId, po_date, due_date, status, notes, pdfPath], function (err) {
           if (err) return res.status(500).json({ error: err.message });
-          if (Array.isArray(items) && items.length){
+          if (Array.isArray(items) && items.length) {
             const stmt = db.prepare("INSERT INTO vendor_po_items (vpo_id, item, description, qty, unit) VALUES (?, ?, ?, ?, ?)");
-            items.forEach(it => stmt.run([id, it.item||'', it.description||'', Number(it.qty||0), it.unit||'pcs']));
-            stmt.finalize((e)=>{
+            items.forEach(it => stmt.run([id, it.item || '', it.description || '', Number(it.qty || 0), it.unit || 'pcs']));
+            stmt.finalize((e) => {
               if (e) return res.status(500).json({ error: e.message });
               res.json({ message: 'Vendor PO registered with items', vendor_id: finalVendorId });
             });
@@ -5830,11 +5890,11 @@ if (upload && pdfParse) {
     app.post('/api/import/client-po/preview', upload.single('file'), (req, res) => handleClientPoPreview(req, res, false));
     app.post('/api/import/vendor-po/preview', upload.single('file'), (req, res) => handleVendorPoPreview(req, res, false));
   } else {
-    app.post('/api/import/client-po/preview', (req,res)=> res.status(503).json({ error:'File upload unavailable' }));
-    app.post('/api/import/vendor-po/preview', (req,res)=> res.status(503).json({ error:'File upload unavailable' }));
+    app.post('/api/import/client-po/preview', (req, res) => res.status(503).json({ error: 'File upload unavailable' }));
+    app.post('/api/import/vendor-po/preview', (req, res) => res.status(503).json({ error: 'File upload unavailable' }));
   }
-  app.post('/api/import/customer/preview', (req,res)=> res.status(503).json({ error:'PDF import unavailable' }));
-  app.post('/api/import/vendor/preview', (req,res)=> res.status(503).json({ error:'PDF import unavailable' }));
+  app.post('/api/import/customer/preview', (req, res) => res.status(503).json({ error: 'PDF import unavailable' }));
+  app.post('/api/import/vendor/preview', (req, res) => res.status(503).json({ error: 'PDF import unavailable' }));
 }
 
 // ============= CSV BULK IMPORT ENDPOINTS =============
@@ -6079,9 +6139,9 @@ app.put('/api/inventory/:product_id', (req, res) => {
                  stamped=excluded.stamped,
                  packed=excluded.packed,
                  updated_at=CURRENT_TIMESTAMP`;
-  db.run(sql, [product_id, plated, machined, qc, stamped, packed], function(err){
+  db.run(sql, [product_id, plated, machined, qc, stamped, packed], function (err) {
     if (err) return res.status(500).json({ error: err.message });
-    db.get('SELECT i.*, p.description as product_description FROM inventory i LEFT JOIN products p ON i.product_id=p.id WHERE i.product_id=?', [product_id], (e,row)=>{
+    db.get('SELECT i.*, p.description as product_description FROM inventory i LEFT JOIN products p ON i.product_id=p.id WHERE i.product_id=?', [product_id], (e, row) => {
       if (e) return res.status(500).json({ error: e.message });
       res.json(row);
     });
@@ -6091,9 +6151,9 @@ app.put('/api/inventory/:product_id', (req, res) => {
 // Delete inventory row for a product
 app.delete('/api/inventory/:product_id', (req, res) => {
   const { product_id } = req.params;
-  db.run('DELETE FROM inventory WHERE product_id=?', [product_id], function(err){
+  db.run('DELETE FROM inventory WHERE product_id=?', [product_id], function (err) {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ message:'Deleted', changes: this.changes });
+    res.json({ message: 'Deleted', changes: this.changes });
   });
 });
 
@@ -6103,7 +6163,7 @@ app.delete('/api/production/:id', (req, res) => {
   db.get(`SELECT * FROM production_history WHERE id = ?`, [id], (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(404).json({ error: 'Production entry not found' });
-    const { product_id, plated=0, machined=0, qc=0, stamped=0, packed=0 } = row;
+    const { product_id, plated = 0, machined = 0, qc = 0, stamped = 0, packed = 0 } = row;
     db.serialize(() => {
       db.run('BEGIN');
       db.run(`
@@ -6115,10 +6175,10 @@ app.delete('/api/production/:id', (req, res) => {
           packed   = MAX(packed   - ?, 0),
           updated_at = CURRENT_TIMESTAMP
         WHERE product_id = ?
-      `, [plated||0, machined||0, qc||0, stamped||0, packed||0, product_id], (uerr) => {
-        if (uerr) { try { db.run('ROLLBACK'); } catch(_){} return res.status(500).json({ error: uerr.message }); }
+      `, [plated || 0, machined || 0, qc || 0, stamped || 0, packed || 0, product_id], (uerr) => {
+        if (uerr) { try { db.run('ROLLBACK'); } catch (_) { } return res.status(500).json({ error: uerr.message }); }
         db.run(`DELETE FROM production_history WHERE id = ?`, [id], (derr) => {
-          if (derr) { try { db.run('ROLLBACK'); } catch(_){} return res.status(500).json({ error: derr.message }); }
+          if (derr) { try { db.run('ROLLBACK'); } catch (_) { } return res.status(500).json({ error: derr.message }); }
           db.run('COMMIT', (cerr) => {
             if (cerr) return res.status(500).json({ error: cerr.message });
             res.json({ message: 'Production entry deleted' });
@@ -6139,7 +6199,7 @@ app.post('/api/production/bulk-delete', (req, res) => {
     const id = ids.shift();
     db.get(`SELECT * FROM production_history WHERE id = ?`, [id], (err, row) => {
       if (err || !row) { result.failed.push({ id, error: err ? err.message : 'Not found' }); return next(); }
-      const { product_id, plated=0, machined=0, qc=0, stamped=0, packed=0 } = row;
+      const { product_id, plated = 0, machined = 0, qc = 0, stamped = 0, packed = 0 } = row;
       db.serialize(() => {
         db.run('BEGIN');
         db.run(`
@@ -6151,10 +6211,10 @@ app.post('/api/production/bulk-delete', (req, res) => {
             packed   = MAX(packed   - ?, 0),
             updated_at = CURRENT_TIMESTAMP
           WHERE product_id = ?
-        `, [plated||0, machined||0, qc||0, stamped||0, packed||0, product_id], (uerr) => {
-          if (uerr) { try { db.run('ROLLBACK'); } catch(_){}; result.failed.push({ id, error: uerr.message }); return next(); }
+        `, [plated || 0, machined || 0, qc || 0, stamped || 0, packed || 0, product_id], (uerr) => {
+          if (uerr) { try { db.run('ROLLBACK'); } catch (_) { }; result.failed.push({ id, error: uerr.message }); return next(); }
           db.run(`DELETE FROM production_history WHERE id = ?`, [id], (derr) => {
-            if (derr) { try { db.run('ROLLBACK'); } catch(_){}; result.failed.push({ id, error: derr.message }); return next(); }
+            if (derr) { try { db.run('ROLLBACK'); } catch (_) { }; result.failed.push({ id, error: derr.message }); return next(); }
             db.run('COMMIT', (cerr) => {
               if (cerr) { result.failed.push({ id, error: cerr.message }); } else { result.deleted += 1; }
               next();
@@ -6253,7 +6313,7 @@ app.post('/api/invoices/generate-from-po/:po_id', (req, res) => {
             mode_of_delivery || po.mode_of_delivery,
             expected_delivery_date || po.expected_delivery_date
           ],
-          function(err4) {
+          function (err4) {
             if (err4) {
               if (err4.message.includes('UNIQUE')) {
                 return res.status(400).json({ error: 'Invoice number already exists' });
@@ -6340,7 +6400,7 @@ app.put('/api/invoices/:invoice_number', (req, res) => {
       updated_at = CURRENT_TIMESTAMP
     WHERE invoice_number = ?`,
     [due_date, notes, payment_status, invoice_number],
-    function(err) {
+    function (err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) {
         return res.status(404).json({ error: 'Invoice not found' });
@@ -6363,7 +6423,7 @@ app.delete('/api/invoices/:invoice_number', (req, res) => {
       if (err2) return res.status(500).json({ error: err2.message });
 
       // Delete invoice
-      db.run('DELETE FROM invoices WHERE invoice_number = ?', [invoice_number], function(err3) {
+      db.run('DELETE FROM invoices WHERE invoice_number = ?', [invoice_number], function (err3) {
         if (err3) return res.status(500).json({ error: err3.message });
         if (this.changes === 0) {
           return res.status(404).json({ error: 'Invoice not found' });
@@ -6411,7 +6471,7 @@ app.post('/api/payments', (req, res) => {
       payment_method, reference_number, notes
     ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [invoice_number, po_id, payment_date, amount, payment_method, reference_number, notes],
-    function(err) {
+    function (err) {
       if (err) return res.status(500).json({ error: err.message });
 
       // Update invoice amounts
@@ -6496,7 +6556,7 @@ app.put('/api/payments/:id', (req, res) => {
           notes = ?
         WHERE id = ?`,
         [payment_date, amount, payment_method || null, reference_number || null, notes || null, id],
-        function(updateErr) {
+        function (updateErr) {
           if (updateErr) {
             db.run('ROLLBACK');
             return res.status(500).json({ error: updateErr.message });
@@ -6585,7 +6645,7 @@ app.delete('/api/payments/:id', (req, res) => {
     if (!payment) return res.status(404).json({ error: 'Payment not found' });
 
     // Delete payment
-    db.run('DELETE FROM payment_history WHERE id = ?', [id], function(err2) {
+    db.run('DELETE FROM payment_history WHERE id = ?', [id], function (err2) {
       if (err2) return res.status(500).json({ error: err2.message });
 
       // Update invoice amounts
@@ -6668,22 +6728,22 @@ app.post('/api/undo/:table/:recordId', (req, res) => {
     // Get the record to verify it's soft-deleted
     db.get(`SELECT * FROM ${table} WHERE id = ?`, [recordId], (err, record) => {
       if (err) {
-        try { db.run('ROLLBACK'); } catch(_){}
+        try { db.run('ROLLBACK'); } catch (_) { }
         return res.status(500).json({ error: err.message });
       }
       if (!record) {
-        try { db.run('ROLLBACK'); } catch(_){}
+        try { db.run('ROLLBACK'); } catch (_) { }
         return res.status(404).json({ error: 'Record not found' });
       }
       if (record.is_deleted !== 1) {
-        try { db.run('ROLLBACK'); } catch(_){}
+        try { db.run('ROLLBACK'); } catch (_) { }
         return res.status(400).json({ error: 'Record is not deleted' });
       }
 
       // Restore the record
       db.run(`UPDATE ${table} SET is_deleted = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [recordId], (restoreErr) => {
         if (restoreErr) {
-          try { db.run('ROLLBACK'); } catch(_){}
+          try { db.run('ROLLBACK'); } catch (_) { }
           return res.status(500).json({ error: restoreErr.message });
         }
 
@@ -6692,7 +6752,7 @@ app.post('/api/undo/:table/:recordId', (req, res) => {
           db.all(`SELECT product_id, quantity FROM client_po_line_items WHERE po_id = ?`, [recordId], (itemErr, items) => {
             if (!itemErr && items) {
               items.forEach(item => {
-                updateInventoryCommitment(item.product_id, Number(item.quantity || 0), () => {});
+                updateInventoryCommitment(item.product_id, Number(item.quantity || 0), () => { });
               });
             }
 
@@ -6742,7 +6802,7 @@ if (upload) {
         `INSERT INTO document_attachments (entity_type, entity_id, file_name, file_path, file_size, mime_type)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [entityType, entityId, req.file.originalname, relativePath, req.file.size, req.file.mimetype],
-        function(err) {
+        function (err) {
           if (err) return res.status(500).json({ error: err.message });
           logAudit('document_attachments', this.lastID.toString(), 'CREATE', null, { entityType, entityId, fileName: req.file.originalname });
           res.json({ message: 'File uploaded successfully', id: this.lastID, file_name: req.file.originalname });
@@ -6786,7 +6846,7 @@ if (upload) {
       db.run(
         `UPDATE client_purchase_orders SET pdf_path = ? WHERE id = ?`,
         [relativePath, id],
-        function(err) {
+        function (err) {
           if (err) return res.status(500).json({ error: err.message });
           res.json({ message: 'PDF uploaded successfully', pdf_path: relativePath });
         }
@@ -7032,7 +7092,7 @@ Good Answer: "Yes! Go to **Daily Production** tab → scroll to 'Recent Producti
 • Delete the entry completely
 The system automatically recalculates inventory when you save/delete."
 
-# Current System Data (as of ${new Date().toISOString().slice(0,10)}):
+# Current System Data (as of ${new Date().toISOString().slice(0, 10)}):
 
 ## Products (${products.length} total):
 ${products.slice(0, 10).map(p => `- ${p.id}: ${p.description} (${p.diameter}${p.diameter_unit} × ${p.length}${p.length_unit})`).join('\n')}
@@ -7040,9 +7100,9 @@ ${products.length > 10 ? `... and ${products.length - 10} more` : ''}
 
 ## Current Inventory Summary:
 ${inventory.slice(0, 10).map(inv => {
-  const prod = products.find(p => p.id === inv.product_id);
-  return `- ${inv.product_id} (${prod?.description || 'Unknown'}): Cores: ${inv.cores || 0}, Plated: ${inv.plated || 0}, Machined: ${inv.machined || 0}, QC: ${inv.qc || 0}, Stamped: ${inv.stamped || 0}, Packed: ${inv.packed || 0}`;
-}).join('\n')}
+      const prod = products.find(p => p.id === inv.product_id);
+      return `- ${inv.product_id} (${prod?.description || 'Unknown'}): Cores: ${inv.cores || 0}, Plated: ${inv.plated || 0}, Machined: ${inv.machined || 0}, QC: ${inv.qc || 0}, Stamped: ${inv.stamped || 0}, Packed: ${inv.packed || 0}`;
+    }).join('\n')}
 
 ## Customers (${customers.length} total):
 ${customers.slice(0, 10).map(c => `- ${c.id}: ${c.name}`).join('\n')}
@@ -7291,7 +7351,7 @@ app.post('/api/chat/claude', async (req, res) => {
 # Knowledge Base:
 ${knowledgeBase}
 
-# Current System Data (as of ${new Date().toISOString().slice(0,10)}):
+# Current System Data (as of ${new Date().toISOString().slice(0, 10)}):
 
 ## Products (${products.length} total):
 ${products.slice(0, 15).map(p => `- ${p.id}: ${p.description} (${p.diameter}${p.diameter_unit} × ${p.length}${p.length_unit})`).join('\n')}
@@ -7299,9 +7359,9 @@ ${products.length > 15 ? `... and ${products.length - 15} more` : ''}
 
 ## Current Inventory Summary:
 ${inventory.slice(0, 15).map(inv => {
-  const prod = products.find(p => p.id === inv.product_id);
-  return `- ${inv.product_id} (${prod?.description || 'Unknown'}): Steel Rods: ${inv.steel_rods || 0}, Plated: ${inv.plated || 0}, Machined: ${inv.machined || 0}, QC: ${inv.qc || 0}, Stamped: ${inv.stamped || 0}`;
-}).join('\n')}
+      const prod = products.find(p => p.id === inv.product_id);
+      return `- ${inv.product_id} (${prod?.description || 'Unknown'}): Steel Rods: ${inv.steel_rods || 0}, Plated: ${inv.plated || 0}, Machined: ${inv.machined || 0}, QC: ${inv.qc || 0}, Stamped: ${inv.stamped || 0}`;
+    }).join('\n')}
 
 ## Recent Client Orders (${clientPOs.length} shown):
 ${clientPOs.slice(0, 10).map(po => `- ${po.id}: ${po.customer_name} - Status: ${po.status} - Total: ${po.total_amount} - Outstanding: ${po.outstanding_amount}`).join('\n')}
@@ -7461,7 +7521,7 @@ app.post('/api/admin/reset-wip', (req, res) => {
          stamped = 0,
          updated_at = CURRENT_TIMESTAMP`,
     [],
-    function(err) {
+    function (err) {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
@@ -7592,6 +7652,67 @@ app.post('/api/admin/reset-inventory-production', (req, res) => {
       db.run('ROLLBACK');
       return res.status(500).json({ error: 'Reset failed: ' + err.message });
     }
+  });
+});
+
+// ============================================================================
+// ANALYTICS ENDPOINTS
+// ============================================================================
+
+app.get('/api/analytics/summary', (req, res) => {
+  const summary = {
+    sales: { total: 0, count: 0, pending: 0 },
+    production: { total_produced: 0, efficiency: 0 },
+    inventory: { total_items: 0, low_stock: 0 },
+    procurement: { pending_pos: 0 }
+  };
+
+  const queries = [
+    // Sales: Total confirmed orders amount
+    new Promise((resolve) => {
+      db.get("SELECT SUM(total_amount) as total, COUNT(*) as count FROM client_purchase_orders WHERE status != 'Cancelled'", (err, row) => {
+        if (!err && row) {
+          summary.sales.total = row.total || 0;
+          summary.sales.count = row.count || 0;
+        }
+        resolve();
+      });
+    }),
+    // Sales: Pending orders count
+    new Promise((resolve) => {
+      db.get("SELECT COUNT(*) as count FROM client_purchase_orders WHERE status = 'Pending'", (err, row) => {
+        if (!err && row) summary.sales.pending = row.count || 0;
+        resolve();
+      });
+    }),
+    // Production: Total produced (packed)
+    new Promise((resolve) => {
+      db.get("SELECT SUM(packed) as total FROM production_history", (err, row) => {
+        if (!err && row) summary.production.total_produced = row.total || 0;
+        resolve();
+      });
+    }),
+    // Inventory: Total items and low stock
+    new Promise((resolve) => {
+      db.get("SELECT COUNT(*) as total FROM products WHERE active = 1", (err, row) => {
+        if (!err && row) summary.inventory.total_items = row.total || 0;
+        resolve();
+      });
+    }),
+    // Procurement: Pending Vendor POs
+    new Promise((resolve) => {
+      db.get("SELECT COUNT(*) as count FROM vendor_purchase_orders WHERE status = 'Pending'", (err, row) => {
+        if (!err && row) summary.procurement.pending_pos = row.count || 0;
+        resolve();
+      });
+    })
+  ];
+
+  Promise.all(queries).then(() => {
+    res.json(summary);
+  }).catch(err => {
+    console.error('Analytics error:', err);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
   });
 });
 

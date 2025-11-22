@@ -80,6 +80,81 @@ function formatCurrency(num, currency = 'INR') {
 }
 
 // ============================================================================
+// ANALYTICS DASHBOARD
+// ============================================================================
+
+function AnalyticsDashboard() {
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${API_URL}/analytics/summary`)
+      .then(res => res.json())
+      .then(data => {
+        setSummary(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch analytics', err);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return React.createElement('div', { className: 'text-center p-8' }, 'Loading Analytics...');
+  if (!summary) return React.createElement('div', { className: 'text-center p-8 text-red-600' }, 'Failed to load analytics');
+
+  return (
+    React.createElement('div', { className: 'space-y-6' },
+      React.createElement('h2', { className: 'text-2xl font-bold text-gray-800' }, '📊 Analytics Dashboard'),
+
+      // Summary Cards
+      React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-4 gap-4' },
+        // Sales Card
+        React.createElement('div', { className: 'bg-white p-4 rounded-lg shadow border-l-4 border-blue-500' },
+          React.createElement('h3', { className: 'text-gray-500 text-sm font-semibold' }, 'Total Sales'),
+          React.createElement('div', { className: 'text-2xl font-bold text-gray-800 mt-1' }, formatCurrency(summary.sales.total)),
+          React.createElement('div', { className: 'text-sm text-gray-500 mt-1' }, `${summary.sales.count} Orders (${summary.sales.pending} Pending)`)
+        ),
+        // Production Card
+        React.createElement('div', { className: 'bg-white p-4 rounded-lg shadow border-l-4 border-green-500' },
+          React.createElement('h3', { className: 'text-gray-500 text-sm font-semibold' }, 'Production Output'),
+          React.createElement('div', { className: 'text-2xl font-bold text-gray-800 mt-1' }, formatQuantity(summary.production.total_produced)),
+          React.createElement('div', { className: 'text-sm text-gray-500 mt-1' }, 'Total Units Packed')
+        ),
+        // Inventory Card
+        React.createElement('div', { className: 'bg-white p-4 rounded-lg shadow border-l-4 border-purple-500' },
+          React.createElement('h3', { className: 'text-gray-500 text-sm font-semibold' }, 'Active Products'),
+          React.createElement('div', { className: 'text-2xl font-bold text-gray-800 mt-1' }, summary.inventory.total_items),
+          React.createElement('div', { className: 'text-sm text-gray-500 mt-1' }, 'Items in Catalog')
+        ),
+        // Procurement Card
+        React.createElement('div', { className: 'bg-white p-4 rounded-lg shadow border-l-4 border-orange-500' },
+          React.createElement('h3', { className: 'text-gray-500 text-sm font-semibold' }, 'Pending Procurement'),
+          React.createElement('div', { className: 'text-2xl font-bold text-gray-800 mt-1' }, summary.procurement.pending_pos),
+          React.createElement('div', { className: 'text-sm text-gray-500 mt-1' }, 'Vendor POs Pending')
+        )
+      ),
+
+      // Charts Section (Placeholder for now, can be expanded with Chart.js)
+      React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-6' },
+        React.createElement('div', { className: 'bg-white p-6 rounded-lg shadow' },
+          React.createElement('h3', { className: 'text-lg font-semibold mb-4' }, 'Sales Trend'),
+          React.createElement('div', { className: 'h-64 flex items-center justify-center bg-gray-50 rounded border border-dashed border-gray-300' },
+            React.createElement('span', { className: 'text-gray-400' }, 'Chart Visualization Coming Soon')
+          )
+        ),
+        React.createElement('div', { className: 'bg-white p-6 rounded-lg shadow' },
+          React.createElement('h3', { className: 'text-lg font-semibold mb-4' }, 'Inventory Distribution'),
+          React.createElement('div', { className: 'h-64 flex items-center justify-center bg-gray-50 rounded border border-dashed border-gray-300' },
+            React.createElement('span', { className: 'text-gray-400' }, 'Chart Visualization Coming Soon')
+          )
+        )
+      )
+    )
+  );
+}
+
+// ============================================================================
 // GEMINI AI CHATBOT WIDGET
 // ============================================================================
 
@@ -237,19 +312,17 @@ function ChatWidget() {
       React.createElement('div', { className: 'flex gap-2' },
         React.createElement('button', {
           onClick: () => setAiModel('gemini'),
-          className: `flex-1 px-3 py-1 rounded text-sm font-medium transition-colors ${
-            aiModel === 'gemini'
-              ? 'bg-white text-blue-600'
-              : 'bg-blue-500 text-white hover:bg-blue-400'
-          }`
+          className: `flex-1 px-3 py-1 rounded text-sm font-medium transition-colors ${aiModel === 'gemini'
+            ? 'bg-white text-blue-600'
+            : 'bg-blue-500 text-white hover:bg-blue-400'
+            }`
         }, '⚡ Gemini (Fast)'),
         React.createElement('button', {
           onClick: () => setAiModel('claude'),
-          className: `flex-1 px-3 py-1 rounded text-sm font-medium transition-colors ${
-            aiModel === 'claude'
-              ? 'bg-white text-blue-600'
-              : 'bg-blue-500 text-white hover:bg-blue-400'
-          }`
+          className: `flex-1 px-3 py-1 rounded text-sm font-medium transition-colors ${aiModel === 'claude'
+            ? 'bg-white text-blue-600'
+            : 'bg-blue-500 text-white hover:bg-blue-400'
+            }`
         }, '🧠 Claude (Pro)')
       )
     ),
@@ -264,11 +337,10 @@ function ChatWidget() {
           className: `flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`
         },
           React.createElement('div', {
-            className: `max-w-[80%] rounded-lg p-3 ${
-              msg.role === 'user'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-800 border border-gray-200'
-            }`
+            className: `max-w-[80%] rounded-lg p-3 ${msg.role === 'user'
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-gray-800 border border-gray-200'
+              }`
           },
             React.createElement('div', {
               className: 'text-sm whitespace-pre-wrap',
@@ -480,6 +552,7 @@ function GroundRodERP() {
         activeTab === 'job-work' && React.createElement(JobWorkOrders, { vendors, products, rawMaterials, onRefresh: fetchAllData }),
         activeTab === 'copper-scrap' && React.createElement(CopperScrapSales, { onRefresh: fetchAllData }),
         activeTab === 'shipments' && React.createElement(Shipments, { shipments, purchaseOrders: clientPurchaseOrders, products, onRefresh: fetchAllData }),
+        activeTab === 'analytics' && React.createElement(AnalyticsDashboard, { onRefresh: fetchAllData }),
         activeTab === 'inventory' && React.createElement(InventoryViewEx, { inventory, rawMaterials, products, customers, onRefresh: fetchAllData, filter, setFilter, rangeMode, setRangeMode }),
         activeTab === 'products' && React.createElement(ProductMasterEx, { products, calculateWeights, onRefresh: fetchAllData }),
         activeTab === 'customers' && React.createElement(CustomerManagementEx, { customers, onRefresh: fetchAllData }),
@@ -491,16 +564,19 @@ function GroundRodERP() {
   );
 }
 
-function Header({ onRefresh }){
+function Header({ onRefresh }) {
   return (
-    React.createElement('header', { className: 'bg-gradient-to-r from-blue-500 to-indigo-600 shadow-lg' },
-      React.createElement('div', { className: 'max-w-7xl mx-auto px-6 py-4' },
+    React.createElement('header', { className: 'bg-white shadow-md border-b border-gray-200' },
+      React.createElement('div', { className: 'max-w-7xl mx-auto px-6 py-3' },
         React.createElement('div', { className: 'flex justify-between items-center' },
-          React.createElement('div', null,
-            React.createElement('h1', { className: 'text-2xl font-bold text-white tracking-tight' }, 'Ground Rod ERP'),
-            React.createElement('p', { className: 'text-blue-100 text-sm' }, 'Copper Bonded Ground Rod Manufacturing & Export')
+          React.createElement('div', { className: 'flex items-center gap-4' },
+            React.createElement('img', { src: 'logo.png', alt: 'Nikkon Ferro Logo', className: 'h-12 w-auto' }),
+            React.createElement('div', null,
+              React.createElement('h1', { className: 'text-xl font-bold text-gray-800 tracking-tight' }, 'Ground Rod ERP'),
+              React.createElement('p', { className: 'text-gray-500 text-xs' }, 'Copper Bonded Ground Rod Manufacturing & Export')
+            )
           ),
-          React.createElement('button', { onClick: onRefresh, className: 'px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 font-semibold transition flex items-center gap-2' },
+          React.createElement('button', { onClick: onRefresh, className: 'px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition flex items-center gap-2 shadow-sm' },
             React.createElement('span', { className: 'text-lg' }, '🔄'),
             'Refresh'
           )
@@ -510,7 +586,7 @@ function Header({ onRefresh }){
   );
 }
 
-function NavTabs({ activeTab, setActiveTab }){
+function NavTabs({ activeTab, setActiveTab }) {
   const [openDropdown, setOpenDropdown] = useState(null);
 
   // Grouped navigation structure
@@ -519,6 +595,7 @@ function NavTabs({ activeTab, setActiveTab }){
       id: 'main',
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+        { id: 'analytics', label: 'Analytics', icon: '📈' },
         { id: 'mobile', label: 'Mobile App', icon: '📱' }
       ]
     },
@@ -596,9 +673,8 @@ function NavTabs({ activeTab, setActiveTab }){
                 React.createElement('button', {
                   key: item.id,
                   onClick: () => setActiveTab(item.id),
-                  className: `px-4 py-3 font-semibold transition-all whitespace-nowrap rounded-t-lg flex items-center gap-2 ${
-                    activeTab === item.id ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'
-                  }`
+                  className: `px-4 py-3 font-semibold transition-all whitespace-nowrap rounded-t-lg flex items-center gap-2 ${activeTab === item.id ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'
+                    }`
                 },
                   React.createElement('span', { className: 'text-xl' }, item.icon),
                   React.createElement('span', null, item.label)
@@ -618,9 +694,8 @@ function NavTabs({ activeTab, setActiveTab }){
             },
               // Dropdown trigger button
               React.createElement('button', {
-                className: `px-4 py-3 font-semibold transition-all whitespace-nowrap rounded-t-lg flex items-center gap-2 ${
-                  isActive ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'
-                }`
+                className: `px-4 py-3 font-semibold transition-all whitespace-nowrap rounded-t-lg flex items-center gap-2 ${isActive ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'
+                  }`
               },
                 React.createElement('span', { className: 'text-xl' }, group.icon),
                 React.createElement('span', null, group.label),
@@ -638,9 +713,8 @@ function NavTabs({ activeTab, setActiveTab }){
                       setActiveTab(item.id);
                       setOpenDropdown(null);
                     },
-                    className: `w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors flex items-center gap-3 ${
-                      activeTab === item.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-700'
-                    }`
+                    className: `w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors flex items-center gap-3 ${activeTab === item.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-700'
+                      }`
                   },
                     React.createElement('span', { className: 'text-lg' }, item.icon),
                     React.createElement('span', null, item.label)
@@ -1135,14 +1209,14 @@ function CustomerAnalytics({ onRefresh }) {
           React.createElement('div', { className: 'text-sm' }, 'Active Customers')
         ),
         summary.revenue_by_currency && Object.keys(summary.revenue_by_currency).length > 0 &&
-          React.createElement('div', { className: 'bg-white bg-opacity-30 backdrop-blur rounded-lg p-4' },
-            React.createElement('div', { className: 'text-sm mb-2 font-semibold' }, 'Total Revenue'),
-            Object.entries(summary.revenue_by_currency).map(([currency, amount]) =>
-              React.createElement('div', { key: currency, className: 'text-2xl font-bold' },
-                getCurrencySymbol(currency) + formatQuantity(amount)
-              )
+        React.createElement('div', { className: 'bg-white bg-opacity-30 backdrop-blur rounded-lg p-4' },
+          React.createElement('div', { className: 'text-sm mb-2 font-semibold' }, 'Total Revenue'),
+          Object.entries(summary.revenue_by_currency).map(([currency, amount]) =>
+            React.createElement('div', { key: currency, className: 'text-2xl font-bold' },
+              getCurrencySymbol(currency) + formatQuantity(amount)
             )
           )
+        )
       )
     ),
 
@@ -1567,7 +1641,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
           React.createElement('select', {
             className: 'w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200',
             value: prodForm.product_id,
-            onChange: e => setProdForm({...prodForm, product_id: e.target.value})
+            onChange: e => setProdForm({ ...prodForm, product_id: e.target.value })
           },
             React.createElement('option', { value: '' }, '-- Select Product --'),
             products.map(p =>
@@ -1593,7 +1667,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
             type: 'date',
             className: 'w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200',
             value: prodForm.production_date,
-            onChange: e => setProdForm({...prodForm, production_date: e.target.value})
+            onChange: e => setProdForm({ ...prodForm, production_date: e.target.value })
           })
         ),
 
@@ -1611,7 +1685,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
                 className: 'w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-xl font-bold text-center focus:border-blue-500',
                 placeholder: '0',
                 value: prodForm.plated,
-                onChange: e => setProdForm({...prodForm, plated: e.target.value})
+                onChange: e => setProdForm({ ...prodForm, plated: e.target.value })
               })
             ),
             // Machined
@@ -1624,7 +1698,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
                 className: 'w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-xl font-bold text-center focus:border-blue-500',
                 placeholder: '0',
                 value: prodForm.machined,
-                onChange: e => setProdForm({...prodForm, machined: e.target.value})
+                onChange: e => setProdForm({ ...prodForm, machined: e.target.value })
               })
             ),
             // QC
@@ -1637,7 +1711,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
                 className: 'w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-xl font-bold text-center focus:border-blue-500',
                 placeholder: '0',
                 value: prodForm.qc,
-                onChange: e => setProdForm({...prodForm, qc: e.target.value})
+                onChange: e => setProdForm({ ...prodForm, qc: e.target.value })
               })
             ),
             // Stamped (Finished)
@@ -1650,7 +1724,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
                 className: 'w-full border-2 border-green-400 rounded-lg px-3 py-2 text-xl font-bold text-center focus:border-green-500 bg-green-50',
                 placeholder: '0',
                 value: prodForm.stamped,
-                onChange: e => setProdForm({...prodForm, stamped: e.target.value})
+                onChange: e => setProdForm({ ...prodForm, stamped: e.target.value })
               })
             ),
             // Rejected
@@ -1663,7 +1737,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
                 className: 'w-full border-2 border-red-300 rounded-lg px-3 py-2 text-xl font-bold text-center focus:border-red-500 bg-red-50',
                 placeholder: '0',
                 value: prodForm.rejected,
-                onChange: e => setProdForm({...prodForm, rejected: e.target.value})
+                onChange: e => setProdForm({ ...prodForm, rejected: e.target.value })
               })
             )
           )
@@ -1679,7 +1753,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
               React.createElement('select', {
                 className: 'w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-base focus:border-blue-500',
                 value: prodForm.marking_type,
-                onChange: e => setProdForm({...prodForm, marking_type: e.target.value})
+                onChange: e => setProdForm({ ...prodForm, marking_type: e.target.value })
               },
                 React.createElement('option', { value: 'unmarked' }, 'Unmarked'),
                 React.createElement('option', { value: 'nikkon_brand' }, 'Nikkon Brand'),
@@ -1694,7 +1768,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
                 className: 'w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-base focus:border-blue-500',
                 placeholder: 'Enter marking text or select below...',
                 value: prodForm.marking_text,
-                onChange: e => setProdForm({...prodForm, marking_text: e.target.value})
+                onChange: e => setProdForm({ ...prodForm, marking_text: e.target.value })
               }),
               suggestedMarkings.length > 0 && React.createElement('div', { className: 'mt-2 space-y-1' },
                 React.createElement('div', { className: 'text-xs font-semibold text-gray-500' }, 'Recent Markings:'),
@@ -1703,7 +1777,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
                     key: idx,
                     type: 'button',
                     className: 'w-full text-left px-3 py-2 bg-gray-50 rounded text-sm hover:bg-blue-50 border border-gray-200',
-                    onClick: () => setProdForm({...prodForm, marking_text: suggestion.marking_text})
+                    onClick: () => setProdForm({ ...prodForm, marking_text: suggestion.marking_text })
                   },
                     React.createElement('div', { className: 'font-semibold' }, suggestion.marking_text),
                     React.createElement('div', { className: 'text-xs text-gray-600' },
@@ -1726,7 +1800,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
             rows: 3,
             placeholder: 'Any remarks...',
             value: prodForm.notes,
-            onChange: e => setProdForm({...prodForm, notes: e.target.value})
+            onChange: e => setProdForm({ ...prodForm, notes: e.target.value })
           })
         ),
 
@@ -1782,11 +1856,10 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
                 React.createElement('div', { className: 'text-xs text-gray-500 mt-1' }, `PO #${po.id}`)
               ),
               React.createElement('div', {
-                className: `px-2 py-1 rounded text-xs font-bold ${
-                  isOverdue ? 'bg-red-100 text-red-800' :
+                className: `px-2 py-1 rounded text-xs font-bold ${isOverdue ? 'bg-red-100 text-red-800' :
                   isUrgent ? 'bg-orange-100 text-orange-800' :
-                  'bg-blue-100 text-blue-800'
-                }`
+                    'bg-blue-100 text-blue-800'
+                  }`
               }, po.status)
             ),
 
@@ -2299,11 +2372,10 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
                 )
               ),
               React.createElement('div', {
-                className: `px-2 py-1 rounded text-xs font-bold ${
-                  isPaid ? 'bg-green-100 text-green-800' :
+                className: `px-2 py-1 rounded text-xs font-bold ${isPaid ? 'bg-green-100 text-green-800' :
                   isPartial ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-red-100 text-red-800'
-                }`
+                    'bg-red-100 text-red-800'
+                  }`
               }, inv.payment_status || 'Unpaid')
             ),
 
@@ -2421,7 +2493,7 @@ function MobileInterface({ products, inventory, rawMaterials, clientPurchaseOrde
   }
 }
 
-function Dashboard({ stats, riskAnalysis, clientPurchaseOrders, inventory, setActiveTab }){
+function Dashboard({ stats, riskAnalysis, clientPurchaseOrders, inventory, setActiveTab }) {
   const [showResetButton, setShowResetButton] = useState(false);
 
   async function handleDatabaseReset() {
@@ -2495,10 +2567,10 @@ function Dashboard({ stats, riskAnalysis, clientPurchaseOrders, inventory, setAc
         )
       ),
       React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4' },
-        React.createElement(MetricCardDrill, { id:'wip', title: 'Total WIP', value: formatQuantity(stats.total_wip || 0), color: 'blue' }),
-        React.createElement(MetricCardDrill, { id:'finished', title: 'Finished Goods', value: formatQuantity(stats.total_finished || 0), color: 'green' }),
-        React.createElement(MetricCardDrill, { id:'pending', title: 'Pending Orders', value: formatQuantity(stats.pending_orders || 0), color: 'orange' }),
-        React.createElement(MetricCardDrill, { id:'overdue', title: 'Overdue Orders', value: formatQuantity(stats.overdue_orders || 0), color: 'red' })
+        React.createElement(MetricCardDrill, { id: 'wip', title: 'Total WIP', value: formatQuantity(stats.total_wip || 0), color: 'blue' }),
+        React.createElement(MetricCardDrill, { id: 'finished', title: 'Finished Goods', value: formatQuantity(stats.total_finished || 0), color: 'green' }),
+        React.createElement(MetricCardDrill, { id: 'pending', title: 'Pending Orders', value: formatQuantity(stats.pending_orders || 0), color: 'orange' }),
+        React.createElement(MetricCardDrill, { id: 'overdue', title: 'Overdue Orders', value: formatQuantity(stats.overdue_orders || 0), color: 'red' })
       ),
       React.createElement('div', { className: 'bg-white rounded-xl shadow-md p-6 border border-gray-200' },
         React.createElement('h3', { className: 'text-xl font-bold mb-4 text-gray-800' }, 'Risk Management - Material Requirements vs Availability'),
@@ -2534,7 +2606,7 @@ function Dashboard({ stats, riskAnalysis, clientPurchaseOrders, inventory, setAc
         React.createElement('div', { className: 'bg-white rounded-xl shadow-md p-6 border border-gray-200' },
           React.createElement('h3', { className: 'text-lg font-bold mb-4 text-gray-800' }, 'Top Inventory'),
           React.createElement('div', { className: 'space-y-2' },
-            inventory.sort((a,b)=>b.stamped-a.stamped).slice(0,5).map(item => (
+            inventory.sort((a, b) => b.stamped - a.stamped).slice(0, 5).map(item => (
               React.createElement('div', { key: item.product_id, className: 'flex justify-between items-center p-3 bg-blue-50 rounded-lg' },
                 React.createElement('div', { className: 'font-semibold text-sm' }, item.product_description),
                 React.createElement('div', { className: 'font-bold text-blue-600' }, `${formatQuantity(item.stamped)} units`)
@@ -2561,7 +2633,7 @@ function Dashboard({ stats, riskAnalysis, clientPurchaseOrders, inventory, setAc
   );
 }
 
-function RiskBox({ title, data }){
+function RiskBox({ title, data }) {
   return (
     React.createElement('div', { className: 'p-5 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border border-gray-300' },
       React.createElement('h4', { className: 'font-bold text-lg mb-3 text-gray-800' }, title),
@@ -2594,7 +2666,7 @@ function RiskBox({ title, data }){
 }
 
 // Analytics Panel with charts and controls
-function AnalyticsPanel(){
+function AnalyticsPanel() {
   const [group, setGroup] = useState('marking');
   const [days, setDays] = useState(30);
   const [interval, setInterval] = useState('day');
@@ -2603,79 +2675,83 @@ function AnalyticsPanel(){
   const byRef = React.useRef(null);
   const charts = React.useRef({});
 
-  async function loadCharts(){
+  async function loadCharts() {
     // WIP by stage
     const wip = await (await fetch(`${API_URL}/analytics/wip-stages`)).json();
     const wd = {
-      labels: ['Plated','Machined','Stamped'],
-      datasets:[{ data:[wip.plated,wip.machined,wip.stamped], backgroundColor:['#60a5fa','#34d399','#fbbf24','#f87171'] }]
+      labels: ['Plated', 'Machined', 'Stamped'],
+      datasets: [{ data: [wip.plated, wip.machined, wip.stamped], backgroundColor: ['#60a5fa', '#34d399', '#fbbf24', '#f87171'] }]
     };
     if (charts.current.wip) charts.current.wip.destroy();
-    charts.current.wip = new Chart(wipRef.current.getContext('2d'), { type:'doughnut', data:wd, options:{ responsive:true } });
+    charts.current.wip = new Chart(wipRef.current.getContext('2d'), { type: 'doughnut', data: wd, options: { responsive: true } });
 
     // Finished vs WIP trend
     const fv = await (await fetch(`${API_URL}/analytics/finished-vs-wip?days=${encodeURIComponent(days)}&interval=${encodeURIComponent(interval)}`)).json();
-    const fvd = { labels: fv.labels, datasets:[
-      { label:'WIP', data: fv.series.wip, backgroundColor:'#60a5fa' },
-      { label:'Finished', data: fv.series.finished, backgroundColor:'#34d399' }
-    ]};
+    const fvd = {
+      labels: fv.labels, datasets: [
+        { label: 'WIP', data: fv.series.wip, backgroundColor: '#60a5fa' },
+        { label: 'Finished', data: fv.series.finished, backgroundColor: '#34d399' }
+      ]
+    };
     if (charts.current.fv) charts.current.fv.destroy();
-    charts.current.fv = new Chart(fvRef.current.getContext('2d'), { type:'bar', data:fvd, options:{ responsive:true, scales:{ x:{ stacked:false }, y:{ beginAtZero:true } } } });
+    charts.current.fv = new Chart(fvRef.current.getContext('2d'), { type: 'bar', data: fvd, options: { responsive: true, scales: { x: { stacked: false }, y: { beginAtZero: true } } } });
 
     // Inventory by group
     const by = await (await fetch(`${API_URL}/analytics/inventory-by?group=${encodeURIComponent(group)}`)).json();
-    const labels = by.map(b=>b.label||'Unmarked');
-    const mk = (k)=> by.map(b=>b[k]);
-    const byd = { labels, datasets:[
-      { label:'Plated', data: mk('plated'), backgroundColor:'#60a5fa' },
-      { label:'Machined', data: mk('machined'), backgroundColor:'#34d399' },
-      { label:'Stamped', data: mk('stamped'), backgroundColor:'#f87171' }
-    ]};
+    const labels = by.map(b => b.label || 'Unmarked');
+    const mk = (k) => by.map(b => b[k]);
+    const byd = {
+      labels, datasets: [
+        { label: 'Plated', data: mk('plated'), backgroundColor: '#60a5fa' },
+        { label: 'Machined', data: mk('machined'), backgroundColor: '#34d399' },
+        { label: 'Stamped', data: mk('stamped'), backgroundColor: '#f87171' }
+      ]
+    };
     if (charts.current.by) charts.current.by.destroy();
-    charts.current.by = new Chart(byRef.current.getContext('2d'), { type:'bar', data: byd, options:{ responsive:true, scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true } } } });
+    charts.current.by = new Chart(byRef.current.getContext('2d'), { type: 'bar', data: byd, options: { responsive: true, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } } });
   }
 
   useEffect(() => { loadCharts(); }, []);
   useEffect(() => { loadCharts(); }, [group, days, interval]);
 
   return (
-    React.createElement('div', { className:'bg-white rounded-xl shadow-md p-6 border border-gray-200 space-y-4' },
-      React.createElement('div', { className:'flex flex-wrap gap-3 items-center' },
+    React.createElement('div', { className: 'bg-white rounded-xl shadow-md p-6 border border-gray-200 space-y-4' },
+      React.createElement('div', { className: 'flex flex-wrap gap-3 items-center' },
         React.createElement('div', null,
-          React.createElement('label', { className:'text-sm font-semibold mr-2' }, 'Trend Window:'),
-          React.createElement('input', { type:'number', min:1, max:365, value:days, onChange:e=>setDays(parseInt(e.target.value||30,10)), className:'border rounded px-2 py-1 w-24 mr-2' }),
-          React.createElement('select', { value:interval, onChange:e=>setInterval(e.target.value), className:'border rounded px-2 py-1' },
-            React.createElement('option', { value:'day' }, 'By Day'),
-            React.createElement('option', { value:'month' }, 'By Month')
+          React.createElement('label', { className: 'text-sm font-semibold mr-2' }, 'Trend Window:'),
+          React.createElement('input', { type: 'number', min: 1, max: 365, value: days, onChange: e => setDays(parseInt(e.target.value || 30, 10)), className: 'border rounded px-2 py-1 w-24 mr-2' }),
+          React.createElement('select', { value: interval, onChange: e => setInterval(e.target.value), className: 'border rounded px-2 py-1' },
+            React.createElement('option', { value: 'day' }, 'By Day'),
+            React.createElement('option', { value: 'month' }, 'By Month')
           )
         ),
         React.createElement('div', null,
-          React.createElement('label', { className:'text-sm font-semibold mr-2' }, 'Inventory By:'),
-          React.createElement('select', { value:group, onChange:e=>setGroup(e.target.value), className:'border rounded px-2 py-1' },
-            React.createElement('option', { value:'marking' }, 'Customer Marking'),
-            React.createElement('option', { value:'product' }, 'Product')
+          React.createElement('label', { className: 'text-sm font-semibold mr-2' }, 'Inventory By:'),
+          React.createElement('select', { value: group, onChange: e => setGroup(e.target.value), className: 'border rounded px-2 py-1' },
+            React.createElement('option', { value: 'marking' }, 'Customer Marking'),
+            React.createElement('option', { value: 'product' }, 'Product')
           )
         )
       ),
-      React.createElement('div', { className:'grid grid-cols-1 lg:grid-cols-3 gap-6' },
+      React.createElement('div', { className: 'grid grid-cols-1 lg:grid-cols-3 gap-6' },
         React.createElement('div', null,
-          React.createElement('h4', { className:'font-bold mb-2' }, 'WIP by Stage'),
+          React.createElement('h4', { className: 'font-bold mb-2' }, 'WIP by Stage'),
           React.createElement('canvas', { ref: wipRef, height: 200 })
         ),
-        React.createElement('div', { className:'lg:col-span-2' },
-          React.createElement('h4', { className:'font-bold mb-2' }, 'Finished vs WIP'),
+        React.createElement('div', { className: 'lg:col-span-2' },
+          React.createElement('h4', { className: 'font-bold mb-2' }, 'Finished vs WIP'),
           React.createElement('canvas', { ref: fvRef, height: 200 })
         ),
-        React.createElement('div', { className:'lg:col-span-3' },
-          React.createElement('h4', { className:'font-bold mb-2' }, group === 'marking' ? 'Inventory by Marking' : 'Inventory by Product'),
+        React.createElement('div', { className: 'lg:col-span-3' },
+          React.createElement('h4', { className: 'font-bold mb-2' }, group === 'marking' ? 'Inventory by Marking' : 'Inventory by Product'),
           React.createElement('canvas', { ref: byRef, height: 220 })
         )
       )
     )
   );
 }
-function DailyProduction({ products, onSubmit }){
-  const [date, setDate] = useState(new Date().toISOString().slice(0,10));
+function DailyProduction({ products, onSubmit }) {
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [entries, setEntries] = useState([]);
   const [recent, setRecent] = useState([]);
   const [limit, setLimit] = useState(20);
@@ -2692,13 +2768,13 @@ function DailyProduction({ products, onSubmit }){
       .catch(err => console.error('Error fetching suggested markings:', err));
   }, []);
 
-  async function loadRecent(l){
-    try { const r = await fetch(`${API_URL}/production?limit=${encodeURIComponent(l||limit)}`); setRecent(await r.json()); } catch {}
+  async function loadRecent(l) {
+    try { const r = await fetch(`${API_URL}/production?limit=${encodeURIComponent(l || limit)}`); setRecent(await r.json()); } catch { }
   }
-  useEffect(()=>{ loadRecent(limit); },[]);
-  function addEntry(){ setEntries([...entries, { product_id: products[0]?.id || '', plated:0,machined:0,qc:0,stamped:0,rejected:0,notes:'', marking_type:'unmarked', marking_text:'' }]); }
-  function updateEntry(i, field, val){ const e=[...entries]; e[i][field]= (['notes','product_id','marking_type','marking_text'].includes(field))? val : Number(val||0); setEntries(e); }
-  async function save(){ await fetch(`${API_URL}/production`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ date, entries }) }); setEntries([]); onSubmit?.(); alert('Production saved'); loadRecent(limit); }
+  useEffect(() => { loadRecent(limit); }, []);
+  function addEntry() { setEntries([...entries, { product_id: products[0]?.id || '', plated: 0, machined: 0, qc: 0, stamped: 0, rejected: 0, notes: '', marking_type: 'unmarked', marking_text: '' }]); }
+  function updateEntry(i, field, val) { const e = [...entries]; e[i][field] = (['notes', 'product_id', 'marking_type', 'marking_text'].includes(field)) ? val : Number(val || 0); setEntries(e); }
+  async function save() { await fetch(`${API_URL}/production`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date, entries }) }); setEntries([]); onSubmit?.(); alert('Production saved'); loadRecent(limit); }
 
   function handleProductionClick(row) {
     setEditingProduction(row);
@@ -2925,7 +3001,7 @@ function DailyProduction({ products, onSubmit }){
       React.createElement('div', { className: 'flex gap-3 items-end' },
         React.createElement('div', null,
           React.createElement('label', { className: 'text-sm font-semibold text-gray-700' }, 'Date'),
-          React.createElement('input', { type: 'date', value: date, onChange: e=>setDate(e.target.value), className: 'ml-2 border rounded px-2 py-1' })
+          React.createElement('input', { type: 'date', value: date, onChange: e => setDate(e.target.value), className: 'ml-2 border rounded px-2 py-1' })
         ),
         React.createElement('button', { onClick: addEntry, className: 'px-3 py-2 bg-blue-600 text-white rounded flex items-center gap-2' },
           React.createElement('span', { className: 'text-base' }, '➕'),
@@ -2940,24 +3016,24 @@ function DailyProduction({ products, onSubmit }){
         React.createElement('table', { className: 'min-w-full border-collapse' },
           React.createElement('thead', null,
             React.createElement('tr', { className: 'bg-gray-100' },
-              ['Product','Plated','Machined','Stamped','Rejected','Marking Type','Marking Text','Notes'].map(h=> React.createElement('th', { key: h, className: 'p-2 text-xs' }, h))
+              ['Product', 'Plated', 'Machined', 'Stamped', 'Rejected', 'Marking Type', 'Marking Text', 'Notes'].map(h => React.createElement('th', { key: h, className: 'p-2 text-xs' }, h))
             )
           ),
           React.createElement('tbody', null,
-            entries.map((en,i)=> (
+            entries.map((en, i) => (
               React.createElement('tr', { key: i, className: 'border-b' },
                 React.createElement('td', { className: 'p-2' },
-                  React.createElement('select', { value: en.product_id, onChange: e=>updateEntry(i,'product_id',e.target.value), className: 'border rounded px-2 py-1 text-sm' },
-                    products.map(p=> React.createElement('option', { key: p.id, value: p.id }, `${p.id} - ${p.description}`))
+                  React.createElement('select', { value: en.product_id, onChange: e => updateEntry(i, 'product_id', e.target.value), className: 'border rounded px-2 py-1 text-sm' },
+                    products.map(p => React.createElement('option', { key: p.id, value: p.id }, `${p.id} - ${p.description}`))
                   )
                 ),
-                ['plated','machined','qc','stamped','rejected'].map(f=> (
+                ['plated', 'machined', 'qc', 'stamped', 'rejected'].map(f => (
                   React.createElement('td', { key: f, className: 'p-2' },
-                    React.createElement('input', { type: 'number', min: 0, value: en[f], onChange: e=>updateEntry(i,f,e.target.value), className: 'w-20 border rounded px-2 py-1 text-right text-sm' })
+                    React.createElement('input', { type: 'number', min: 0, value: en[f], onChange: e => updateEntry(i, f, e.target.value), className: 'w-20 border rounded px-2 py-1 text-right text-sm' })
                   )
                 )),
                 React.createElement('td', { className: 'p-2' },
-                  React.createElement('select', { value: en.marking_type||'unmarked', onChange: e=>updateEntry(i,'marking_type',e.target.value), className: 'border rounded px-2 py-1 text-sm' },
+                  React.createElement('select', { value: en.marking_type || 'unmarked', onChange: e => updateEntry(i, 'marking_type', e.target.value), className: 'border rounded px-2 py-1 text-sm' },
                     React.createElement('option', { value: 'unmarked' }, 'Unmarked'),
                     React.createElement('option', { value: 'nikkon_brand' }, 'Nikkon Brand'),
                     React.createElement('option', { value: 'client_brand' }, 'Client Brand')
@@ -2966,15 +3042,15 @@ function DailyProduction({ products, onSubmit }){
                 React.createElement('td', { className: 'p-2 relative' },
                   React.createElement('div', { className: 'relative' },
                     React.createElement('input', {
-                      value: en.marking_text||'',
-                      onChange: e=>updateEntry(i,'marking_text',e.target.value),
+                      value: en.marking_text || '',
+                      onChange: e => updateEntry(i, 'marking_text', e.target.value),
                       onFocus: () => setShowSuggestions({ ...showSuggestions, [i]: true }),
                       onBlur: () => setTimeout(() => setShowSuggestions({ ...showSuggestions, [i]: false }), 200),
                       className: 'w-32 border rounded px-2 py-1 text-sm',
-                      placeholder: en.marking_type==='client_brand' ? 'e.g., ABC Corp' : en.marking_type==='nikkon_brand' ? 'Nikkon Ferro' : 'N/A',
-                      disabled: en.marking_type==='unmarked'
+                      placeholder: en.marking_type === 'client_brand' ? 'e.g., ABC Corp' : en.marking_type === 'nikkon_brand' ? 'Nikkon Ferro' : 'N/A',
+                      disabled: en.marking_type === 'unmarked'
                     }),
-                    showSuggestions[i] && suggestedMarkings.length > 0 && en.marking_type!=='unmarked' &&
+                    showSuggestions[i] && suggestedMarkings.length > 0 && en.marking_type !== 'unmarked' &&
                     React.createElement('div', {
                       className: 'absolute z-50 bg-white border border-gray-300 rounded shadow-lg mt-1 max-h-48 overflow-y-auto w-64'
                     },
@@ -3001,21 +3077,21 @@ function DailyProduction({ products, onSubmit }){
                   )
                 ),
                 React.createElement('td', { className: 'p-2' },
-                  React.createElement('input', { value: en.notes||'', onChange: e=>updateEntry(i,'notes',e.target.value), className: 'border rounded px-2 py-1 text-sm' })
+                  React.createElement('input', { value: en.notes || '', onChange: e => updateEntry(i, 'notes', e.target.value), className: 'border rounded px-2 py-1 text-sm' })
                 )
               )
             ))
           )
         )
       ),
-      React.createElement('div', { className:'pt-4 border-t space-y-2' },
-        React.createElement('div', { className:'flex items-center gap-3 mb-3' },
-          React.createElement('h4', { className:'font-semibold' }, 'Recent Production'),
-          React.createElement('label', { className:'text-sm text-gray-600' }, 'Show last'),
-          React.createElement('select', { className:'border rounded px-2 py-1', value:limit, onChange:e=>{ const v = parseInt(e.target.value,10); setLimit(v); loadRecent(v); } },
-            [20,50,100].map(n => React.createElement('option', { key:n, value:n }, n))
+      React.createElement('div', { className: 'pt-4 border-t space-y-2' },
+        React.createElement('div', { className: 'flex items-center gap-3 mb-3' },
+          React.createElement('h4', { className: 'font-semibold' }, 'Recent Production'),
+          React.createElement('label', { className: 'text-sm text-gray-600' }, 'Show last'),
+          React.createElement('select', { className: 'border rounded px-2 py-1', value: limit, onChange: e => { const v = parseInt(e.target.value, 10); setLimit(v); loadRecent(v); } },
+            [20, 50, 100].map(n => React.createElement('option', { key: n, value: n }, n))
           ),
-          React.createElement('span', { className:'text-sm text-gray-600' }, 'entries')
+          React.createElement('span', { className: 'text-sm text-gray-600' }, 'entries')
         ),
         React.createElement(EnhancedTable, {
           title: '',
@@ -3048,7 +3124,7 @@ function DailyProduction({ products, onSubmit }){
 function DrawingOperations({ products, rawMaterials, onSubmit }) {
   const [visible, setVisible] = useState(false);
   const [form, setForm] = useState({
-    drawing_date: new Date().toISOString().slice(0,10),
+    drawing_date: new Date().toISOString().slice(0, 10),
     product_id: products[0]?.id || '',
     raw_steel_material: '',
     steel_consumed: 0,
@@ -3087,7 +3163,7 @@ function DrawingOperations({ products, rawMaterials, onSubmit }) {
       if (res.ok) {
         alert('Drawing operation recorded successfully');
         setForm({
-          drawing_date: new Date().toISOString().slice(0,10),
+          drawing_date: new Date().toISOString().slice(0, 10),
           product_id: products[0]?.id || '',
           raw_steel_material: '',
           steel_consumed: 0,
@@ -3308,9 +3384,14 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
     INR: '₹',
     USD: '$',
     EUR: '€',
-    AED: 'د.إ'
+    AED: 'AED'
   };
   const LENGTH_UNITS = ['mm', 'ft'];
+
+  // PDF Import State
+  const [importFile, setImportFile] = useState(null);
+  const [importPreview, setImportPreview] = useState(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   React.useEffect(() => {
     setLocalOrders(Array.isArray(purchaseOrders) ? purchaseOrders : []);
@@ -3347,7 +3428,8 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
       steel_diameter: 0,
       copper_coating: 0,
       length: 0,
-      length_unit: 'mm'
+      length_unit: 'mm',
+      calculated_weights: null
     }]);
   }
 
@@ -3419,13 +3501,22 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
             description: item.description || `${item.steel_diameter}mm x ${item.length}${item.length_unit} - ${item.copper_coating}µm`,
             steel_diameter: Number(item.steel_diameter),
             length: lengthMm,
-            copper_coating: Number(item.copper_coating)
+            copper_coating: Number(item.copper_coating),
+            base_currency: item.currency || 'INR'
           };
 
-          const pRes = await fetch(`${API_URL}/products`, {
+          // Calculate weights for BOM
+          const weights = item.calculated_weights || calculateWeights(item.steel_diameter, lengthMm, item.copper_coating);
+
+          const bomData = [
+            { material: 'Steel', qty_per_unit: weights.steelWeight },
+            { material: 'Copper Anode', qty_per_unit: weights.copperWeight }
+          ];
+
+          const pRes = await fetch(`${API_URL}/products/with-bom`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(productData)
+            body: JSON.stringify({ product: productData, bom: bomData })
           });
 
           if (!pRes.ok) {
@@ -3434,28 +3525,8 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
             return;
           }
 
-          // Create BOM entries
-          const weights = item.calculated_weights || calculateWeights(item.steel_diameter, lengthMm, item.copper_coating);
-
-          await fetch(`${API_URL}/bom`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              product_id: productId,
-              material: 'Steel',
-              qty_per_unit: parseFloat(weights.steelWeight)
-            })
-          });
-
-          await fetch(`${API_URL}/bom`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              product_id: productId,
-              material: 'Copper Anode',
-              qty_per_unit: parseFloat(weights.copperWeight)
-            })
-          });
+          // Update item to use the created product
+          item.product_id = productId;
 
           // Update item to use the created product
           item.product_id = productId;
@@ -3677,10 +3748,75 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
     return `${symbol}${Number(amount || 0).toLocaleString()}`;
   }
 
+  // Import Preview Handler
+  async function handleImportPreview() {
+    if (!importFile) return;
+    setIsImporting(true);
+    const formData = new FormData();
+    formData.append('pdf', importFile);
+
+    try {
+      const res = await fetch(`${API_URL}/import/client-po-preview`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.error) {
+        alert(data.error);
+      } else {
+        setImportPreview(data);
+        // Auto-fill form if data found
+        if (data.po) {
+          setForm(prev => ({
+            ...prev,
+            id: data.po.id || prev.id,
+            customer_id: data.po.customer_id || prev.customer_id,
+            po_date: data.po.po_date || prev.po_date,
+            due_date: data.po.due_date || prev.due_date
+          }));
+        }
+        // Auto-fill items
+        if (data.items && data.items.length > 0) {
+          setNewItems(data.items.map(i => ({
+            product_id: i.product_id,
+            quantity: i.quantity,
+            unit_price: i.unit_price,
+            currency: 'INR', // Default, maybe infer later
+            new_product: false,
+            description: i.description
+          })));
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Import failed');
+    } finally {
+      setIsImporting(false);
+    }
+  }
+
   // Render component
   return React.createElement('div', { className: 'space-y-4' },
     // Add Client PO Form
     React.createElement(Section, { title: 'Add Client PO' },
+      // PDF Import Section
+      React.createElement('div', { className: 'mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100' },
+        React.createElement('h3', { className: 'font-semibold text-blue-800 mb-2' }, '📄 Import from PDF (Optional)'),
+        React.createElement('div', { className: 'flex gap-4 items-center' },
+          React.createElement('input', {
+            type: 'file',
+            accept: '.pdf',
+            onChange: (e) => setImportFile(e.target.files[0]),
+            className: 'block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100'
+          }),
+          React.createElement('button', {
+            onClick: handleImportPreview,
+            disabled: !importFile || isImporting,
+            className: 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50'
+          }, isImporting ? 'Analyzing...' : 'Preview & Auto-fill')
+        ),
+        importPreview && importPreview.warning && React.createElement('div', { className: 'mt-2 text-sm text-orange-600' }, '⚠️ ' + importPreview.warning)
+      ),
       React.createElement('div', { className: 'space-y-4' },
         // PO Header Fields
         React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-6 gap-3' },
@@ -3814,7 +3950,7 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
             React.createElement('table', { className: 'min-w-full border-collapse text-sm' },
               React.createElement('thead', null,
                 React.createElement('tr', { className: 'bg-gray-100' },
-                  ['Product', 'New?', 'Qty', 'Unit Price', 'Currency', 'Due Date', 'Line Total', 'Actions'].map(h =>
+                  ['Product', 'Qty', 'Unit Price', 'Total', 'Actions'].map(h =>
                     React.createElement('th', { key: h, className: 'p-2 text-left border' }, h)
                   )
                 )
@@ -3822,29 +3958,85 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
               React.createElement('tbody', null,
                 newItems.map((item, idx) =>
                   React.createElement(React.Fragment, { key: idx },
-                    // Main row
                     React.createElement('tr', { className: 'border-b' },
-                      // Product selection
                       React.createElement('td', { className: 'p-2 border' },
-                        React.createElement('select', {
-                          className: 'border rounded px-2 py-1 w-full',
-                          value: item.product_id,
-                          onChange: e => updateNewItem(idx, 'product_id', e.target.value),
-                          disabled: item.new_product
-                        },
-                          React.createElement('option', { value: '' }, 'Select Product'),
-                          products.map(p => React.createElement('option', { key: p.id, value: p.id }, `${p.id} - ${p.description}`))
+                        React.createElement('div', { className: 'flex flex-col gap-2' },
+                          React.createElement('select', {
+                            value: item.new_product ? 'NEW' : item.product_id,
+                            onChange: e => {
+                              if (e.target.value === 'NEW') {
+                                updateNewItem(idx, 'new_product', true);
+                              } else {
+                                updateNewItem(idx, 'new_product', false);
+                                updateNewItem(idx, 'product_id', e.target.value);
+                              }
+                            },
+                            className: 'w-full p-2 border rounded'
+                          },
+                            React.createElement('option', { value: '' }, 'Select Product...'),
+                            React.createElement('option', { value: 'NEW', className: 'font-bold text-blue-600' }, '➕ Create New Product'),
+                            products.map(p => React.createElement('option', { key: p.id, value: p.id }, p.id + ' - ' + p.description))
+                          ),
+                          item.new_product && React.createElement('div', { className: 'p-3 bg-blue-50 border border-blue-200 rounded space-y-2' },
+                            React.createElement('input', {
+                              placeholder: 'New Product ID',
+                              value: item.new_product_id,
+                              onChange: e => updateNewItem(idx, 'new_product_id', e.target.value),
+                              className: 'w-full p-1 border rounded text-sm'
+                            }),
+                            React.createElement('input', {
+                              placeholder: 'Description',
+                              value: item.description,
+                              onChange: e => updateNewItem(idx, 'description', e.target.value),
+                              className: 'w-full p-1 border rounded text-sm'
+                            }),
+                            React.createElement('div', { className: 'grid grid-cols-2 gap-2' },
+                              React.createElement('div', null,
+                                React.createElement('label', { className: 'text-xs text-gray-500' }, 'Steel Dia (mm)'),
+                                React.createElement('input', {
+                                  type: 'number',
+                                  value: item.steel_diameter,
+                                  onChange: e => updateNewItem(idx, 'steel_diameter', e.target.value),
+                                  className: 'w-full p-1 border rounded text-sm'
+                                })
+                              ),
+                              React.createElement('div', null,
+                                React.createElement('label', { className: 'text-xs text-gray-500' }, 'Coating (µm)'),
+                                React.createElement('input', {
+                                  type: 'number',
+                                  value: item.copper_coating,
+                                  onChange: e => updateNewItem(idx, 'copper_coating', e.target.value),
+                                  className: 'w-full p-1 border rounded text-sm'
+                                })
+                              )
+                            ),
+                            React.createElement('div', { className: 'grid grid-cols-2 gap-2' },
+                              React.createElement('div', null,
+                                React.createElement('label', { className: 'text-xs text-gray-500' }, 'Length'),
+                                React.createElement('input', {
+                                  type: 'number',
+                                  value: item.length,
+                                  onChange: e => updateNewItem(idx, 'length', e.target.value),
+                                  className: 'w-full p-1 border rounded text-sm'
+                                })
+                              ),
+                              React.createElement('div', null,
+                                React.createElement('label', { className: 'text-xs text-gray-500' }, 'Unit'),
+                                React.createElement('select', {
+                                  value: item.length_unit,
+                                  onChange: e => updateNewItem(idx, 'length_unit', e.target.value),
+                                  className: 'w-full p-1 border rounded text-sm'
+                                },
+                                  LENGTH_UNITS.map(u => React.createElement('option', { key: u, value: u }, u))
+                                )
+                              )
+                            ),
+                            item.calculated_weights && React.createElement('div', { className: 'text-xs text-gray-600 bg-white p-1 rounded' },
+                              `Weight: ${item.calculated_weights.totalWeight} kg`
+                            )
+                          )
                         )
                       ),
-                      // New product checkbox
-                      React.createElement('td', { className: 'p-2 border text-center' },
-                        React.createElement('input', {
-                          type: 'checkbox',
-                          checked: item.new_product,
-                          onChange: e => updateNewItem(idx, 'new_product', e.target.checked)
-                        })
-                      ),
-                      // Quantity
                       React.createElement('td', { className: 'p-2 border' },
                         React.createElement('input', {
                           type: 'number',
@@ -3853,161 +4045,151 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                           onChange: e => updateNewItem(idx, 'quantity', e.target.value)
                         })
                       ),
-                      // Unit Price
                       React.createElement('td', { className: 'p-2 border' },
-                        React.createElement('input', {
-                          type: 'number',
-                          step: '0.01',
-                          className: 'border rounded px-2 py-1 w-24',
-                          value: item.unit_price,
-                          onChange: e => updateNewItem(idx, 'unit_price', e.target.value)
-                        })
-                      ),
-                      // Currency
-                      React.createElement('td', { className: 'p-2 border' },
-                        React.createElement('select', {
-                          className: 'border rounded px-2 py-1',
-                          value: item.currency,
-                          onChange: e => updateNewItem(idx, 'currency', e.target.value)
-                        },
-                          CURRENCIES.map(c => React.createElement('option', { key: c, value: c }, c))
+                        React.createElement('div', { className: 'flex gap-1' },
+                          React.createElement('input', {
+                            type: 'number',
+                            className: 'border rounded px-2 py-1 w-24',
+                            value: item.unit_price,
+                            onChange: e => updateNewItem(idx, 'unit_price', e.target.value)
+                          }),
+                          React.createElement('select', {
+                            className: 'border rounded px-2 py-1 w-20 bg-gray-50 text-sm',
+                            value: item.currency,
+                            onChange: e => updateNewItem(idx, 'currency', e.target.value)
+                          },
+                            CURRENCIES.map(c => React.createElement('option', { key: c, value: c }, c))
+                          )
                         )
                       ),
-                      // Due Date
-                      React.createElement('td', { className: 'p-2 border' },
-                        React.createElement('input', {
-                          type: 'date',
-                          className: 'border rounded px-2 py-1 w-32',
-                          value: item.due_date || '',
-                          onChange: e => updateNewItem(idx, 'due_date', e.target.value)
-                        })
-                      ),
-                      // Line Total
                       React.createElement('td', { className: 'p-2 border text-right' },
                         formatCurrency(item.quantity * item.unit_price, item.currency)
                       ),
-                      // Actions
                       React.createElement('td', { className: 'p-2 border' },
                         React.createElement('button', {
                           className: 'px-2 py-1 bg-red-600 text-white rounded text-xs flex items-center gap-1',
                           onClick: () => removeNewItem(idx)
                         },
-                          React.createElement('span', null, '🗑️'),
-                          'Remove'
-                        )
-                      )
-                    ),
-                    // New product details row (if checkbox is checked)
-                    item.new_product && React.createElement('tr', { className: 'bg-blue-50' },
-                      React.createElement('td', { colSpan: 8, className: 'p-3 border' },
-                        React.createElement('div', { className: 'space-y-2' },
-                          React.createElement('h5', { className: 'font-semibold text-sm mb-2' }, 'New Product Specifications'),
-                          React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-2' },
-                            React.createElement('div', null,
-                              React.createElement('label', { className: 'text-xs' }, 'Product ID'),
-                              React.createElement('input', {
-                                className: 'border rounded px-2 py-1 w-full text-sm',
-                                placeholder: 'e.g., R-100',
-                                value: item.new_product_id,
-                                onChange: e => updateNewItem(idx, 'new_product_id', e.target.value)
-                              })
-                            ),
-                            React.createElement('div', null,
-                              React.createElement('label', { className: 'text-xs' }, 'Description'),
-                              React.createElement('input', {
-                                className: 'border rounded px-2 py-1 w-full text-sm',
-                                placeholder: 'Product description',
-                                value: item.description,
-                                onChange: e => updateNewItem(idx, 'description', e.target.value)
-                              })
-                            ),
-                            React.createElement('div', null,
-                              React.createElement('label', { className: 'text-xs' }, 'Steel Dia (mm)'),
-                              React.createElement('input', {
-                                type: 'number',
-                                step: '0.1',
-                                className: 'border rounded px-2 py-1 w-full text-sm',
-                                value: item.steel_diameter,
-                                onChange: e => updateNewItem(idx, 'steel_diameter', e.target.value)
-                              })
-                            ),
-                            React.createElement('div', null,
-                              React.createElement('label', { className: 'text-xs' }, 'Copper Coating (µm)'),
-                              React.createElement('input', {
-                                type: 'number',
-                                className: 'border rounded px-2 py-1 w-full text-sm',
-                                value: item.copper_coating,
-                                onChange: e => updateNewItem(idx, 'copper_coating', e.target.value)
-                              })
-                            ),
-                            React.createElement('div', null,
-                              React.createElement('label', { className: 'text-xs' }, 'Length'),
-                              React.createElement('input', {
-                                type: 'number',
-                                step: '0.1',
-                                className: 'border rounded px-2 py-1 w-full text-sm',
-                                value: item.length,
-                                onChange: e => updateNewItem(idx, 'length', e.target.value)
-                              })
-                            ),
-                            React.createElement('div', null,
-                              React.createElement('label', { className: 'text-xs' }, 'Unit'),
-                              React.createElement('select', {
-                                className: 'border rounded px-2 py-1 w-full text-sm',
-                                value: item.length_unit,
-                                onChange: e => updateNewItem(idx, 'length_unit', e.target.value)
-                              },
-                                LENGTH_UNITS.map(u => React.createElement('option', { key: u, value: u }, u))
-                              )
-                            )
-                          ),
-                          // Auto-calculated values
-                          item.calculated_weights && React.createElement('div', { className: 'bg-white border rounded p-2 mt-2' },
-                            React.createElement('h6', { className: 'text-xs font-semibold mb-1' }, 'Auto-Calculated:'),
-                            React.createElement('div', { className: 'grid grid-cols-4 gap-2 text-xs' },
-                              React.createElement('div', null, `CBG Dia: ${item.calculated_weights.cbgDiameter} mm`),
-                              React.createElement('div', null, `Steel: ${item.calculated_weights.steelWeight} kg`),
-                              React.createElement('div', null, `Copper: ${item.calculated_weights.copperWeight} kg`),
-                              React.createElement('div', null, `Total: ${item.calculated_weights.totalWeight} kg`)
-                            )
-                          )
+                          React.createElement('span', { className: 'text-xs' }, '🗑️')
                         )
                       )
                     )
                   )
                 )
               )
+
             )
           ),
-
-          // Submit button
-          React.createElement('div', { className: 'flex justify-end mt-4' },
-            React.createElement('button', {
-              className: 'px-6 py-2 bg-green-600 text-white rounded font-semibold flex items-center gap-2',
-              onClick: add
-            },
-              React.createElement('span', { className: 'text-base' }, '➕'),
-              'Create Purchase Order'
+          // New product details row (if checkbox is checked)
+          item.new_product && React.createElement('tr', { className: 'bg-blue-50' },
+            React.createElement('td', { colSpan: 8, className: 'p-3 border' },
+              React.createElement('div', { className: 'space-y-2' },
+                React.createElement('h5', { className: 'font-semibold text-sm mb-2' }, 'New Product Specifications'),
+                React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-2' },
+                  React.createElement('div', null,
+                    React.createElement('label', { className: 'text-xs' }, 'Product ID'),
+                    React.createElement('input', {
+                      className: 'border rounded px-2 py-1 w-full text-sm',
+                      placeholder: 'e.g., R-100',
+                      value: item.new_product_id,
+                      onChange: e => updateNewItem(idx, 'new_product_id', e.target.value)
+                    })
+                  ),
+                  React.createElement('div', null,
+                    React.createElement('label', { className: 'text-xs' }, 'Description'),
+                    React.createElement('input', {
+                      className: 'border rounded px-2 py-1 w-full text-sm',
+                      placeholder: 'Product description',
+                      value: item.description,
+                      onChange: e => updateNewItem(idx, 'description', e.target.value)
+                    })
+                  ),
+                  React.createElement('div', null,
+                    React.createElement('label', { className: 'text-xs' }, 'Steel Dia (mm)'),
+                    React.createElement('input', {
+                      type: 'number',
+                      step: '0.1',
+                      className: 'border rounded px-2 py-1 w-full text-sm',
+                      value: item.steel_diameter,
+                      onChange: e => updateNewItem(idx, 'steel_diameter', e.target.value)
+                    })
+                  ),
+                  React.createElement('div', null,
+                    React.createElement('label', { className: 'text-xs' }, 'Copper Coating (µm)'),
+                    React.createElement('input', {
+                      type: 'number',
+                      className: 'border rounded px-2 py-1 w-full text-sm',
+                      value: item.copper_coating,
+                      onChange: e => updateNewItem(idx, 'copper_coating', e.target.value)
+                    })
+                  ),
+                  React.createElement('div', null,
+                    React.createElement('label', { className: 'text-xs' }, 'Length'),
+                    React.createElement('input', {
+                      type: 'number',
+                      step: '0.1',
+                      className: 'border rounded px-2 py-1 w-full text-sm',
+                      value: item.length,
+                      onChange: e => updateNewItem(idx, 'length', e.target.value)
+                    })
+                  ),
+                  React.createElement('div', null,
+                    React.createElement('label', { className: 'text-xs' }, 'Unit'),
+                    React.createElement('select', {
+                      className: 'border rounded px-2 py-1 w-full text-sm',
+                      value: item.length_unit,
+                      onChange: e => updateNewItem(idx, 'length_unit', e.target.value)
+                    },
+                      LENGTH_UNITS.map(u => React.createElement('option', { key: u, value: u }, u))
+                    )
+                  )
+                ),
+                // Auto-calculated values
+                item.calculated_weights && React.createElement('div', { className: 'bg-white border rounded p-2 mt-2' },
+                  React.createElement('h6', { className: 'text-xs font-semibold mb-1' }, 'Auto-Calculated:'),
+                  React.createElement('div', { className: 'grid grid-cols-4 gap-2 text-xs' },
+                    React.createElement('div', null, `CBG Dia: ${item.calculated_weights.cbgDiameter} mm`),
+                    React.createElement('div', null, `Steel: ${item.calculated_weights.steelWeight} kg`),
+                    React.createElement('div', null, `Copper: ${item.calculated_weights.copperWeight} kg`),
+                    React.createElement('div', null, `Total: ${item.calculated_weights.totalWeight} kg`)
+                  )
+                )
+              )
             )
           )
         )
       )
-    ),
+    )
+  )
+          ),
 
-    // List of existing POs with EnhancedTable
-    React.createElement('div', { ref: listSectionRef },
-      React.createElement(EnhancedTable, {
-        title: 'Client Purchase Orders',
-        data: localOrders,
-        columns: [
-          { key: 'id', label: 'PO ID' },
-          { key: 'customer_name', label: 'Customer' },
-          { key: 'po_date', label: 'PO Date' },
-          { key: 'due_date', label: 'Due Date' },
-          { key: 'expected_delivery_date', label: 'Expected Delivery', render: (val) => val || '-' },
-          { key: 'currency', label: 'Currency', render: (val) => val || 'INR' },
-          { key: 'advance_percent', label: 'Advance %', render: (val) => val ? `${val}%` : '-' },
-          { key: 'balance_payment_terms', label: 'Balance Payment', render: (val) => {
+  // Submit button
+  React.createElement('div', { className: 'flex justify-end mt-4' },
+    React.createElement('button', {
+      className: 'px-6 py-2 bg-green-600 text-white rounded font-semibold flex items-center gap-2',
+      onClick: add
+    },
+      React.createElement('span', { className: 'text-base' }, '➕'),
+      'Create Purchase Order'
+    )
+  )
+  ),
+
+  // List of existing POs with EnhancedTable
+  React.createElement('div', { ref: listSectionRef },
+    React.createElement(EnhancedTable, {
+      title: 'Client Purchase Orders',
+      data: localOrders,
+      columns: [
+        { key: 'id', label: 'PO ID' },
+        { key: 'customer_name', label: 'Customer' },
+        { key: 'po_date', label: 'PO Date' },
+        { key: 'due_date', label: 'Due Date' },
+        { key: 'expected_delivery_date', label: 'Expected Delivery', render: (val) => val || '-' },
+        { key: 'currency', label: 'Currency', render: (val) => val || 'INR' },
+        { key: 'advance_percent', label: 'Advance %', render: (val) => val ? `${val}%` : '-' },
+        {
+          key: 'balance_payment_terms', label: 'Balance Payment', render: (val) => {
             if (!val) return '-';
             const terms = {
               'on_dispatch': 'On Dispatch',
@@ -4019,9 +4201,11 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
               '90_days_net_bl': '90 Days Net B/L'
             };
             return terms[val] || val;
-          }},
-          { key: 'mode_of_delivery', label: 'Delivery Mode', render: (val) => val || '-' },
-          { key: 'status', label: 'Status', render: (val) => {
+          }
+        },
+        { key: 'mode_of_delivery', label: 'Delivery Mode', render: (val) => val || '-' },
+        {
+          key: 'status', label: 'Status', render: (val) => {
             const statusConfig = {
               'Pending': { icon: '🕐', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
               'Confirmed': { icon: '✅', color: 'bg-blue-100 text-blue-800 border-blue-300' },
@@ -4034,38 +4218,39 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
               React.createElement('span', null, config.icon),
               val
             );
-          }},
-          { key: 'notes', label: 'Notes', render: (val) => val || '-' },
-          { key: 'pdf_path', label: 'PDF', render: (val) => val ? React.createElement('a', { href: `${window.location.origin}/${val}`, target: '_blank', className: 'text-blue-600 hover:underline' }, '📄 View') : '-' }
-        ],
-        primaryKey: 'id',
-        onRowClick: handleRowClick,
-        onDelete: del,
-        onExport: (data, cols) => downloadCSV('client-purchase-orders.csv', cols.filter(c => c.key !== 'pdf_path').map(c=>({key:c.key,label:c.label})), data),
-        filterOptions: [
-          { key: 'customer_name', label: 'Customer', values: [...new Set(localOrders.map(po => po.customer_name).filter(Boolean))] },
-          { key: 'status', label: 'Status', values: ['Pending', 'Confirmed', 'In Production', 'Completed', 'Cancelled'] },
-          { key: 'mode_of_delivery', label: 'Delivery Mode', values: [...new Set(localOrders.map(po => po.mode_of_delivery).filter(Boolean))] }
-        ],
-        defaultVisibleColumns: { id: true, customer_name: true, po_date: true, due_date: true, expected_delivery_date: true, currency: true, advance_percent: true, balance_payment_terms: true, mode_of_delivery: true, status: true, notes: false, pdf_path: true },
-        actions: (po) => [
-          React.createElement('button', {
-            key: 'view-items',
-            onClick: (e) => { e.stopPropagation(); toggleRowExpansion(po.id); },
-            className: 'px-2 py-1 bg-blue-600 text-white rounded text-sm mr-2 flex items-center gap-1'
-          },
-            React.createElement('span', null, expandedRows[po.id] ? '🔼' : '👁️'),
-            expandedRows[po.id] ? 'Hide Items' : 'View Items'
-          )
-        ]
-      }),
+          }
+        },
+        { key: 'notes', label: 'Notes', render: (val) => val || '-' },
+        { key: 'pdf_path', label: 'PDF', render: (val) => val ? React.createElement('a', { href: `${window.location.origin}/${val}`, target: '_blank', className: 'text-blue-600 hover:underline' }, '📄 View') : '-' }
+      ],
+      primaryKey: 'id',
+      onRowClick: handleRowClick,
+      onDelete: del,
+      onExport: (data, cols) => downloadCSV('client-purchase-orders.csv', cols.filter(c => c.key !== 'pdf_path').map(c => ({ key: c.key, label: c.label })), data),
+      filterOptions: [
+        { key: 'customer_name', label: 'Customer', values: [...new Set(localOrders.map(po => po.customer_name).filter(Boolean))] },
+        { key: 'status', label: 'Status', values: ['Pending', 'Confirmed', 'In Production', 'Completed', 'Cancelled'] },
+        { key: 'mode_of_delivery', label: 'Delivery Mode', values: [...new Set(localOrders.map(po => po.mode_of_delivery).filter(Boolean))] }
+      ],
+      defaultVisibleColumns: { id: true, customer_name: true, po_date: true, due_date: true, expected_delivery_date: true, currency: true, advance_percent: true, balance_payment_terms: true, mode_of_delivery: true, status: true, notes: false, pdf_path: true },
+      actions: (po) => [
+        React.createElement('button', {
+          key: 'view-items',
+          onClick: (e) => { e.stopPropagation(); toggleRowExpansion(po.id); },
+          className: 'px-2 py-1 bg-blue-600 text-white rounded text-sm mr-2 flex items-center gap-1'
+        },
+          React.createElement('span', null, expandedRows[po.id] ? '🔼' : '👁️'),
+          expandedRows[po.id] ? 'Hide Items' : 'View Items'
+        )
+      ]
+    }),
 
-      // Expandable line items rows
-      Object.keys(expandedRows).filter(poId => expandedRows[poId]).map(poId => {
-        const items = lineItems[poId] || [];
-        return React.createElement('div', { key: `expanded-${poId}`, className: 'ml-8 mr-8 mb-4 border-l-4 border-blue-400 bg-blue-50 rounded p-4' },
-          React.createElement('h4', { className: 'font-semibold text-lg mb-3 text-blue-800' }, `Line Items for PO: ${poId}`),
-          items.length === 0 ? React.createElement('div', { className: 'text-gray-500 text-sm' }, 'No line items found') :
+    // Expandable line items rows
+    Object.keys(expandedRows).filter(poId => expandedRows[poId]).map(poId => {
+      const items = lineItems[poId] || [];
+      return React.createElement('div', { key: `expanded-${poId}`, className: 'ml-8 mr-8 mb-4 border-l-4 border-blue-400 bg-blue-50 rounded p-4' },
+        React.createElement('h4', { className: 'font-semibold text-lg mb-3 text-blue-800' }, `Line Items for PO: ${poId}`),
+        items.length === 0 ? React.createElement('div', { className: 'text-gray-500 text-sm' }, 'No line items found') :
           React.createElement('div', { className: 'overflow-x-auto' },
             React.createElement('table', { className: 'min-w-full border-collapse text-sm bg-white' },
               React.createElement('thead', null,
@@ -4096,360 +4281,365 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
               )
             )
           )
-        );
-      }),
+      );
+    }),
 
-      // Edit Modal
-      React.createElement(EditModal, {
-        isOpen: editingPO !== null,
-        onClose: () => {
-          setEditingPO(null);
-          setEditPdfFile(null);
-        },
-        onSave: saveEdit,
-        title: `Edit Client PO: ${editForm.id || ''}`
+    // Edit Modal
+    React.createElement(EditModal, {
+      isOpen: editingPO !== null,
+      onClose: () => {
+        setEditingPO(null);
+        setEditPdfFile(null);
       },
-        editingPO && React.createElement('div', { className: 'space-y-6' },
-          // PO Header Fields
+      onSave: saveEdit,
+      title: `Edit Client PO: ${editForm.id || ''}`
+    },
+      editingPO && React.createElement('div', { className: 'space-y-6' },
+        // PO Header Fields
+        React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'PO ID'),
+            React.createElement('input', {
+              className: 'border rounded px-3 py-2 w-full bg-gray-100',
+              value: editForm.id || '',
+              disabled: true
+            }),
+            React.createElement('p', { className: 'text-xs text-gray-500 mt-1' }, 'PO ID cannot be changed after creation')
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Customer'),
+            React.createElement('select', {
+              className: 'border rounded px-3 py-2 w-full',
+              value: editForm.customer_id || '',
+              onChange: e => setEditForm({ ...editForm, customer_id: e.target.value })
+            },
+              React.createElement('option', { value: '' }, 'Select Customer'),
+              customers.map(c => React.createElement('option', { key: c.id, value: c.id }, `${c.id} - ${c.name}`))
+            )
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'PO Date'),
+            React.createElement('input', {
+              type: 'date',
+              className: 'border rounded px-3 py-2 w-full',
+              value: editForm.po_date || '',
+              onChange: e => setEditForm({ ...editForm, po_date: e.target.value })
+            })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Due Date'),
+            React.createElement('input', {
+              type: 'date',
+              className: 'border rounded px-3 py-2 w-full',
+              value: editForm.due_date || '',
+              onChange: e => setEditForm({ ...editForm, due_date: e.target.value })
+            })
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Currency'),
+            React.createElement('select', {
+              className: 'border rounded px-3 py-2 w-full',
+              value: editForm.currency || 'INR',
+              onChange: e => setEditForm({ ...editForm, currency: e.target.value })
+            },
+              ['INR', 'USD', 'EUR', 'AED'].map(c => React.createElement('option', { key: c, value: c }, c))
+            )
+          ),
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Status'),
+            React.createElement('select', {
+              className: 'border rounded px-3 py-2 w-full',
+              value: editForm.status || 'Pending',
+              onChange: e => setEditForm({ ...editForm, status: e.target.value })
+            },
+              ['Pending', 'Confirmed', 'In Production', 'Completed', 'Cancelled'].map(s =>
+                React.createElement('option', { key: s, value: s }, s)
+              )
+            )
+          ),
+          React.createElement('div', { className: 'md:col-span-2' },
+            React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Notes'),
+            React.createElement('textarea', {
+              className: 'border rounded px-3 py-2 w-full',
+              rows: 2,
+              value: editForm.notes || '',
+              onChange: e => setEditForm({ ...editForm, notes: e.target.value })
+            })
+          )
+        ),
+
+        // Payment & Delivery Terms Section
+        React.createElement('div', { className: 'border-t pt-4 mt-4' },
+          React.createElement('h4', { className: 'font-semibold text-md mb-3 text-gray-800' }, 'Payment & Delivery Terms'),
           React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
             React.createElement('div', null,
-              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'PO ID'),
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Advance Payment (%)'),
               React.createElement('input', {
-                className: 'border rounded px-3 py-2 w-full bg-gray-100',
-                value: editForm.id || '',
-                disabled: true
-              }),
-              React.createElement('p', { className: 'text-xs text-gray-500 mt-1' }, 'PO ID cannot be changed after creation')
-            ),
-            React.createElement('div', null,
-              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Customer'),
-              React.createElement('select', {
+                type: 'number',
+                min: '0',
+                max: '100',
                 className: 'border rounded px-3 py-2 w-full',
-                value: editForm.customer_id || '',
-                onChange: e => setEditForm({ ...editForm, customer_id: e.target.value })
-              },
-                React.createElement('option', { value: '' }, 'Select Customer'),
-                customers.map(c => React.createElement('option', { key: c.id, value: c.id }, `${c.id} - ${c.name}`))
-              )
-            ),
-            React.createElement('div', null,
-              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'PO Date'),
-              React.createElement('input', {
-                type: 'date',
-                className: 'border rounded px-3 py-2 w-full',
-                value: editForm.po_date || '',
-                onChange: e => setEditForm({ ...editForm, po_date: e.target.value })
+                value: editForm.advance_percent || 0,
+                onChange: e => setEditForm({ ...editForm, advance_percent: Number(e.target.value) })
               })
             ),
             React.createElement('div', null,
-              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Due Date'),
-              React.createElement('input', {
-                type: 'date',
-                className: 'border rounded px-3 py-2 w-full',
-                value: editForm.due_date || '',
-                onChange: e => setEditForm({ ...editForm, due_date: e.target.value })
-              })
-            ),
-            React.createElement('div', null,
-              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Currency'),
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Balance Payment Terms'),
               React.createElement('select', {
                 className: 'border rounded px-3 py-2 w-full',
-                value: editForm.currency || 'INR',
-                onChange: e => setEditForm({ ...editForm, currency: e.target.value })
+                value: editForm.balance_payment_terms || 'on_dispatch',
+                onChange: e => setEditForm({ ...editForm, balance_payment_terms: e.target.value })
               },
-                ['INR', 'USD', 'EUR', 'AED'].map(c => React.createElement('option', { key: c, value: c }, c))
+                React.createElement('option', { value: 'on_dispatch' }, 'On Dispatch'),
+                React.createElement('option', { value: 'at_door_delivery' }, 'At Door Delivery'),
+                React.createElement('option', { value: '30_days_net_bl' }, '30 Days Net B/L'),
+                React.createElement('option', { value: '45_days_net_bl' }, '45 Days Net B/L'),
+                React.createElement('option', { value: '60_days_net_bl' }, '60 Days Net B/L'),
+                React.createElement('option', { value: '75_days_net_bl' }, '75 Days Net B/L'),
+                React.createElement('option', { value: '90_days_net_bl' }, '90 Days Net B/L')
               )
             ),
             React.createElement('div', null,
-              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Status'),
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Mode of Delivery'),
               React.createElement('select', {
                 className: 'border rounded px-3 py-2 w-full',
-                value: editForm.status || 'Pending',
-                onChange: e => setEditForm({ ...editForm, status: e.target.value })
+                value: editForm.mode_of_delivery || 'FOB',
+                onChange: e => setEditForm({ ...editForm, mode_of_delivery: e.target.value })
               },
-                ['Pending', 'Confirmed', 'In Production', 'Completed', 'Cancelled'].map(s =>
-                  React.createElement('option', { key: s, value: s }, s)
-                )
+                React.createElement('option', { value: 'FOB' }, 'FOB'),
+                React.createElement('option', { value: 'CIF' }, 'CIF'),
+                React.createElement('option', { value: 'Factory ex works' }, 'Factory ex works'),
+                React.createElement('option', { value: 'Door Delivery to Warehouse' }, 'Door Delivery to Warehouse'),
+                React.createElement('option', { value: 'DDP' }, 'DDP')
+              )
+            ),
+            React.createElement('div', null,
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Expected Delivery Date'),
+              React.createElement('input', {
+                type: 'date',
+                className: 'border rounded px-3 py-2 w-full',
+                value: editForm.expected_delivery_date || '',
+                onChange: e => setEditForm({ ...editForm, expected_delivery_date: e.target.value })
+              })
+            ),
+            editingPO.pdf_path && React.createElement('div', { className: 'md:col-span-2' },
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Current PDF'),
+              React.createElement('a', {
+                href: `${window.location.origin}/${editingPO.pdf_path}`,
+                target: '_blank',
+                className: 'text-blue-600 hover:underline flex items-center gap-2'
+              },
+                React.createElement('span', null, '📄'),
+                React.createElement('span', null, 'View Client PO PDF')
               )
             ),
             React.createElement('div', { className: 'md:col-span-2' },
-              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Notes'),
-              React.createElement('textarea', {
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' },
+                editingPO.pdf_path ? 'Upload New PDF (Optional - replaces current PDF)' : 'Upload PDF (Optional)'
+              ),
+              React.createElement('input', {
+                type: 'file',
+                accept: 'application/pdf',
                 className: 'border rounded px-3 py-2 w-full',
-                rows: 2,
-                value: editForm.notes || '',
-                onChange: e => setEditForm({ ...editForm, notes: e.target.value })
-              })
-            )
-          ),
-
-          // Payment & Delivery Terms Section
-          React.createElement('div', { className: 'border-t pt-4 mt-4' },
-            React.createElement('h4', { className: 'font-semibold text-md mb-3 text-gray-800' }, 'Payment & Delivery Terms'),
-            React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
-              React.createElement('div', null,
-                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Advance Payment (%)'),
-                React.createElement('input', {
-                  type: 'number',
-                  min: '0',
-                  max: '100',
-                  className: 'border rounded px-3 py-2 w-full',
-                  value: editForm.advance_percent || 0,
-                  onChange: e => setEditForm({ ...editForm, advance_percent: Number(e.target.value) })
-                })
-              ),
-              React.createElement('div', null,
-                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Balance Payment Terms'),
-                React.createElement('select', {
-                  className: 'border rounded px-3 py-2 w-full',
-                  value: editForm.balance_payment_terms || 'on_dispatch',
-                  onChange: e => setEditForm({ ...editForm, balance_payment_terms: e.target.value })
-                },
-                  React.createElement('option', { value: 'on_dispatch' }, 'On Dispatch'),
-                  React.createElement('option', { value: 'at_door_delivery' }, 'At Door Delivery'),
-                  React.createElement('option', { value: '30_days_net_bl' }, '30 Days Net B/L'),
-                  React.createElement('option', { value: '45_days_net_bl' }, '45 Days Net B/L'),
-                  React.createElement('option', { value: '60_days_net_bl' }, '60 Days Net B/L'),
-                  React.createElement('option', { value: '75_days_net_bl' }, '75 Days Net B/L'),
-                  React.createElement('option', { value: '90_days_net_bl' }, '90 Days Net B/L')
-                )
-              ),
-              React.createElement('div', null,
-                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Mode of Delivery'),
-                React.createElement('select', {
-                  className: 'border rounded px-3 py-2 w-full',
-                  value: editForm.mode_of_delivery || 'FOB',
-                  onChange: e => setEditForm({ ...editForm, mode_of_delivery: e.target.value })
-                },
-                  React.createElement('option', { value: 'FOB' }, 'FOB'),
-                  React.createElement('option', { value: 'CIF' }, 'CIF'),
-                  React.createElement('option', { value: 'Factory ex works' }, 'Factory ex works'),
-                  React.createElement('option', { value: 'Door Delivery to Warehouse' }, 'Door Delivery to Warehouse'),
-                  React.createElement('option', { value: 'DDP' }, 'DDP')
-                )
-              ),
-              React.createElement('div', null,
-                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Expected Delivery Date'),
-                React.createElement('input', {
-                  type: 'date',
-                  className: 'border rounded px-3 py-2 w-full',
-                  value: editForm.expected_delivery_date || '',
-                  onChange: e => setEditForm({ ...editForm, expected_delivery_date: e.target.value })
-                })
-              ),
-              editingPO.pdf_path && React.createElement('div', { className: 'md:col-span-2' },
-                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Current PDF'),
-                React.createElement('a', {
-                  href: `${window.location.origin}/${editingPO.pdf_path}`,
-                  target: '_blank',
-                  className: 'text-blue-600 hover:underline flex items-center gap-2'
-                },
-                  React.createElement('span', null, '📄'),
-                  React.createElement('span', null, 'View Client PO PDF')
-                )
-              ),
-              React.createElement('div', { className: 'md:col-span-2' },
-                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' },
-                  editingPO.pdf_path ? 'Upload New PDF (Optional - replaces current PDF)' : 'Upload PDF (Optional)'
-                ),
-                React.createElement('input', {
-                  type: 'file',
-                  accept: 'application/pdf',
-                  className: 'border rounded px-3 py-2 w-full',
-                  onChange: e => setEditPdfFile(e.target.files[0])
-                }),
-                editPdfFile && React.createElement('p', { className: 'text-sm text-green-600 mt-1' },
-                  `Selected: ${editPdfFile.name}`
-                )
+                onChange: e => setEditPdfFile(e.target.files[0])
+              }),
+              editPdfFile && React.createElement('p', { className: 'text-sm text-green-600 mt-1' },
+                `Selected: ${editPdfFile.name}`
               )
             )
-          ),
+          )
+        ),
 
-          // Line Items Section
-          React.createElement('div', { className: 'border-t pt-4' },
-            React.createElement('h4', { className: 'font-semibold text-lg mb-3' }, 'Line Items & Fulfillment'),
-            editLineItems.length > 0 && React.createElement('div', { className: 'overflow-x-auto' },
-              React.createElement('table', { className: 'min-w-full border-collapse text-sm' },
-                React.createElement('thead', null,
-                  React.createElement('tr', { className: 'bg-gray-100' },
-                    ['Product', 'Description', 'Quantity', 'Delivered', 'Remaining', 'Unit Price', 'Currency', 'Marking', 'Due Date', 'Actions'].map(h =>
-                      React.createElement('th', { key: h, className: 'p-2 border' }, h)
-                    )
+        // Line Items Section
+        React.createElement('div', { className: 'border-t pt-4' },
+          React.createElement('h4', { className: 'font-semibold text-lg mb-3' }, 'Line Items & Fulfillment'),
+          editLineItems.length > 0 && React.createElement('div', { className: 'overflow-x-auto' },
+            React.createElement('table', { className: 'min-w-full border-collapse text-sm' },
+              React.createElement('thead', null,
+                React.createElement('tr', { className: 'bg-gray-100' },
+                  ['Product', 'Description', 'Quantity', 'Delivered', 'Remaining', 'Unit Price', 'Currency', 'Marking', 'Due Date', 'Actions'].map(h =>
+                    React.createElement('th', { key: h, className: 'p-2 border' }, h)
                   )
-                ),
-                React.createElement('tbody', null,
-                  editLineItems.map((item, idx) =>
-                    React.createElement('tr', { key: idx },
-                      React.createElement('td', { className: 'p-2 border' },
-                        React.createElement('select', {
-                          className: 'border rounded px-2 py-1 w-full text-sm',
-                          value: item.product_id || '',
-                          onChange: e => {
-                            const updated = [...editLineItems];
-                            updated[idx].product_id = e.target.value;
-                            const product = products.find(p => p.id === e.target.value);
-                            if (product) updated[idx].product_description = product.description;
-                            setEditLineItems(updated);
-                          }
-                        },
-                          React.createElement('option', { value: '' }, 'Select Product'),
-                          products.map(p => React.createElement('option', { key: p.id, value: p.id }, `${p.id} - ${p.description}`))
-                        )
-                      ),
-                      React.createElement('td', { className: 'p-2 border text-sm' }, item.product_description || '-'),
-                      React.createElement('td', { className: 'p-2 border' },
-                        React.createElement('input', {
-                          type: 'number',
-                          className: 'border rounded px-2 py-1 w-20 text-right',
-                          value: item.quantity || 0,
-                          onChange: e => {
-                            const updated = [...editLineItems];
-                            updated[idx].quantity = Number(e.target.value);
-                            setEditLineItems(updated);
-                          }
-                        })
-                      ),
-                      React.createElement('td', { className: 'p-2 border text-right text-gray-600' }, item.delivered || 0),
-                      React.createElement('td', { className: 'p-2 border text-right text-gray-600' }, (item.quantity - (item.delivered || 0))),
-                      React.createElement('td', { className: 'p-2 border' },
-                        React.createElement('input', {
-                          type: 'number',
-                          step: '0.01',
-                          className: 'border rounded px-2 py-1 w-24 text-right',
-                          value: item.unit_price || 0,
-                          onChange: e => {
-                            const updated = [...editLineItems];
-                            updated[idx].unit_price = Number(e.target.value);
-                            setEditLineItems(updated);
-                          }
-                        })
-                      ),
-                      React.createElement('td', { className: 'p-2 border' },
-                        React.createElement('select', {
-                          className: 'border rounded px-2 py-1 w-20',
-                          value: item.currency || 'INR',
-                          onChange: e => {
-                            const updated = [...editLineItems];
-                            updated[idx].currency = e.target.value;
-                            setEditLineItems(updated);
-                          }
-                        },
-                          ['INR', 'USD', 'EUR', 'AED'].map(c => React.createElement('option', { key: c, value: c }, c))
-                        )
-                      ),
-                      React.createElement('td', { className: 'p-2 border' },
-                        React.createElement('input', {
-                          type: 'text',
-                          className: 'border rounded px-2 py-1 w-full text-sm',
-                          placeholder: 'Marking/Stamping',
-                          value: item.marking || '',
-                          onChange: e => {
-                            const updated = [...editLineItems];
-                            updated[idx].marking = e.target.value;
-                            setEditLineItems(updated);
-                          }
-                        })
-                      ),
-                      React.createElement('td', { className: 'p-2 border' },
-                        React.createElement('input', {
-                          type: 'date',
-                          className: 'border rounded px-2 py-1 w-full',
-                          value: item.due_date || '',
-                          onChange: e => {
-                            const updated = [...editLineItems];
-                            updated[idx].due_date = e.target.value;
-                            setEditLineItems(updated);
-                          }
-                        })
-                      ),
-                      React.createElement('td', { className: 'p-2 border text-center' },
-                        React.createElement('button', {
-                          onClick: async () => {
-                            if (item.id) {
-                              // Existing item - delete from server
-                              if (confirm('Delete this line item?')) {
-                                try {
-                                  const encodedPoId = encodeURIComponent(editForm.id);
-                                  const res = await fetch(`${API_URL}/client-purchase-orders/${encodedPoId}/items/${item.id}`, { method: 'DELETE' });
-                                  if (res.ok) {
-                                    setEditLineItems(editLineItems.filter((_, i) => i !== idx));
-                                  } else {
-                                    alert('Failed to delete line item');
-                                  }
-                                } catch (err) {
-                                  alert('Error deleting line item: ' + err.message);
-                                }
-                              }
-                            } else {
-                              // New unsaved item - just remove from array
-                              setEditLineItems(editLineItems.filter((_, i) => i !== idx));
-                            }
-                          },
-                          className: 'text-red-600 hover:text-red-800 text-lg'
-                        }, '🗑️')
+                )
+              ),
+              React.createElement('tbody', null,
+                editLineItems.map((item, idx) =>
+                  React.createElement('tr', { key: idx },
+                    React.createElement('td', { className: 'p-2 border' },
+                      React.createElement('select', {
+                        className: 'border rounded px-2 py-1 w-full text-sm',
+                        value: item.product_id || '',
+                        onChange: e => {
+                          const updated = [...editLineItems];
+                          updated[idx].product_id = e.target.value;
+                          const product = products.find(p => p.id === e.target.value);
+                          if (product) updated[idx].product_description = product.description;
+                          setEditLineItems(updated);
+                        }
+                      },
+                        React.createElement('option', { value: '' }, 'Select Product'),
+                        products.map(p => React.createElement('option', { key: p.id, value: p.id }, `${p.id} - ${p.description}`))
                       )
+                    ),
+                    React.createElement('td', { className: 'p-2 border text-sm' }, item.product_description || '-'),
+                    React.createElement('td', { className: 'p-2 border' },
+                      React.createElement('input', {
+                        type: 'number',
+                        className: 'border rounded px-2 py-1 w-20 text-right',
+                        value: item.quantity || 0,
+                        onChange: e => {
+                          const updated = [...editLineItems];
+                          updated[idx].quantity = Number(e.target.value);
+                          setEditLineItems(updated);
+                        }
+                      })
+                    ),
+                    React.createElement('td', { className: 'p-2 border text-right text-gray-600' }, item.delivered || 0),
+                    React.createElement('td', { className: 'p-2 border text-right text-gray-600' }, (item.quantity - (item.delivered || 0))),
+                    React.createElement('td', { className: 'p-2 border' },
+                      React.createElement('input', {
+                        type: 'number',
+                        step: '0.01',
+                        className: 'border rounded px-2 py-1 w-24 text-right',
+                        value: item.unit_price || 0,
+                        onChange: e => {
+                          const updated = [...editLineItems];
+                          updated[idx].unit_price = Number(e.target.value);
+                          setEditLineItems(updated);
+                        }
+                      })
+                    ),
+                    React.createElement('td', { className: 'p-2 border' },
+                      React.createElement('select', {
+                        className: 'border rounded px-2 py-1 w-20',
+                        value: item.currency || 'INR',
+                        onChange: e => {
+                          const updated = [...editLineItems];
+                          updated[idx].currency = e.target.value;
+                          setEditLineItems(updated);
+                        }
+                      },
+                        ['INR', 'USD', 'EUR', 'AED'].map(c => React.createElement('option', { key: c, value: c }, c))
+                      )
+                    ),
+                    React.createElement('td', { className: 'p-2 border' },
+                      React.createElement('input', {
+                        type: 'text',
+                        className: 'border rounded px-2 py-1 w-full text-sm',
+                        placeholder: 'Marking/Stamping',
+                        value: item.marking || '',
+                        onChange: e => {
+                          const updated = [...editLineItems];
+                          updated[idx].marking = e.target.value;
+                          setEditLineItems(updated);
+                        }
+                      })
+                    ),
+                    React.createElement('td', { className: 'p-2 border' },
+                      React.createElement('input', {
+                        type: 'date',
+                        className: 'border rounded px-2 py-1 w-full',
+                        value: item.due_date || '',
+                        onChange: e => {
+                          const updated = [...editLineItems];
+                          updated[idx].due_date = e.target.value;
+                          setEditLineItems(updated);
+                        }
+                      })
+                    ),
+                    React.createElement('td', { className: 'p-2 border text-center' },
+                      React.createElement('button', {
+                        onClick: async () => {
+                          if (item.id) {
+                            // Existing item - delete from server
+                            if (confirm('Delete this line item?')) {
+                              try {
+                                const encodedPoId = encodeURIComponent(editForm.id);
+                                const res = await fetch(`${API_URL}/client-purchase-orders/${encodedPoId}/items/${item.id}`, { method: 'DELETE' });
+                                if (res.ok) {
+                                  setEditLineItems(editLineItems.filter((_, i) => i !== idx));
+                                } else {
+                                  alert('Failed to delete line item');
+                                }
+                              } catch (err) {
+                                alert('Error deleting line item: ' + err.message);
+                              }
+                            }
+                          } else {
+                            // New unsaved item - just remove from array
+                            setEditLineItems(editLineItems.filter((_, i) => i !== idx));
+                          }
+                        },
+                        className: 'text-red-600 hover:text-red-800 text-lg'
+                      }, '🗑️')
                     )
                   )
                 )
               )
-            ),
-            React.createElement('button', {
-              onClick: () => {
-                setEditLineItems([...editLineItems, {
-                  product_id: '',
-                  quantity: 0,
-                  delivered: 0,
-                  unit_price: 0,
-                  currency: editForm.currency || 'INR',
-                  marking: '',
-                  due_date: editForm.due_date || ''
-                }]);
-              },
-              className: 'mt-3 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2'
-            },
-              React.createElement('span', null, '➕'),
-              'Add Item'
             )
           ),
+          React.createElement('button', {
+            onClick: () => {
+              setEditLineItems([...editLineItems, {
+                product_id: '',
+                quantity: 0,
+                delivered: 0,
+                unit_price: 0,
+                currency: editForm.currency || 'INR',
+                marking: '',
+                due_date: editForm.due_date || ''
+              }]);
+            },
+            className: 'mt-3 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2'
+          },
+            React.createElement('span', null, '➕'),
+            'Add Item'
+          )
+        ),
 
-          // Save/Cancel buttons
-          React.createElement('div', { className: 'flex justify-end gap-3 pt-4 border-t' },
-            React.createElement('button', {
-              onClick: () => {
-                setEditingPO(null);
-                setEditPdfFile(null);
-              },
-              className: 'px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-2'
+        // Save/Cancel buttons
+        React.createElement('div', { className: 'flex justify-end gap-3 pt-4 border-t' },
+          React.createElement('button', {
+            onClick: () => {
+              setEditingPO(null);
+              setEditPdfFile(null);
             },
-              React.createElement('span', { className: 'text-base' }, '❌'),
-              'Cancel'
-            ),
-            React.createElement('button', {
-              onClick: saveEdit,
-              className: 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2'
-            },
-              React.createElement('span', { className: 'text-base' }, '💾'),
-              'Save Changes'
-            )
+            className: 'px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-2'
+          },
+            React.createElement('span', { className: 'text-base' }, '❌'),
+            'Cancel'
+          ),
+          React.createElement('button', {
+            onClick: saveEdit,
+            className: 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2'
+          },
+            React.createElement('span', { className: 'text-base' }, '💾'),
+            'Save Changes'
           )
         )
       )
     )
+  )
   );
 }
 
-function VendorPurchaseOrders({ purchaseOrders, vendors, onRefresh }){
-  const [form, setForm] = useState({ id:'', vendor_id:'', po_date:'', due_date:'', status:'Pending', notes:'' });
+function VendorPurchaseOrders({ purchaseOrders, vendors, onRefresh }) {
+  const [form, setForm] = useState({ id: '', vendor_id: '', po_date: '', due_date: '', status: 'Pending', notes: '', currency: 'INR' });
   const [editingVPO, setEditingVPO] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [importFile, setImportFile] = useState(null);
+  const [importPreview, setImportPreview] = useState(null);
+  const [isImporting, setIsImporting] = useState(false);
 
-  async function add(){
-    await fetch(`${API_URL}/vendor-purchase-orders`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
-    setForm({ id:'', vendor_id:'', po_date:'', due_date:'', status:'Pending', notes:'' });
+  const CURRENCIES = ['INR', 'USD', 'EUR', 'AED'];
+
+  async function add() {
+    await fetch(`${API_URL}/vendor-purchase-orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+    setForm({ id: '', vendor_id: '', po_date: '', due_date: '', status: 'Pending', notes: '' });
     onRefresh?.();
   }
 
-  function handleRowClick(vpo){
+  function handleRowClick(vpo) {
     setEditForm({
       id: vpo.id,
       vendor_id: vpo.vendor_id,
@@ -4462,32 +4652,90 @@ function VendorPurchaseOrders({ purchaseOrders, vendors, onRefresh }){
     setEditingVPO(vpo);
   }
 
-  async function saveEdit(){
-    await fetch(`${API_URL}/vendor-purchase-orders/${editForm.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(editForm) });
+  async function saveEdit() {
+    await fetch(`${API_URL}/vendor-purchase-orders/${editForm.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editForm) });
     setEditingVPO(null);
     onRefresh?.();
   }
 
-  async function del(id){
-    if(!confirm('Delete Vendor PO?')) return;
-    await fetch(`${API_URL}/vendor-purchase-orders/${id}`, { method:'DELETE' });
+  async function del(id) {
+    if (!confirm('Delete Vendor PO?')) return;
+    await fetch(`${API_URL}/vendor-purchase-orders/${id}`, { method: 'DELETE' });
     onRefresh?.();
   }
+
+  async function handleImportPreview() {
+    if (!importFile) return;
+    setIsImporting(true);
+    const formData = new FormData();
+    formData.append('pdf', importFile);
+
+    try {
+      const res = await fetch(`${API_URL}/import/vendor-po-preview`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.error) {
+        alert(data.error);
+      } else {
+        setImportPreview(data);
+        if (data.vpo) {
+          setForm(prev => ({
+            ...prev,
+            id: data.vpo.id || prev.id,
+            vendor_id: data.vpo.vendor_id || prev.vendor_id,
+            po_date: data.vpo.po_date || prev.po_date,
+            due_date: data.vpo.due_date || prev.due_date
+          }));
+        }
+        // Note: Line items from PDF are not currently handled in frontend VPO creation as UI is missing
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Import failed');
+    } finally {
+      setIsImporting(false);
+    }
+  }
+
   return (
     React.createElement('div', { className: 'space-y-4' },
       React.createElement(Section, { title: 'Add Vendor PO' },
-        React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-6 gap-3' },
-          React.createElement('input', { className:'border rounded px-2 py-1', placeholder:'VPO ID', value: form.id, onChange:e=>setForm({...form,id:e.target.value}) }),
-          React.createElement('select', { className:'border rounded px-2 py-1', value: form.vendor_id, onChange:e=>setForm({...form,vendor_id:e.target.value}) },
-            React.createElement('option', { value:'' }, 'Select Vendor'),
-            vendors.map(v => React.createElement('option', { key:v.id, value:v.id }, `${v.id} - ${v.name}`))
+        // PDF Import Section
+        React.createElement('div', { className: 'mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100' },
+          React.createElement('h3', { className: 'font-semibold text-blue-800 mb-2' }, '📄 Import from PDF (Optional)'),
+          React.createElement('div', { className: 'flex gap-4 items-center' },
+            React.createElement('input', {
+              type: 'file',
+              accept: '.pdf',
+              onChange: (e) => setImportFile(e.target.files[0]),
+              className: 'block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100'
+            }),
+            React.createElement('button', {
+              onClick: handleImportPreview,
+              disabled: !importFile || isImporting,
+              className: 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50'
+            }, isImporting ? 'Analyzing...' : 'Preview & Auto-fill')
           ),
-          React.createElement('input', { className:'border rounded px-2 py-1', type:'date', value: form.po_date, onChange:e=>setForm({...form,po_date:e.target.value}) }),
-          React.createElement('input', { className:'border rounded px-2 py-1', type:'date', value: form.due_date, onChange:e=>setForm({...form,due_date:e.target.value}) }),
-          React.createElement('select', { className:'border rounded px-2 py-1', value: form.status, onChange:e=>setForm({...form,status:e.target.value}) },
-            ['Pending','Ordered','In Transit','Completed','Cancelled'].map(s=> React.createElement('option', { key:s, value:s }, s))
+          importPreview && importPreview.warning && React.createElement('div', { className: 'mt-2 text-sm text-orange-600' }, '⚠️ ' + importPreview.warning)
+        ),
+
+        React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-7 gap-3' },
+          React.createElement('input', { className: 'border rounded px-2 py-1', placeholder: 'VPO ID', value: form.id, onChange: e => setForm({ ...form, id: e.target.value }) }),
+          React.createElement('select', { className: 'border rounded px-2 py-1', value: form.vendor_id, onChange: e => setForm({ ...form, vendor_id: e.target.value }) },
+            React.createElement('option', { value: '' }, 'Select Vendor'),
+            vendors.map(v => React.createElement('option', { key: v.id, value: v.id }, `${v.id} - ${v.name}`))
           ),
-          React.createElement('button', { onClick:add, className:'px-3 py-2 bg-green-600 text-white rounded flex items-center gap-2' },
+          React.createElement('input', { className: 'border rounded px-2 py-1', type: 'date', value: form.po_date, onChange: e => setForm({ ...form, po_date: e.target.value }) }),
+          React.createElement('input', { className: 'border rounded px-2 py-1', type: 'date', value: form.due_date, onChange: e => setForm({ ...form, due_date: e.target.value }) }),
+          React.createElement('select', { className: 'border rounded px-2 py-1', value: form.status, onChange: e => setForm({ ...form, status: e.target.value }) },
+            ['Pending', 'Ordered', 'In Transit', 'Completed', 'Cancelled'].map(s => React.createElement('option', { key: s, value: s }, s))
+          ),
+          React.createElement('select', { className: 'border rounded px-2 py-1', value: form.currency, onChange: e => setForm({ ...form, currency: e.target.value }) },
+            CURRENCIES.map(c => React.createElement('option', { key: c, value: c }, c))
+          ),
+          React.createElement('button', { onClick: add, className: 'px-3 py-2 bg-green-600 text-white rounded flex items-center gap-2' },
             React.createElement('span', { className: 'text-base' }, '➕'),
             'Add'
           )
@@ -4501,20 +4749,22 @@ function VendorPurchaseOrders({ purchaseOrders, vendors, onRefresh }){
           { key: 'vendor_name', label: 'Vendor' },
           { key: 'po_date', label: 'PO Date' },
           { key: 'due_date', label: 'Due Date' },
-          { key: 'status', label: 'Status', render: (val) => {
-            const statusConfig = {
-              'Pending': { icon: '🕐', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-              'Ordered': { icon: '📝', color: 'bg-blue-100 text-blue-800 border-blue-300' },
-              'In Transit': { icon: '🚚', color: 'bg-purple-100 text-purple-800 border-purple-300' },
-              'Completed': { icon: '✅', color: 'bg-green-100 text-green-800 border-green-300' },
-              'Cancelled': { icon: '❌', color: 'bg-red-100 text-red-800 border-red-300' }
-            };
-            const config = statusConfig[val] || { icon: '❓', color: 'bg-gray-100 text-gray-800 border-gray-300' };
-            return React.createElement('span', { className: `inline-flex items-center gap-1 px-2 py-1 rounded border font-semibold text-xs ${config.color}` },
-              React.createElement('span', null, config.icon),
-              val
-            );
-          }},
+          {
+            key: 'status', label: 'Status', render: (val) => {
+              const statusConfig = {
+                'Pending': { icon: '🕐', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+                'Ordered': { icon: '📝', color: 'bg-blue-100 text-blue-800 border-blue-300' },
+                'In Transit': { icon: '🚚', color: 'bg-purple-100 text-purple-800 border-purple-300' },
+                'Completed': { icon: '✅', color: 'bg-green-100 text-green-800 border-green-300' },
+                'Cancelled': { icon: '❌', color: 'bg-red-100 text-red-800 border-red-300' }
+              };
+              const config = statusConfig[val] || { icon: '❓', color: 'bg-gray-100 text-gray-800 border-gray-300' };
+              return React.createElement('span', { className: `inline-flex items-center gap-1 px-2 py-1 rounded border font-semibold text-xs ${config.color}` },
+                React.createElement('span', null, config.icon),
+                val
+              );
+            }
+          },
           { key: 'notes', label: 'Notes', render: (val) => val || '-' }
         ],
         primaryKey: 'id',
@@ -4611,12 +4861,12 @@ function VendorPurchaseOrders({ purchaseOrders, vendors, onRefresh }){
   );
 }
 
-function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
+function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }) {
   const [orders, setOrders] = useState([]);
   const [openDetails, setOpenDetails] = useState({});
   const [items, setItems] = useState({});
   const [form, setForm] = useState({
-    id:'', vendor_id:'', jw_date:'', due_date:'', job_type:'Steel Rod Production', status:'Open', notes:'',
+    id: '', vendor_id: '', jw_date: '', due_date: '', job_type: 'Steel Rod Production', status: 'Open', notes: '',
     raw_steel_material: '', steel_consumed: 0, cores_produced: 0, cores_rejected: 0, core_product_id: '', unit_rate: 0, total_cost: 0
   });
   const [editing, setEditing] = useState(null);
@@ -4641,7 +4891,7 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
     }
   }
 
-  async function add(){
+  async function add() {
     if (!form.id || !form.jw_date) {
       alert('Please fill JW ID and Date');
       return;
@@ -4653,10 +4903,10 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
         return;
       }
     }
-    const res = await fetch(`${API_URL}/jobwork/orders`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
+    const res = await fetch(`${API_URL}/jobwork/orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
     if (res.ok) {
       setForm({
-        id:'', vendor_id:'', jw_date:'', due_date:'', job_type:'Steel Rod Production', status:'Open', notes:'',
+        id: '', vendor_id: '', jw_date: '', due_date: '', job_type: 'Steel Rod Production', status: 'Open', notes: '',
         raw_steel_material: '', steel_consumed: 0, cores_produced: 0, cores_rejected: 0, core_product_id: '', unit_rate: 0, total_cost: 0
       });
       await refreshOrders();
@@ -4671,16 +4921,16 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
     }
   }
 
-  async function save(order){
-    await fetch(`${API_URL}/jobwork/orders/${order.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(order) });
+  async function save(order) {
+    await fetch(`${API_URL}/jobwork/orders/${order.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(order) });
     setEditing(null);
     await refreshOrders();
     if (onRefresh) await onRefresh();
   }
 
-  async function del(id){
-    if(!confirm('Delete Job Work Order?')) return;
-    await fetch(`${API_URL}/jobwork/orders/${id}`, { method:'DELETE' });
+  async function del(id) {
+    if (!confirm('Delete Job Work Order?')) return;
+    await fetch(`${API_URL}/jobwork/orders/${id}`, { method: 'DELETE' });
     await refreshOrders();
     if (onRefresh) await onRefresh();
   }
@@ -4739,21 +4989,21 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
     React.createElement('div', { className: 'space-y-4' },
       React.createElement(Section, { title: 'Add Job Work Order' },
         React.createElement('div', { className: 'space-y-3' },
-          React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-7 gap-3' },
-            React.createElement('input', { className:'border rounded px-3 py-2', placeholder:'JW ID', value: form.id, onChange:e=>setForm({...form,id:e.target.value}) }),
-            React.createElement('select', { className:'border rounded px-3 py-2', value: form.vendor_id, onChange:e=>setForm({...form,vendor_id:e.target.value}) },
-              React.createElement('option', { value:'' }, 'Select Vendor'),
-              vendors.map(v => React.createElement('option', { key:v.id, value:v.id }, `${v.id} - ${v.name}`))
+          React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-7 gap-3' },
+            React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'JW ID', value: form.id, onChange: e => setForm({ ...form, id: e.target.value }) }),
+            React.createElement('select', { className: 'border rounded px-3 py-2', value: form.vendor_id, onChange: e => setForm({ ...form, vendor_id: e.target.value }) },
+              React.createElement('option', { value: '' }, 'Select Vendor'),
+              vendors.map(v => React.createElement('option', { key: v.id, value: v.id }, `${v.id} - ${v.name}`))
             ),
-            React.createElement('input', { className:'border rounded px-3 py-2', type:'date', value: form.jw_date, onChange:e=>setForm({...form,jw_date:e.target.value}) }),
-            React.createElement('input', { className:'border rounded px-3 py-2', type:'date', placeholder:'Due Date', value: form.due_date, onChange:e=>setForm({...form,due_date:e.target.value}) }),
-            React.createElement('select', { className:'border rounded px-3 py-2', value: form.job_type, onChange:e=>setForm({...form,job_type:e.target.value}) },
-              JOB_TYPES.map(t => React.createElement('option', { key:t, value:t }, t))
+            React.createElement('input', { className: 'border rounded px-3 py-2', type: 'date', value: form.jw_date, onChange: e => setForm({ ...form, jw_date: e.target.value }) }),
+            React.createElement('input', { className: 'border rounded px-3 py-2', type: 'date', placeholder: 'Due Date', value: form.due_date, onChange: e => setForm({ ...form, due_date: e.target.value }) }),
+            React.createElement('select', { className: 'border rounded px-3 py-2', value: form.job_type, onChange: e => setForm({ ...form, job_type: e.target.value }) },
+              JOB_TYPES.map(t => React.createElement('option', { key: t, value: t }, t))
             ),
-            React.createElement('select', { className:'border rounded px-3 py-2', value: form.status, onChange:e=>setForm({...form,status:e.target.value}) },
-              STATUSES.map(s => React.createElement('option', { key:s, value:s }, s))
+            React.createElement('select', { className: 'border rounded px-3 py-2', value: form.status, onChange: e => setForm({ ...form, status: e.target.value }) },
+              STATUSES.map(s => React.createElement('option', { key: s, value: s }, s))
             ),
-            React.createElement('button', { onClick:add, className:'px-4 py-2 bg-green-600 text-white rounded font-semibold flex items-center gap-2' },
+            React.createElement('button', { onClick: add, className: 'px-4 py-2 bg-green-600 text-white rounded font-semibold flex items-center gap-2' },
               React.createElement('span', { className: 'text-base' }, '➕'),
               'Create'
             )
@@ -4766,7 +5016,7 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
               React.createElement('select', {
                 className: 'border rounded px-3 py-2',
                 value: form.raw_steel_material,
-                onChange: e => setForm({...form, raw_steel_material: e.target.value})
+                onChange: e => setForm({ ...form, raw_steel_material: e.target.value })
               },
                 React.createElement('option', { value: '' }, 'Select Raw Steel'),
                 rawMaterials && rawMaterials.filter(rm => rm.material_type === 'Raw Steel').map(rm =>
@@ -4778,12 +5028,12 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
                 className: 'border rounded px-3 py-2',
                 placeholder: 'Steel Consumed (kg)',
                 value: form.steel_consumed || '',
-                onChange: e => setForm({...form, steel_consumed: Number(e.target.value)})
+                onChange: e => setForm({ ...form, steel_consumed: Number(e.target.value) })
               }),
               React.createElement('select', {
                 className: 'border rounded px-3 py-2',
                 value: form.core_product_id,
-                onChange: e => setForm({...form, core_product_id: e.target.value})
+                onChange: e => setForm({ ...form, core_product_id: e.target.value })
               },
                 React.createElement('option', { value: '' }, 'Select Steel Rod Product'),
                 products && products.map(p =>
@@ -4795,14 +5045,14 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
                 className: 'border rounded px-3 py-2',
                 placeholder: 'Steel Rods Produced',
                 value: form.cores_produced || '',
-                onChange: e => setForm({...form, cores_produced: Number(e.target.value)})
+                onChange: e => setForm({ ...form, cores_produced: Number(e.target.value) })
               }),
               React.createElement('input', {
                 type: 'number',
                 className: 'border rounded px-3 py-2',
                 placeholder: 'Steel Rods Rejected',
                 value: form.cores_rejected || '',
-                onChange: e => setForm({...form, cores_rejected: Number(e.target.value)})
+                onChange: e => setForm({ ...form, cores_rejected: Number(e.target.value) })
               })
             ),
             React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-3' },
@@ -4817,7 +5067,7 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
                   onChange: e => {
                     const rate = Number(e.target.value);
                     const cost = rate * (form.cores_produced || 0);
-                    setForm({...form, unit_rate: rate, total_cost: cost});
+                    setForm({ ...form, unit_rate: rate, total_cost: cost });
                   }
                 })
               ),
@@ -4845,85 +5095,85 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
           React.createElement('div', { className: 'mb-3 flex justify-end' },
             React.createElement('button', {
               onClick: () => downloadCSV('job-work-orders.csv',
-                [{key:'id',label:'JW ID'},{key:'vendor_id',label:'Vendor'},{key:'jw_date',label:'Date'},{key:'due_date',label:'Due Date'},{key:'job_type',label:'Job Type'},{key:'status',label:'Status'},{key:'notes',label:'Notes'}],
+                [{ key: 'id', label: 'JW ID' }, { key: 'vendor_id', label: 'Vendor' }, { key: 'jw_date', label: 'Date' }, { key: 'due_date', label: 'Due Date' }, { key: 'job_type', label: 'Job Type' }, { key: 'status', label: 'Status' }, { key: 'notes', label: 'Notes' }],
                 orders
               ),
               className: 'px-3 py-2 bg-gray-700 text-white rounded'
             }, 'Export CSV')
           ),
           React.createElement('div', { className: 'overflow-x-auto' },
-            React.createElement('table', { className:'min-w-full border-collapse' },
+            React.createElement('table', { className: 'min-w-full border-collapse' },
               React.createElement('thead', null,
-                React.createElement('tr', { className:'bg-gray-100' }, ['JW ID','Vendor','Date','Due Date','Job Type','Status','Unit Rate','Total Cost','Actions'].map(h => React.createElement('th', { key:h, className:'p-2 border' }, h)))
+                React.createElement('tr', { className: 'bg-gray-100' }, ['JW ID', 'Vendor', 'Date', 'Due Date', 'Job Type', 'Status', 'Unit Rate', 'Total Cost', 'Actions'].map(h => React.createElement('th', { key: h, className: 'p-2 border' }, h)))
               ),
               React.createElement('tbody', null,
                 orders.length > 0 ? orders.map(order => {
                   const edit = editing === order.id;
                   return React.createElement(React.Fragment, { key: order.id },
-                    React.createElement('tr', { className:'border-b' },
-                      React.createElement('td', { className:'p-2 border font-mono' }, order.id),
-                      React.createElement('td', { className:'p-2 border' }, order.vendor_id || 'N/A'),
-                      React.createElement('td', { className:'p-2 border' }, order.jw_date),
-                      React.createElement('td', { className:'p-2 border' }, order.due_date || '-'),
-                      React.createElement('td', { className:'p-2 border' }, order.job_type || 'Rod Making'),
-                      React.createElement('td', { className:'p-2 border' }, order.status),
-                      React.createElement('td', { className:'p-2 border text-right' }, order.unit_rate > 0 ? '₹' + formatQuantity(order.unit_rate) : '-'),
-                      React.createElement('td', { className:'p-2 border text-right font-semibold' }, order.total_cost > 0 ? '₹' + formatQuantity(order.total_cost) : '-'),
-                      React.createElement('td', { className:'p-2 border text-right space-x-2' },
+                    React.createElement('tr', { className: 'border-b' },
+                      React.createElement('td', { className: 'p-2 border font-mono' }, order.id),
+                      React.createElement('td', { className: 'p-2 border' }, order.vendor_id || 'N/A'),
+                      React.createElement('td', { className: 'p-2 border' }, order.jw_date),
+                      React.createElement('td', { className: 'p-2 border' }, order.due_date || '-'),
+                      React.createElement('td', { className: 'p-2 border' }, order.job_type || 'Rod Making'),
+                      React.createElement('td', { className: 'p-2 border' }, order.status),
+                      React.createElement('td', { className: 'p-2 border text-right' }, order.unit_rate > 0 ? '₹' + formatQuantity(order.unit_rate) : '-'),
+                      React.createElement('td', { className: 'p-2 border text-right font-semibold' }, order.total_cost > 0 ? '₹' + formatQuantity(order.total_cost) : '-'),
+                      React.createElement('td', { className: 'p-2 border text-right space-x-2' },
                         React.createElement('button', {
-                          className:'px-2 py-1 bg-blue-600 text-white rounded text-sm',
-                          onClick:()=>toggleDetails(order)
+                          className: 'px-2 py-1 bg-blue-600 text-white rounded text-sm',
+                          onClick: () => toggleDetails(order)
                         }, openDetails[order.id] ? 'Hide' : 'Details'),
                         React.createElement('button', {
-                          className:'px-2 py-1 bg-red-600 text-white rounded text-sm',
-                          onClick:()=>del(order.id)
+                          className: 'px-2 py-1 bg-red-600 text-white rounded text-sm',
+                          onClick: () => del(order.id)
                         }, 'Delete')
                       )
                     ),
-                    openDetails[order.id] && React.createElement('tr', { className:'bg-gray-50' },
-                      React.createElement('td', { colSpan:9, className:'p-3 border' },
-                        React.createElement('div', { className:'space-y-3' },
-                          React.createElement('h4', { className:'font-semibold' }, 'Job Work Items'),
+                    openDetails[order.id] && React.createElement('tr', { className: 'bg-gray-50' },
+                      React.createElement('td', { colSpan: 9, className: 'p-3 border' },
+                        React.createElement('div', { className: 'space-y-3' },
+                          React.createElement('h4', { className: 'font-semibold' }, 'Job Work Items'),
                           items[order.id] && items[order.id].length > 0 ?
-                            React.createElement('table', { className:'min-w-full border-collapse text-sm mb-3' },
+                            React.createElement('table', { className: 'min-w-full border-collapse text-sm mb-3' },
                               React.createElement('thead', null,
-                                React.createElement('tr', { className:'bg-gray-200' },
-                                  ['Product','Quantity','Actions'].map(h => React.createElement('th', { key:h, className:'p-2 border' }, h))
+                                React.createElement('tr', { className: 'bg-gray-200' },
+                                  ['Product', 'Quantity', 'Actions'].map(h => React.createElement('th', { key: h, className: 'p-2 border' }, h))
                                 )
                               ),
                               React.createElement('tbody', null,
                                 items[order.id].map(item =>
-                                  React.createElement('tr', { key:item.id },
-                                    React.createElement('td', { className:'p-2 border' }, item.product_id),
-                                    React.createElement('td', { className:'p-2 border text-right' }, item.qty),
-                                    React.createElement('td', { className:'p-2 border' },
+                                  React.createElement('tr', { key: item.id },
+                                    React.createElement('td', { className: 'p-2 border' }, item.product_id),
+                                    React.createElement('td', { className: 'p-2 border text-right' }, item.qty),
+                                    React.createElement('td', { className: 'p-2 border' },
                                       React.createElement('button', {
-                                        className:'px-2 py-1 bg-red-600 text-white rounded text-xs',
-                                        onClick:()=>removeItem(order.id, item.id)
+                                        className: 'px-2 py-1 bg-red-600 text-white rounded text-xs',
+                                        onClick: () => removeItem(order.id, item.id)
                                       }, 'Remove')
                                     )
                                   )
                                 )
                               )
                             ) :
-                            React.createElement('p', { className:'text-sm text-gray-500' }, 'No items'),
-                          React.createElement('div', { className:'flex gap-2' },
+                            React.createElement('p', { className: 'text-sm text-gray-500' }, 'No items'),
+                          React.createElement('div', { className: 'flex gap-2' },
                             React.createElement('select', {
-                              id:`product-${order.id}`,
-                              className:'border rounded px-2 py-1 flex-1'
+                              id: `product-${order.id}`,
+                              className: 'border rounded px-2 py-1 flex-1'
                             },
-                              React.createElement('option', { value:'' }, 'Select Product'),
-                              products.map(p => React.createElement('option', { key:p.id, value:p.id }, `${p.id} - ${p.description}`))
+                              React.createElement('option', { value: '' }, 'Select Product'),
+                              products.map(p => React.createElement('option', { key: p.id, value: p.id }, `${p.id} - ${p.description}`))
                             ),
                             React.createElement('input', {
-                              id:`qty-${order.id}`,
-                              type:'number',
-                              placeholder:'Qty',
-                              className:'border rounded px-2 py-1 w-24'
+                              id: `qty-${order.id}`,
+                              type: 'number',
+                              placeholder: 'Qty',
+                              className: 'border rounded px-2 py-1 w-24'
                             }),
                             React.createElement('button', {
-                              className:'px-3 py-1 bg-green-600 text-white rounded text-sm',
-                              onClick:()=>{
+                              className: 'px-3 py-1 bg-green-600 text-white rounded text-sm',
+                              onClick: () => {
                                 const pid = document.getElementById(`product-${order.id}`).value;
                                 const qty = document.getElementById(`qty-${order.id}`).value;
                                 if (pid && qty) {
@@ -4934,10 +5184,10 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
                               }
                             }, '+ Add Item')
                           ),
-                          React.createElement('div', { className:'pt-3 border-t' },
+                          React.createElement('div', { className: 'pt-3 border-t' },
                             React.createElement('button', {
-                              className:'px-4 py-2 bg-purple-600 text-white rounded font-semibold',
-                              onClick:()=>receiveItems(order.id)
+                              className: 'px-4 py-2 bg-purple-600 text-white rounded font-semibold',
+                              onClick: () => receiveItems(order.id)
                             }, `Receive ${order.job_type || 'Rod Making'} Items`)
                           )
                         )
@@ -4945,7 +5195,7 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
                     )
                   );
                 }) : React.createElement('tr', null,
-                  React.createElement('td', { colSpan:9, className:'p-4 text-center text-gray-500' }, 'No job work orders found')
+                  React.createElement('td', { colSpan: 9, className: 'p-4 text-center text-gray-500' }, 'No job work orders found')
                 )
               )
             )
@@ -4956,7 +5206,7 @@ function JobWorkOrders({ vendors, products, rawMaterials, onRefresh }){
   );
 }
 
-function Shipments({ shipments }){
+function Shipments({ shipments }) {
   const [editingShipment, setEditingShipment] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [clientPOs, setClientPOs] = useState([]);
@@ -5007,7 +5257,7 @@ function Shipments({ shipments }){
     fetchClientPOs();
   }, []);
 
-  async function fetchClientPOs(){
+  async function fetchClientPOs() {
     try {
       const res = await fetch(`${API_URL}/client-purchase-orders`);
       if (res.ok) {
@@ -5059,7 +5309,7 @@ function Shipments({ shipments }){
     }
   }
 
-  async function createShipment(){
+  async function createShipment() {
     if (!newShipmentForm.id || !newShipmentForm.po_id) {
       alert('Please enter Shipment ID and select a Client PO');
       return;
@@ -5112,7 +5362,7 @@ function Shipments({ shipments }){
     }
   }
 
-  function handleRowClick(shipment){
+  function handleRowClick(shipment) {
     setEditForm({
       id: shipment.id,
       po_id: shipment.po_id,
@@ -5126,7 +5376,7 @@ function Shipments({ shipments }){
     setEditingShipment(shipment);
   }
 
-  async function saveEdit(){
+  async function saveEdit() {
     try {
       const res = await fetch(`${API_URL}/shipments/${editForm.id}`, {
         method: 'PUT',
@@ -5144,13 +5394,13 @@ function Shipments({ shipments }){
     }
   }
 
-  async function del(id){
+  async function del(id) {
     if (!confirm('Delete Shipment?')) return;
     await fetch(`${API_URL}/shipments/${id}`, { method: 'DELETE' });
     window.location.reload();
   }
 
-  async function refreshTracking(id){
+  async function refreshTracking(id) {
     try {
       const res = await fetch(`${API_URL}/shipments/${id}/refresh-tracking`, {
         method: 'POST'
@@ -5346,17 +5596,17 @@ function Shipments({ shipments }){
             label: 'Actions',
             render: (val, row) => row.tracking_number
               ? React.createElement('button', {
-                  onClick: (e) => { e.stopPropagation(); refreshTracking(row.id); },
-                  className: 'px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700',
-                  title: 'Refresh tracking status from carrier'
-                }, '🔄 Refresh')
+                onClick: (e) => { e.stopPropagation(); refreshTracking(row.id); },
+                className: 'px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700',
+                title: 'Refresh tracking status from carrier'
+              }, '🔄 Refresh')
               : React.createElement('span', { className: 'text-gray-400 text-xs' }, 'No tracking')
           }
         ],
         primaryKey: 'id',
         onRowClick: handleRowClick,
         onDelete: del,
-        onExport: (data, cols) => downloadCSV('shipments.csv', cols.map(c=>({key:c.key,label:c.label})), data),
+        onExport: (data, cols) => downloadCSV('shipments.csv', cols.map(c => ({ key: c.key, label: c.label })), data),
         filterOptions: [
           { key: 'po_id', label: 'PO', values: [...new Set(shipments.map(s => s.po_id).filter(Boolean))] },
           { key: 'tracking_status', label: 'Status', values: [...new Set(shipments.map(s => s.tracking_status).filter(Boolean))] }
@@ -5454,7 +5704,7 @@ function Shipments({ shipments }){
   );
 }
 
-function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh }){
+function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh }) {
   const [localInvoices, setLocalInvoices] = useState(invoices || []);
   const [localPayments, setLocalPayments] = useState(payments || []);
   const [editingInvoice, setEditingInvoice] = useState(null);
@@ -5475,7 +5725,7 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
     setLocalPayments(payments || []);
   }, [payments]);
 
-  async function refreshInvoices(){
+  async function refreshInvoices() {
     try {
       const [invRes, payRes] = await Promise.all([
         fetch(`${API_URL}/invoices`),
@@ -5488,12 +5738,12 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
     }
   }
 
-  function handleRowClick(invoice){
+  function handleRowClick(invoice) {
     setEditForm({ ...invoice });
     setEditingInvoice(invoice);
   }
 
-  async function saveEdit(){
+  async function saveEdit() {
     try {
       const res = await fetch(`${API_URL}/invoices/${editForm.invoice_number}`, {
         method: 'PUT',
@@ -5514,7 +5764,7 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
     }
   }
 
-  async function deleteInvoice(invoice_number){
+  async function deleteInvoice(invoice_number) {
     if (!confirm('Delete invoice? This will also delete associated payments.')) return;
     try {
       const res = await fetch(`${API_URL}/invoices/${invoice_number}`, { method: 'DELETE' });
@@ -5531,7 +5781,7 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
     }
   }
 
-  async function generateInvoice(){
+  async function generateInvoice() {
     if (!generateForm.po_id || !generateForm.invoice_number || !generateForm.invoice_date) {
       alert('Please fill PO ID, Invoice Number, and Invoice Date');
       return;
@@ -5559,7 +5809,7 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
     }
   }
 
-  async function recordPayment(){
+  async function recordPayment() {
     if (!paymentForm.invoice_number || !paymentForm.payment_date || !paymentForm.amount) {
       alert('Please fill Invoice Number, Payment Date, and Amount');
       return;
@@ -5641,7 +5891,7 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
     }
   }
 
-  function openPaymentModal(invoice){
+  function openPaymentModal(invoice) {
     setPaymentForm({
       invoice_number: invoice.invoice_number,
       po_id: invoice.po_id,
@@ -5654,7 +5904,7 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
     setShowPaymentModal(true);
   }
 
-  function viewPayments(invoice){
+  function viewPayments(invoice) {
     setSelectedInvoice(invoice);
   }
 
@@ -5689,23 +5939,25 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
           { key: 'total_amount', label: 'Total', render: (val, row) => formatCurrency(val || 0, row.currency || 'INR') },
           { key: 'amount_paid', label: 'Paid', render: (val, row) => formatCurrency(val || 0, row.currency || 'INR') },
           { key: 'outstanding_amount', label: 'Outstanding', render: (val, row) => formatCurrency(val || 0, row.currency || 'INR') },
-          { key: 'payment_status', label: 'Status', render: (val) => {
-            const statusConfig = {
-              'Paid': { icon: '💵', color: 'bg-green-100 text-green-800 border-green-300' },
-              'Partial': { icon: '⚠️', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-              'Pending': { icon: '🕐', color: 'bg-red-100 text-red-800 border-red-300' }
-            };
-            const config = statusConfig[val] || statusConfig['Pending'];
-            return React.createElement('span', { className: `inline-flex items-center gap-1 px-2 py-1 rounded border font-semibold text-xs ${config.color}` },
-              React.createElement('span', null, config.icon),
-              val || 'Pending'
-            );
-          }}
+          {
+            key: 'payment_status', label: 'Status', render: (val) => {
+              const statusConfig = {
+                'Paid': { icon: '💵', color: 'bg-green-100 text-green-800 border-green-300' },
+                'Partial': { icon: '⚠️', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+                'Pending': { icon: '🕐', color: 'bg-red-100 text-red-800 border-red-300' }
+              };
+              const config = statusConfig[val] || statusConfig['Pending'];
+              return React.createElement('span', { className: `inline-flex items-center gap-1 px-2 py-1 rounded border font-semibold text-xs ${config.color}` },
+                React.createElement('span', null, config.icon),
+                val || 'Pending'
+              );
+            }
+          }
         ],
         primaryKey: 'invoice_number',
         onRowClick: handleRowClick,
         onDelete: deleteInvoice,
-        onExport: (data, cols) => downloadCSV('invoices.csv', cols.map(c=>({key:c.key,label:c.label})), data),
+        onExport: (data, cols) => downloadCSV('invoices.csv', cols.map(c => ({ key: c.key, label: c.label })), data),
         filterOptions: [
           { key: 'payment_status', label: 'Payment Status', values: ['Pending', 'Partial', 'Paid'] },
           { key: 'po_id', label: 'PO', values: [...new Set(localInvoices.map(i => i.po_id).filter(Boolean))] }
@@ -6012,7 +6264,7 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
             )
           ),
           localPayments.filter(p => p.invoice_number === selectedInvoice.invoice_number).length === 0 &&
-            React.createElement('div', { className: 'text-center text-gray-500 py-4' }, 'No payments recorded yet')
+          React.createElement('div', { className: 'text-center text-gray-500 py-4' }, 'No payments recorded yet')
         )
       }),
 
@@ -6077,7 +6329,7 @@ function InvoiceManagement({ invoices, payments, clientPurchaseOrders, onRefresh
   );
 }
 
-function InventoryView({ inventory }){
+function InventoryView({ inventory }) {
   return (
     React.createElement('div', { className: 'bg-white rounded-xl shadow-md p-6 border border-gray-200' },
       React.createElement('h3', { className: 'text-lg font-bold mb-4 text-gray-800' }, 'Inventory'),
@@ -6103,7 +6355,7 @@ function InventoryView({ inventory }){
           ),
           React.createElement('tbody', null,
             inventory.map((item, idx) => {
-              const total = (item.steel_rods||0) + (item.plated||0) + (item.machined||0) + (item.qc||0) + (item.stamped||0);
+              const total = (item.steel_rods || 0) + (item.plated || 0) + (item.machined || 0) + (item.qc || 0) + (item.stamped || 0);
               return React.createElement('tr', { key: item.product_id, className: `border-b-2 border-gray-200 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}` },
                 React.createElement('td', { className: 'p-4 font-bold text-left' }, item.product_description),
                 React.createElement('td', { className: 'p-4 font-semibold text-center' }, item.steel_rods || 0),
@@ -6377,11 +6629,10 @@ function MarkingDashboard({ onRefresh, onNavigate }) {
                   React.createElement('td', { className: 'p-2 text-sm' }, alloc.due_date || 'N/A'),
                   React.createElement('td', { className: 'p-2 text-sm' },
                     React.createElement('span', {
-                      className: `px-2 py-1 rounded text-xs font-semibold ${
-                        alloc.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                      className: `px-2 py-1 rounded text-xs font-semibold ${alloc.status === 'Completed' ? 'bg-green-100 text-green-800' :
                         alloc.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`
+                          'bg-blue-100 text-blue-800'
+                        }`
                     }, alloc.status || 'Pending')
                   )
                 )
@@ -6571,9 +6822,9 @@ function MarkingBreakdownRow({ productId, markings, loading, onRefresh }) {
                         React.createElement('div', { className: 'flex items-center gap-2' },
                           React.createElement('span', { className: 'font-semibold' },
                             marking.marking_type === 'customer_branded' ? 'Customer Branded' :
-                            marking.marking_type === 'custom' ? 'Custom' :
-                            marking.marking_type === 'none' ? 'Unmarked' :
-                            marking.marking_type || 'Unknown'
+                              marking.marking_type === 'custom' ? 'Custom' :
+                                marking.marking_type === 'none' ? 'Unmarked' :
+                                  marking.marking_type || 'Unknown'
                           ),
                           marking.marking_text && React.createElement('span', { className: 'text-sm' },
                             `- "${marking.marking_text}"`
@@ -6639,19 +6890,19 @@ function MarkingBreakdownRow({ productId, markings, loading, onRefresh }) {
 }
 
 // Extended Inventory view: Raw Materials + WIP/Finished
-function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefresh, filter, setFilter, rangeMode, setRangeMode }){
+function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefresh, filter, setFilter, rangeMode, setRangeMode }) {
   // Controls
   const [invData, setInvData] = useState(inventory);
-  const [invCols, setInvCols] = useState({ product:true, steel_rods:true, plated:true, machined:true, qc:true, stamped:true, packed:true, total:true });
+  const [invCols, setInvCols] = useState({ product: true, steel_rods: true, plated: true, machined: true, qc: true, stamped: true, packed: true, total: true });
   useEffect(() => { setInvData(inventory); }, [inventory]);
-  async function refetch(){
+  async function refetch() {
     const params = new URLSearchParams();
     // Date range
     const now = new Date();
     let from = '';
-    if (rangeMode.mode === 'lastDays'){
-      const d = new Date(now); d.setDate(d.getDate() - (parseInt(rangeMode.days||30, 10))); from = d.toISOString().slice(0,10);
-      params.set('from', from); params.set('to', now.toISOString().slice(0,10));
+    if (rangeMode.mode === 'lastDays') {
+      const d = new Date(now); d.setDate(d.getDate() - (parseInt(rangeMode.days || 30, 10))); from = d.toISOString().slice(0, 10);
+      params.set('from', from); params.set('to', now.toISOString().slice(0, 10));
     }
     if (filter.marking) params.set('marking', filter.marking);
     if (filter.product_id) params.set('product_id', filter.product_id);
@@ -6660,32 +6911,32 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
     setInvData(data);
   }
   // Simple controls row
-  const controls = React.createElement('div', { className:'mb-4 flex flex-wrap gap-3 items-end' },
+  const controls = React.createElement('div', { className: 'mb-4 flex flex-wrap gap-3 items-end' },
     React.createElement('div', null,
-      React.createElement('label', { className:'text-sm font-semibold block' }, 'Last Days'),
-      React.createElement('input', { type:'number', min:1, max:365, value:rangeMode.days, onChange:e=>setRangeMode({ ...rangeMode, days: parseInt(e.target.value||30,10) }), className:'border rounded px-2 py-1 w-24' })
+      React.createElement('label', { className: 'text-sm font-semibold block' }, 'Last Days'),
+      React.createElement('input', { type: 'number', min: 1, max: 365, value: rangeMode.days, onChange: e => setRangeMode({ ...rangeMode, days: parseInt(e.target.value || 30, 10) }), className: 'border rounded px-2 py-1 w-24' })
     ),
     React.createElement('div', null,
-      React.createElement('label', { className:'text-sm font-semibold block' }, 'Marking (Customer ID)'),
-      React.createElement('select', { value:filter.marking, onChange:e=>setFilter({ ...filter, marking: e.target.value }), className:'border rounded px-2 py-1' },
-        React.createElement('option', { value:'' }, 'All'),
-        customers.map(c => React.createElement('option', { key:c.id, value:c.id }, `${c.id} - ${c.name}`))
+      React.createElement('label', { className: 'text-sm font-semibold block' }, 'Marking (Customer ID)'),
+      React.createElement('select', { value: filter.marking, onChange: e => setFilter({ ...filter, marking: e.target.value }), className: 'border rounded px-2 py-1' },
+        React.createElement('option', { value: '' }, 'All'),
+        customers.map(c => React.createElement('option', { key: c.id, value: c.id }, `${c.id} - ${c.name}`))
       )
     ),
     React.createElement('div', null,
-      React.createElement('label', { className:'text-sm font-semibold block' }, 'Product'),
-      React.createElement('select', { value:filter.product_id, onChange:e=>setFilter({ ...filter, product_id: e.target.value }), className:'border rounded px-2 py-1' },
-        React.createElement('option', { value:'' }, 'All'),
-        products.map(p => React.createElement('option', { key:p.id, value:p.id }, `${p.id} - ${p.description}`))
+      React.createElement('label', { className: 'text-sm font-semibold block' }, 'Product'),
+      React.createElement('select', { value: filter.product_id, onChange: e => setFilter({ ...filter, product_id: e.target.value }), className: 'border rounded px-2 py-1' },
+        React.createElement('option', { value: '' }, 'All'),
+        products.map(p => React.createElement('option', { key: p.id, value: p.id }, `${p.id} - ${p.description}`))
       )
     ),
-    React.createElement('button', { onClick: refetch, className:'px-3 py-2 bg-blue-600 text-white rounded flex items-center gap-2' },
+    React.createElement('button', { onClick: refetch, className: 'px-3 py-2 bg-blue-600 text-white rounded flex items-center gap-2' },
       React.createElement('span', { className: 'text-base' }, '🔄'),
       'Apply'
     ),
     React.createElement('button', {
       onClick: () => setShowStockAdjustment(true),
-      className:'px-4 py-2 bg-green-600 text-white rounded font-semibold flex items-center gap-2'
+      className: 'px-4 py-2 bg-green-600 text-white rounded font-semibold flex items-center gap-2'
     },
       React.createElement('span', { className: 'text-base' }, '➕'),
       'Stock Adjustment'
@@ -6695,13 +6946,13 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
         setShowAdjustmentsHistory(!showAdjustmentsHistory);
         if (!showAdjustmentsHistory) refreshStockAdjustments();
       },
-      className:'px-4 py-2 bg-gray-600 text-white rounded font-semibold flex items-center gap-2'
+      className: 'px-4 py-2 bg-gray-600 text-white rounded font-semibold flex items-center gap-2'
     },
       React.createElement('span', { className: 'text-base' }, showAdjustmentsHistory ? '👁️‍🗨️' : '👁️'),
       showAdjustmentsHistory ? 'Hide Adjustments' : 'View Adjustments'
     )
   );
-  const [rmForm, setRmForm] = useState({ material:'', current_stock:0, reorder_level:0, last_purchase_date:'' });
+  const [rmForm, setRmForm] = useState({ material: '', current_stock: 0, reorder_level: 0, last_purchase_date: '' });
   const [editingRM, setEditingRM] = useState(null);
   const [editRMForm, setEditRMForm] = useState({});
   const [localRawMaterials, setLocalRawMaterials] = useState(rawMaterials || []);
@@ -6735,14 +6986,14 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
     setLocalRawMaterials(rawMaterials || []);
   }, [rawMaterials]);
 
-  async function add(){
+  async function add() {
     if (!rmForm.material) {
       alert('Please enter material name');
       return;
     }
-    const res = await fetch(`${API_URL}/raw-materials`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(rmForm) });
+    const res = await fetch(`${API_URL}/raw-materials`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rmForm) });
     if (res.ok) {
-      setRmForm({ material:'', current_stock:0, reorder_level:0, last_purchase_date:'' });
+      setRmForm({ material: '', current_stock: 0, reorder_level: 0, last_purchase_date: '' });
       await refreshRawMaterials();
       if (onRefresh) await onRefresh();
     } else {
@@ -6750,7 +7001,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
     }
   }
 
-  async function refreshRawMaterials(){
+  async function refreshRawMaterials() {
     try {
       const resp = await fetch(`${API_URL}/raw-materials`);
       if (resp.ok) {
@@ -6762,7 +7013,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
     }
   }
 
-  function handleRMClick(m){
+  function handleRMClick(m) {
     setEditRMForm({
       material: m.material,
       current_stock: m.current_stock || 0,
@@ -6772,8 +7023,8 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
     setEditingRM(m);
   }
 
-  async function saveRM(){
-    const res = await fetch(`${API_URL}/raw-materials/${encodeURIComponent(editRMForm.material)}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(editRMForm) });
+  async function saveRM() {
+    const res = await fetch(`${API_URL}/raw-materials/${encodeURIComponent(editRMForm.material)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editRMForm) });
     if (res.ok) {
       setEditingRM(null);
       await refreshRawMaterials();
@@ -6783,9 +7034,9 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
     }
   }
 
-  async function delRM(name){
-    if(!confirm('Delete raw material?')) return;
-    const res = await fetch(`${API_URL}/raw-materials/${encodeURIComponent(name)}`, { method:'DELETE' });
+  async function delRM(name) {
+    if (!confirm('Delete raw material?')) return;
+    const res = await fetch(`${API_URL}/raw-materials/${encodeURIComponent(name)}`, { method: 'DELETE' });
     if (res.ok) {
       await refreshRawMaterials();
       if (onRefresh) await onRefresh();
@@ -7047,22 +7298,24 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
         { key: 'product_description', label: 'Product' },
         { key: 'stage', label: 'Stage', render: (val) => val ? val.charAt(0).toUpperCase() + val.slice(1) : '-' },
         { key: 'quantity', label: 'Quantity', render: (val) => val >= 0 ? `+${formatQuantity(val)}` : formatQuantity(val) },
-        { key: 'adjustment_type', label: 'Type', render: (val) => {
-          const types = {
-            'opening_balance': 'Opening Balance',
-            'physical_count': 'Physical Count',
-            'damage_scrap': 'Damage/Scrap',
-            'other': 'Other'
-          };
-          return types[val] || val;
-        }},
+        {
+          key: 'adjustment_type', label: 'Type', render: (val) => {
+            const types = {
+              'opening_balance': 'Opening Balance',
+              'physical_count': 'Physical Count',
+              'damage_scrap': 'Damage/Scrap',
+              'other': 'Other'
+            };
+            return types[val] || val;
+          }
+        },
         { key: 'reason', label: 'Reason' },
         { key: 'created_by', label: 'Created By' },
         { key: 'created_at', label: 'Created At', render: (val) => val ? new Date(val).toLocaleString() : '-' }
       ],
       primaryKey: 'id',
       onDelete: deleteStockAdjustment,
-      onExport: (data, cols) => downloadCSV('stock-adjustments.csv', cols.map(c=>({key:c.key,label:c.label})), data),
+      onExport: (data, cols) => downloadCSV('stock-adjustments.csv', cols.map(c => ({ key: c.key, label: c.label })), data),
       defaultVisibleColumns: { id: true, adjustment_date: true, product_id: true, product_description: true, stage: true, quantity: true, adjustment_type: true, reason: true, created_by: true, created_at: false }
     })
   );
@@ -7142,30 +7395,30 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
   );
 
   return (
-    React.createElement('div', { className:'space-y-6' },
+    React.createElement('div', { className: 'space-y-6' },
       stockAdjustmentModal,
       productionTraceModal,
       adjustmentsHistoryTable,
-      React.createElement(Section, { title:'Raw Materials' },
-        React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-5 gap-3 mb-3' },
+      React.createElement(Section, { title: 'Raw Materials' },
+        React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-5 gap-3 mb-3' },
           React.createElement('div', null,
-            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Material'),
-            React.createElement('input', { className:'border rounded px-2 py-1 w-full', placeholder:'e.g. Steel, Copper Anode', value:rmForm.material, onChange:e=>setRmForm({...rmForm,material:e.target.value}) })
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Material'),
+            React.createElement('input', { className: 'border rounded px-2 py-1 w-full', placeholder: 'e.g. Steel, Copper Anode', value: rmForm.material, onChange: e => setRmForm({ ...rmForm, material: e.target.value }) })
           ),
           React.createElement('div', null,
-            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Current Stock (kg)'),
-            React.createElement('input', { className:'border rounded px-2 py-1 w-full', type:'number', placeholder:'0', value:rmForm.current_stock, onChange:e=>setRmForm({...rmForm,current_stock:Number(e.target.value||0)}) })
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Current Stock (kg)'),
+            React.createElement('input', { className: 'border rounded px-2 py-1 w-full', type: 'number', placeholder: '0', value: rmForm.current_stock, onChange: e => setRmForm({ ...rmForm, current_stock: Number(e.target.value || 0) }) })
           ),
           React.createElement('div', null,
-            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Reorder Level (kg)'),
-            React.createElement('input', { className:'border rounded px-2 py-1 w-full', type:'number', placeholder:'0', value:rmForm.reorder_level, onChange:e=>setRmForm({...rmForm,reorder_level:Number(e.target.value||0)}) })
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Reorder Level (kg)'),
+            React.createElement('input', { className: 'border rounded px-2 py-1 w-full', type: 'number', placeholder: '0', value: rmForm.reorder_level, onChange: e => setRmForm({ ...rmForm, reorder_level: Number(e.target.value || 0) }) })
           ),
           React.createElement('div', null,
-            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Last Purchase Date'),
-            React.createElement('input', { className:'border rounded px-2 py-1 w-full', type:'date', value:rmForm.last_purchase_date, onChange:e=>setRmForm({...rmForm,last_purchase_date:e.target.value}) })
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Last Purchase Date'),
+            React.createElement('input', { className: 'border rounded px-2 py-1 w-full', type: 'date', value: rmForm.last_purchase_date, onChange: e => setRmForm({ ...rmForm, last_purchase_date: e.target.value }) })
           ),
-          React.createElement('div', { className:'flex items-end' },
-            React.createElement('button', { className:'px-3 py-2 bg-green-600 text-white rounded w-full font-semibold hover:bg-green-700', onClick:add }, 'Add')
+          React.createElement('div', { className: 'flex items-end' },
+            React.createElement('button', { className: 'px-3 py-2 bg-green-600 text-white rounded w-full font-semibold hover:bg-green-700', onClick: add }, 'Add')
           )
         ),
         React.createElement(EnhancedTable, {
@@ -7184,7 +7437,7 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
           primaryKey: 'material',
           onRowClick: handleRMClick,
           onDelete: delRM,
-          onExport: (data, cols) => downloadCSV('raw-materials.csv', cols.map(c=>({key:c.key,label:c.label})), data),
+          onExport: (data, cols) => downloadCSV('raw-materials.csv', cols.map(c => ({ key: c.key, label: c.label })), data),
           filterOptions: [],
           defaultVisibleColumns: { material: true, current_stock: true, committed_stock: true, available_stock: true, average_cost_per_unit: true, total_value: true, reorder_level: true, last_purchase_date: true }
         }),
@@ -7246,14 +7499,14 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
           )
         )
       ),
-      React.createElement(Section, { title:'WIP & Finished Copper Bonded Ground Rods' },
+      React.createElement(Section, { title: 'WIP & Finished Copper Bonded Ground Rods' },
         controls,
         React.createElement(EnhancedTable, {
           title: '',
-          data: (invData||[])
+          data: (invData || [])
             .map(r => ({
               ...r,
-              total: (r.steel_rods||0)+(r.plated||0)+(r.machined||0)+(r.qc||0)+(r.stamped||0)
+              total: (r.steel_rods || 0) + (r.plated || 0) + (r.machined || 0) + (r.qc || 0) + (r.stamped || 0)
             }))
             .filter(r => {
               // Always hide products with zero inventory across all stages
@@ -7272,9 +7525,9 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
           primaryKey: 'product_id',
           onRowClick: handleInventoryClick,
           onDelete: null,
-          onExport: (data, cols) => downloadCSV('wip-inventory.csv', cols.map(c=>({key:c.key,label:c.label})), data),
+          onExport: (data, cols) => downloadCSV('wip-inventory.csv', cols.map(c => ({ key: c.key, label: c.label })), data),
           filterOptions: [
-            { key: 'product_description', label: 'Product', values: [...new Set((invData||[]).map(r => r.product_description).filter(Boolean))] }
+            { key: 'product_description', label: 'Product', values: [...new Set((invData || []).map(r => r.product_description).filter(Boolean))] }
           ],
           defaultVisibleColumns: { product_id: true, product_description: true, steel_rods: true, plated: true, machined: true, qc: true, stamped: true, total: true },
           actions: (row) => {
@@ -7287,9 +7540,8 @@ function InventoryViewEx({ inventory, rawMaterials, products, customers, onRefre
                   e.stopPropagation();
                   toggleMarkingBreakdown(row.product_id);
                 },
-                className: `px-3 py-1 rounded text-sm font-semibold flex items-center gap-1 ${
-                  isExpanded ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`,
+                className: `px-3 py-1 rounded text-sm font-semibold flex items-center gap-1 ${isExpanded ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`,
                 disabled: isLoading
               },
                 React.createElement('span', { className: 'text-base' }, isExpanded ? '▲' : '🏷️'),
@@ -7551,14 +7803,18 @@ function CopperScrapSales({ onRefresh }) {
         { key: 'id', label: 'ID', render: val => `#${val}` },
         { key: 'sale_date', label: 'Date', render: val => new Date(val).toLocaleDateString('en-IN') },
         { key: 'quantity_kg', label: 'Quantity (kg)', render: val => formatQuantity(val) },
-        { key: 'rate_per_kg', label: 'Rate/kg', render: (val, row) => {
-          const symbol = row.currency === 'USD' ? '$' : row.currency === 'EUR' ? '€' : '₹';
-          return `${symbol}${formatQuantity(val)}`;
-        }},
-        { key: 'total_value', label: 'Total Value', render: (val, row) => {
-          const symbol = row.currency === 'USD' ? '$' : row.currency === 'EUR' ? '€' : '₹';
-          return `${symbol}${formatQuantity(val)}`;
-        }},
+        {
+          key: 'rate_per_kg', label: 'Rate/kg', render: (val, row) => {
+            const symbol = row.currency === 'USD' ? '$' : row.currency === 'EUR' ? '€' : '₹';
+            return `${symbol}${formatQuantity(val)}`;
+          }
+        },
+        {
+          key: 'total_value', label: 'Total Value', render: (val, row) => {
+            const symbol = row.currency === 'USD' ? '$' : row.currency === 'EUR' ? '€' : '₹';
+            return `${symbol}${formatQuantity(val)}`;
+          }
+        },
         { key: 'buyer_name', label: 'Buyer', render: val => val || '-' },
         { key: 'invoice_number', label: 'Invoice #', render: val => val || '-' },
         { key: 'notes', label: 'Notes', render: val => val || '-' }
@@ -7573,14 +7829,14 @@ function CopperScrapSales({ onRefresh }) {
 }
 
 // Enhanced Table Component with sorting, filtering, column customization, clickable rows, and expandable rows
-function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, onDelete, onExport, filterOptions = [], defaultVisibleColumns, actions, expandableRowContent }) {
+function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, onDelete, onExport, filterOptions = [], defaultVisibleColumns, actions, expandableRowContent, onEdit }) {
   const storageKey = `tableColumns_${title?.replace(/\s+/g, '_')}`;
 
   const getInitialColumns = () => {
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved) return JSON.parse(saved);
-    } catch (e) {}
+    } catch (e) { }
     return defaultVisibleColumns || columns.reduce((acc, col) => ({ ...acc, [col.key]: true }), {});
   };
 
@@ -7589,12 +7845,37 @@ function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, on
   const [filters, setFilters] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
   const [searchColumn, setSearchColumn] = useState('all');
+  const [editingId, setEditingId] = useState(null);
+  const [editValues, setEditValues] = useState({});
+
+  const handleEditStart = (row) => {
+    if (!onEdit) return;
+    setEditingId(row[primaryKey]);
+    setEditValues({ ...row });
+  };
+
+  const handleEditCancel = () => {
+    setEditingId(null);
+    setEditValues({});
+  };
+
+  const handleEditSave = async () => {
+    if (onEdit) {
+      await onEdit(editValues);
+    }
+    setEditingId(null);
+    setEditValues({});
+  };
+
+  const handleEditChange = (key, value) => {
+    setEditValues(prev => ({ ...prev, [key]: value }));
+  };
 
   const updateVisibleColumns = (newColumns) => {
     setVisibleColumns(newColumns);
     try {
       localStorage.setItem(storageKey, JSON.stringify(newColumns));
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const sortedData = React.useMemo(() => {
@@ -7667,38 +7948,78 @@ function EnhancedTable({ title, data, columns, primaryKey = 'id', onRowClick, on
     ),
     React.createElement('div', { className: 'bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden' },
       React.createElement('div', { className: 'overflow-x-auto' },
-        React.createElement('table', { className: 'min-w-full border-collapse' },
-          React.createElement('thead', { className: 'bg-gray-100' },
-            React.createElement('tr', null,
-              orderedColumns.map(col => React.createElement('th', { key: col.key, className: 'p-3 text-left cursor-pointer hover:bg-gray-200 select-none border', onClick: () => requestSort(col.key) },
-                React.createElement('div', { className: 'flex items-center gap-2' }, col.label, sortConfig.key === col.key && React.createElement('span', { className: 'text-xs' }, sortConfig.direction === 'asc' ? '▲' : '▼'))
-              )),
-              React.createElement('th', { className: 'p-3 text-right border' }, 'Actions')
+        React.createElement('table', { className: 'min-w-full border-collapse text-sm' },
+          React.createElement('thead', null,
+            React.createElement('tr', { className: 'bg-gray-100 border-b border-gray-200' },
+              orderedColumns.map(col =>
+                React.createElement('th', {
+                  key: col.key,
+                  className: 'p-3 text-left font-semibold text-gray-600 cursor-pointer hover:bg-gray-200 select-none',
+                  onClick: () => requestSort(col.key)
+                },
+                  col.label,
+                  sortConfig.key === col.key && (sortConfig.direction === 'asc' ? ' ↑' : ' ↓')
+                )
+              ),
+              (actions || onDelete || onEdit) && React.createElement('th', { className: 'p-3 text-right font-semibold text-gray-600' }, 'Actions')
             )
           ),
           React.createElement('tbody', null,
-            filteredData.length > 0 ? filteredData.flatMap((row, rowIdx) => {
-              const mainRow = React.createElement('tr', {
-                key: row[primaryKey] || rowIdx,
-                className: `border-b hover:bg-blue-50 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`,
-                onClick: onRowClick ? () => onRowClick(row) : undefined
-              },
-                orderedColumns.map(col => React.createElement('td', { key: col.key, className: `p-3 border ${col.key === primaryKey ? 'font-mono font-semibold text-blue-600' : ''}` },
-                  col.render ? col.render(row[col.key], row) : (row[col.key] || '-')
-                )),
-                React.createElement('td', { className: 'p-3 text-right border', onClick: (e) => e.stopPropagation() },
-                  actions && actions(row),
-                  onDelete && React.createElement('button', { onClick: () => onDelete(row[primaryKey]), className: 'px-2 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 flex items-center gap-1' },
-                    React.createElement('span', null, '🗑️'),
-                    'Delete'
-                  )
-                )
-              );
-
-              // Add expandable content row if provided
-              const expandableRow = expandableRowContent && expandableRowContent(row);
-              return expandableRow ? [mainRow, expandableRow] : [mainRow];
-            }) : [React.createElement('tr', { key: 'no-data' }, React.createElement('td', { colSpan: orderedColumns.length + 1, className: 'p-8 text-center text-gray-500' }, 'No data found'))]
+            filteredData.length === 0 ?
+              React.createElement('tr', null,
+                React.createElement('td', { colSpan: orderedColumns.length + 1, className: 'p-8 text-center text-gray-500' }, 'No data found')
+              ) :
+              filteredData.map((row, idx) => {
+                const isEditing = editingId === row[primaryKey];
+                return React.createElement(React.Fragment, { key: row[primaryKey] || idx },
+                  React.createElement('tr', {
+                    className: `border-b hover:bg-gray-50 transition-colors ${onRowClick ? 'cursor-pointer' : ''} ${isEditing ? 'bg-blue-50' : ''}`,
+                    onClick: () => !isEditing && onRowClick && onRowClick(row)
+                  },
+                    orderedColumns.map(col =>
+                      React.createElement('td', { key: col.key, className: 'p-3' },
+                        isEditing && col.editable !== false ?
+                          React.createElement('input', {
+                            className: 'w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500',
+                            value: editValues[col.key] || '',
+                            onChange: e => handleEditChange(col.key, e.target.value),
+                            onClick: e => e.stopPropagation()
+                          }) :
+                          (col.render ? col.render(row[col.key], row) : row[col.key])
+                      )
+                    ),
+                    (actions || onDelete || onEdit) && React.createElement('td', { className: 'p-3 text-right flex justify-end gap-2 items-center' },
+                      isEditing ?
+                        React.createElement(React.Fragment, null,
+                          React.createElement('button', {
+                            onClick: (e) => { e.stopPropagation(); handleEditSave(); },
+                            className: 'p-1 text-green-600 hover:bg-green-100 rounded',
+                            title: 'Save'
+                          }, '✅'),
+                          React.createElement('button', {
+                            onClick: (e) => { e.stopPropagation(); handleEditCancel(); },
+                            className: 'p-1 text-red-600 hover:bg-red-100 rounded',
+                            title: 'Cancel'
+                          }, '❌')
+                        ) :
+                        React.createElement(React.Fragment, null,
+                          actions && actions(row),
+                          onEdit && React.createElement('button', {
+                            onClick: (e) => { e.stopPropagation(); handleEditStart(row); },
+                            className: 'p-1 text-blue-600 hover:bg-blue-100 rounded',
+                            title: 'Quick Edit'
+                          }, '✏️'),
+                          onDelete && React.createElement('button', {
+                            onClick: (e) => { e.stopPropagation(); onDelete(row[primaryKey]); },
+                            className: 'p-1 text-red-600 hover:bg-red-100 rounded',
+                            title: 'Delete'
+                          }, '🗑️')
+                        )
+                    )
+                  ),
+                  expandableRowContent && expandableRowContent(row)
+                );
+              })
           )
         )
       )
@@ -7731,7 +8052,7 @@ function EditModal({ isOpen, onClose, title, children, onSave }) {
   );
 }
 
-function Section({ title, children }){
+function Section({ title, children }) {
   const [open, setOpen] = useState(true);
   return React.createElement('div', { className: 'bg-white rounded-xl shadow-md p-6 border border-gray-200' },
     React.createElement('div', { className: 'flex justify-between items-center mb-4' },
@@ -7742,67 +8063,67 @@ function Section({ title, children }){
   );
 }
 
-function ProductMaster({ products, calculateWeights, onRefresh }){
-  const [form, setForm] = useState({ id:'', description:'', diameter:0, length:0, coating:0 });
+function ProductMaster({ products, calculateWeights, onRefresh }) {
+  const [form, setForm] = useState({ id: '', description: '', diameter: 0, length: 0, coating: 0 });
   const [editingId, setEditingId] = useState(null);
-  const [cols, setCols] = useState({ id:true, description:true, diameter:true, length:true, coating:true });
-  function update(k,v){ setForm({ ...form, [k]: v }) }
-  async function add(){ await fetch(`${API_URL}/products`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...form, diameter:Number(form.diameter), length:Number(form.length), coating:Number(form.coating) }) }); setForm({ id:'', description:'', diameter:0, length:0, coating:0 }); onRefresh?.(); }
-  async function save(p){ await fetch(`${API_URL}/products/${encodeURIComponent(p.id)}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(p) }); setEditingId(null); onRefresh?.(); }
-  async function del(id){ if(!confirm('Delete product?')) return; await fetch(`${API_URL}/products/${encodeURIComponent(id)}`, { method:'DELETE' }); onRefresh?.(); }
+  const [cols, setCols] = useState({ id: true, description: true, diameter: true, length: true, coating: true });
+  function update(k, v) { setForm({ ...form, [k]: v }) }
+  async function add() { await fetch(`${API_URL}/products`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, diameter: Number(form.diameter), length: Number(form.length), coating: Number(form.coating) }) }); setForm({ id: '', description: '', diameter: 0, length: 0, coating: 0 }); onRefresh?.(); }
+  async function save(p) { await fetch(`${API_URL}/products/${encodeURIComponent(p.id)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) }); setEditingId(null); onRefresh?.(); }
+  async function del(id) { if (!confirm('Delete product?')) return; await fetch(`${API_URL}/products/${encodeURIComponent(id)}`, { method: 'DELETE' }); onRefresh?.(); }
   return (
     React.createElement('div', { className: 'space-y-4' },
       React.createElement(Section, { title: 'Add Product' },
         React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-6 gap-3' },
-          React.createElement('input', { className: 'border rounded px-2 py-1', placeholder: 'ID', value: form.id, onChange: e=>update('id',e.target.value) }),
-          React.createElement('input', { className: 'border rounded px-2 py-1 md:col-span-2', placeholder: 'Description', value: form.description, onChange: e=>update('description',e.target.value) }),
-          React.createElement('input', { className: 'border rounded px-2 py-1', type: 'number', placeholder: 'Diameter (mm)', value: form.diameter, onChange: e=>update('diameter',e.target.value) }),
-          React.createElement('input', { className: 'border rounded px-2 py-1', type: 'number', placeholder: 'Length (mm)', value: form.length, onChange: e=>update('length',e.target.value) }),
-          React.createElement('input', { className: 'border rounded px-2 py-1', type: 'number', placeholder: 'Coating (µm)', value: form.coating, onChange: e=>update('coating',e.target.value) }),
+          React.createElement('input', { className: 'border rounded px-2 py-1', placeholder: 'ID', value: form.id, onChange: e => update('id', e.target.value) }),
+          React.createElement('input', { className: 'border rounded px-2 py-1 md:col-span-2', placeholder: 'Description', value: form.description, onChange: e => update('description', e.target.value) }),
+          React.createElement('input', { className: 'border rounded px-2 py-1', type: 'number', placeholder: 'Diameter (mm)', value: form.diameter, onChange: e => update('diameter', e.target.value) }),
+          React.createElement('input', { className: 'border rounded px-2 py-1', type: 'number', placeholder: 'Length (mm)', value: form.length, onChange: e => update('length', e.target.value) }),
+          React.createElement('input', { className: 'border rounded px-2 py-1', type: 'number', placeholder: 'Coating (µm)', value: form.coating, onChange: e => update('coating', e.target.value) }),
           React.createElement('button', { onClick: add, className: 'px-3 py-2 bg-green-600 text-white rounded' }, 'Add')
         )
       ),
       React.createElement(Section, { title: 'Products' },
         React.createElement('div', { className: 'flex items-center gap-3 mb-3' },
           React.createElement('span', { className: 'text-sm text-gray-700' }, 'Columns:'),
-          ['id','description','diameter','length','coating'].map(c => (
-            React.createElement('label', { key:c, className:'text-sm flex items-center gap-1' },
-              React.createElement('input', { type:'checkbox', checked: cols[c], onChange: e=>setCols({ ...cols, [c]: e.target.checked }) }), c
+          ['id', 'description', 'diameter', 'length', 'coating'].map(c => (
+            React.createElement('label', { key: c, className: 'text-sm flex items-center gap-1' },
+              React.createElement('input', { type: 'checkbox', checked: cols[c], onChange: e => setCols({ ...cols, [c]: e.target.checked }) }), c
             )
           ))
         ),
         React.createElement('div', { className: 'overflow-x-auto' },
           React.createElement('table', { className: 'min-w-full border-collapse' },
             React.createElement('thead', null,
-              React.createElement('tr', { className:'bg-gray-100' },
-                cols.id && React.createElement('th', { className:'p-2 text-left' }, 'ID'),
-                cols.description && React.createElement('th', { className:'p-2 text-left' }, 'Description'),
-                cols.diameter && React.createElement('th', { className:'p-2 text-center' }, 'Dia (mm)'),
-                cols.length && React.createElement('th', { className:'p-2 text-center' }, 'Length (mm)'),
-                cols.coating && React.createElement('th', { className:'p-2 text-center' }, 'Coating (µm)'),
-                React.createElement('th', { className:'p-2 text-right' }, 'Actions')
+              React.createElement('tr', { className: 'bg-gray-100' },
+                cols.id && React.createElement('th', { className: 'p-2 text-left' }, 'ID'),
+                cols.description && React.createElement('th', { className: 'p-2 text-left' }, 'Description'),
+                cols.diameter && React.createElement('th', { className: 'p-2 text-center' }, 'Dia (mm)'),
+                cols.length && React.createElement('th', { className: 'p-2 text-center' }, 'Length (mm)'),
+                cols.coating && React.createElement('th', { className: 'p-2 text-center' }, 'Coating (µm)'),
+                React.createElement('th', { className: 'p-2 text-right' }, 'Actions')
               )
             ),
             React.createElement('tbody', null,
               products.map(p => {
                 const edit = editingId === p.id; const w = calculateWeights(p.diameter, p.coating, p.length);
-                return React.createElement('tr', { key:p.id, className:'border-b' },
-                  cols.id && React.createElement('td', { className:'p-2 font-mono' }, p.id),
-                  cols.description && React.createElement('td', { className:'p-2' }, edit ? React.createElement('input', { className:'border rounded px-2 py-1 w-full', defaultValue:p.description, onChange: e=>p.description=e.target.value }) : `${p.description}`),
-                  cols.diameter && React.createElement('td', { className:'p-2 text-center' }, edit ? React.createElement('input', { className:'border rounded px-2 py-1 w-24 text-right', type:'number', defaultValue:p.diameter, onChange: e=>p.diameter=Number(e.target.value) }) : p.diameter),
-                  cols.length && React.createElement('td', { className:'p-2 text-center' }, edit ? React.createElement('input', { className:'border rounded px-2 py-1 w-24 text-right', type:'number', defaultValue:p.length, onChange: e=>p.length=Number(e.target.value) }) : p.length),
-                  cols.coating && React.createElement('td', { className:'p-2 text-center' }, edit ? React.createElement('input', { className:'border rounded px-2 py-1 w-24 text-right', type:'number', defaultValue:p.coating, onChange: e=>p.coating=Number(e.target.value) }) : p.coating),
-                  React.createElement('td', { className:'p-2 text-right space-x-2' },
+                return React.createElement('tr', { key: p.id, className: 'border-b' },
+                  cols.id && React.createElement('td', { className: 'p-2 font-mono' }, p.id),
+                  cols.description && React.createElement('td', { className: 'p-2' }, edit ? React.createElement('input', { className: 'border rounded px-2 py-1 w-full', defaultValue: p.description, onChange: e => p.description = e.target.value }) : `${p.description}`),
+                  cols.diameter && React.createElement('td', { className: 'p-2 text-center' }, edit ? React.createElement('input', { className: 'border rounded px-2 py-1 w-24 text-right', type: 'number', defaultValue: p.diameter, onChange: e => p.diameter = Number(e.target.value) }) : p.diameter),
+                  cols.length && React.createElement('td', { className: 'p-2 text-center' }, edit ? React.createElement('input', { className: 'border rounded px-2 py-1 w-24 text-right', type: 'number', defaultValue: p.length, onChange: e => p.length = Number(e.target.value) }) : p.length),
+                  cols.coating && React.createElement('td', { className: 'p-2 text-center' }, edit ? React.createElement('input', { className: 'border rounded px-2 py-1 w-24 text-right', type: 'number', defaultValue: p.coating, onChange: e => p.coating = Number(e.target.value) }) : p.coating),
+                  React.createElement('td', { className: 'p-2 text-right space-x-2' },
                     edit
                       ? React.createElement(React.Fragment, null,
-                          React.createElement('button', { onClick: ()=>save(p), className:'px-2 py-1 bg-green-600 text-white rounded text-sm' }, 'Save'),
-                          React.createElement('button', { onClick: ()=>setEditingId(null), className:'px-2 py-1 border rounded text-sm' }, 'Cancel')
-                        )
+                        React.createElement('button', { onClick: () => save(p), className: 'px-2 py-1 bg-green-600 text-white rounded text-sm' }, 'Save'),
+                        React.createElement('button', { onClick: () => setEditingId(null), className: 'px-2 py-1 border rounded text-sm' }, 'Cancel')
+                      )
                       : React.createElement(React.Fragment, null,
-                          React.createElement('button', { onClick: ()=>setEditingId(p.id), className:'px-2 py-1 bg-blue-600 text-white rounded text-sm' }, 'Edit'),
-                          React.createElement('button', { onClick: ()=>del(p.id), className:'px-2 py-1 bg-red-600 text-white rounded text-sm' }, 'Delete')
-                        ),
-                    React.createElement('div', { className:'text-xs text-gray-500 mt-1' }, `Steel ${w.steel}kg, Copper ${w.copper}kg`)
+                        React.createElement('button', { onClick: () => setEditingId(p.id), className: 'px-2 py-1 bg-blue-600 text-white rounded text-sm' }, 'Edit'),
+                        React.createElement('button', { onClick: () => del(p.id), className: 'px-2 py-1 bg-red-600 text-white rounded text-sm' }, 'Delete')
+                      ),
+                    React.createElement('div', { className: 'text-xs text-gray-500 mt-1' }, `Steel ${w.steel}kg, Copper ${w.copper}kg`)
                   )
                 )
               })
@@ -7814,8 +8135,8 @@ function ProductMaster({ products, calculateWeights, onRefresh }){
   );
 }
 
-function CustomerManagementEx({ customers, onRefresh }){
-  const [form, setForm] = useState({ id:'', name:'', office_address:'', warehouse_address:'', contact_person:'', phone:'', email:'' });
+function CustomerManagementEx({ customers, onRefresh }) {
+  const [form, setForm] = useState({ id: '', name: '', office_address: '', warehouse_address: '', contact_person: '', phone: '', email: '' });
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [bulkImportStatus, setBulkImportStatus] = useState('');
@@ -7824,13 +8145,13 @@ function CustomerManagementEx({ customers, onRefresh }){
   const [contactForm, setContactForm] = useState({ name: '', title: '', phone: '', email: '', is_primary: false, notes: '' });
   const [editingContactId, setEditingContactId] = useState(null);
 
-  async function add(){
-    await fetch(`${API_URL}/customers`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
-    setForm({ id:'', name:'', office_address:'', warehouse_address:'', contact_person:'', phone:'', email:'' });
+  async function add() {
+    await fetch(`${API_URL}/customers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+    setForm({ id: '', name: '', office_address: '', warehouse_address: '', contact_person: '', phone: '', email: '' });
     onRefresh?.();
   }
 
-  async function handleBulkImport(e){
+  async function handleBulkImport(e) {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -7858,15 +8179,15 @@ function CustomerManagementEx({ customers, onRefresh }){
     }
   }
 
-  async function saveEdit(){
-    await fetch(`${API_URL}/customers/${editForm.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(editForm) });
+  async function saveEdit() {
+    await fetch(`${API_URL}/customers/${editForm.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editForm) });
     setEditingCustomer(null);
     onRefresh?.();
   }
 
-  async function del(id){
-    if(!confirm('Delete customer?')) return;
-    await fetch(`${API_URL}/customers/${id}`, { method:'DELETE' });
+  async function del(id) {
+    if (!confirm('Delete customer?')) return;
+    await fetch(`${API_URL}/customers/${id}`, { method: 'DELETE' });
     onRefresh?.();
   }
 
@@ -7893,7 +8214,7 @@ function CustomerManagementEx({ customers, onRefresh }){
     { key: 'warehouse_address', label: 'Warehouse Address' }
   ];
 
-  async function handleRowClick(customer){
+  async function handleRowClick(customer) {
     setEditForm({ ...customer });
     setEditingCustomer(customer);
     // Load contacts for this customer
@@ -7904,7 +8225,7 @@ function CustomerManagementEx({ customers, onRefresh }){
     setEditingContactId(null);
   }
 
-  async function addContact(){
+  async function addContact() {
     if (!contactForm.name || !editingCustomer) {
       alert('Please enter a contact name');
       return;
@@ -7936,7 +8257,7 @@ function CustomerManagementEx({ customers, onRefresh }){
     }
   }
 
-  async function saveContactEdit(contactId){
+  async function saveContactEdit(contactId) {
     const contact = contacts.find(c => c.id === contactId);
     if (!contact) return;
 
@@ -7965,7 +8286,7 @@ function CustomerManagementEx({ customers, onRefresh }){
     }
   }
 
-  async function deleteContact(contactId){
+  async function deleteContact(contactId) {
     if (!confirm('Delete this contact?')) return;
 
     try {
@@ -7990,20 +8311,20 @@ function CustomerManagementEx({ customers, onRefresh }){
     }
   }
 
-  function updateContact(contactId, field, value){
+  function updateContact(contactId, field, value) {
     setContacts(contacts.map(c => c.id === contactId ? { ...c, [field]: value } : c));
   }
 
-  return React.createElement('div', { className:'space-y-4' },
+  return React.createElement('div', { className: 'space-y-4' },
     React.createElement(Section, { title: 'Add Customer' },
       React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-3' },
-        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Customer ID', value: form.id, onChange: e=>setForm({...form,id:e.target.value}) }),
-        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Name', value: form.name, onChange: e=>setForm({...form,name:e.target.value}) }),
-        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Contact Person', value: form.contact_person, onChange: e=>setForm({...form,contact_person:e.target.value}) }),
-        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Phone', value: form.phone, onChange: e=>setForm({...form,phone:e.target.value}) }),
-        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Email', value: form.email, onChange: e=>setForm({...form,email:e.target.value}) }),
-        React.createElement('input', { className: 'border rounded px-3 py-2 md:col-span-3', placeholder: 'Office Address', value: form.office_address, onChange: e=>setForm({...form,office_address:e.target.value}) }),
-        React.createElement('input', { className: 'border rounded px-3 py-2 md:col-span-3', placeholder: 'Warehouse Address', value: form.warehouse_address, onChange: e=>setForm({...form,warehouse_address:e.target.value}) }),
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Customer ID', value: form.id, onChange: e => setForm({ ...form, id: e.target.value }) }),
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Name', value: form.name, onChange: e => setForm({ ...form, name: e.target.value }) }),
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Contact Person', value: form.contact_person, onChange: e => setForm({ ...form, contact_person: e.target.value }) }),
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Phone', value: form.phone, onChange: e => setForm({ ...form, phone: e.target.value }) }),
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Email', value: form.email, onChange: e => setForm({ ...form, email: e.target.value }) }),
+        React.createElement('input', { className: 'border rounded px-3 py-2 md:col-span-3', placeholder: 'Office Address', value: form.office_address, onChange: e => setForm({ ...form, office_address: e.target.value }) }),
+        React.createElement('input', { className: 'border rounded px-3 py-2 md:col-span-3', placeholder: 'Warehouse Address', value: form.warehouse_address, onChange: e => setForm({ ...form, warehouse_address: e.target.value }) }),
         React.createElement('button', { onClick: add, className: 'px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700 flex items-center gap-2' },
           React.createElement('span', { className: 'text-base' }, '➕'),
           'Add Customer'
@@ -8032,80 +8353,80 @@ function CustomerManagementEx({ customers, onRefresh }){
       primaryKey: 'id',
       onRowClick: handleRowClick,
       onDelete: del,
-      onExport: (data, cols) => downloadCSV('customers.csv', cols.map(c=>({key:c.key,label:c.label})), data)
+      onExport: (data, cols) => downloadCSV('customers.csv', cols.map(c => ({ key: c.key, label: c.label })), data)
     }),
     React.createElement(EditModal, { isOpen: !!editingCustomer, onClose: () => setEditingCustomer(null), title: `Edit Customer: ${editForm.id || ''}` },
-      React.createElement('div', { className:'space-y-4' },
-        React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-2 gap-4' },
-          React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Customer ID'), React.createElement('input', { className:'border rounded px-3 py-2 w-full bg-gray-100', value:editForm.id || '', disabled:true })),
-          React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Name'), React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.name || '', onChange:e=>setEditForm({...editForm, name:e.target.value}) })),
-          React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Contact Person'), React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.contact_person || '', onChange:e=>setEditForm({...editForm, contact_person:e.target.value}) })),
-          React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Phone'), React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.phone || '', onChange:e=>setEditForm({...editForm, phone:e.target.value}) })),
-          React.createElement('div', { className:'md:col-span-2' }, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Email'), React.createElement('input', { type:'email', className:'border rounded px-3 py-2 w-full', value:editForm.email || '', onChange:e=>setEditForm({...editForm, email:e.target.value}) })),
-          React.createElement('div', { className:'md:col-span-2' }, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Office Address'), React.createElement('textarea', { className:'border rounded px-3 py-2 w-full', rows:2, value:editForm.office_address || '', onChange:e=>setEditForm({...editForm, office_address:e.target.value}) })),
-          React.createElement('div', { className:'md:col-span-2' }, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Warehouse Address'), React.createElement('textarea', { className:'border rounded px-3 py-2 w-full', rows:2, value:editForm.warehouse_address || '', onChange:e=>setEditForm({...editForm, warehouse_address:e.target.value}) }))
+      React.createElement('div', { className: 'space-y-4' },
+        React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
+          React.createElement('div', null, React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Customer ID'), React.createElement('input', { className: 'border rounded px-3 py-2 w-full bg-gray-100', value: editForm.id || '', disabled: true })),
+          React.createElement('div', null, React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Name'), React.createElement('input', { className: 'border rounded px-3 py-2 w-full', value: editForm.name || '', onChange: e => setEditForm({ ...editForm, name: e.target.value }) })),
+          React.createElement('div', null, React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Contact Person'), React.createElement('input', { className: 'border rounded px-3 py-2 w-full', value: editForm.contact_person || '', onChange: e => setEditForm({ ...editForm, contact_person: e.target.value }) })),
+          React.createElement('div', null, React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Phone'), React.createElement('input', { className: 'border rounded px-3 py-2 w-full', value: editForm.phone || '', onChange: e => setEditForm({ ...editForm, phone: e.target.value }) })),
+          React.createElement('div', { className: 'md:col-span-2' }, React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Email'), React.createElement('input', { type: 'email', className: 'border rounded px-3 py-2 w-full', value: editForm.email || '', onChange: e => setEditForm({ ...editForm, email: e.target.value }) })),
+          React.createElement('div', { className: 'md:col-span-2' }, React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Office Address'), React.createElement('textarea', { className: 'border rounded px-3 py-2 w-full', rows: 2, value: editForm.office_address || '', onChange: e => setEditForm({ ...editForm, office_address: e.target.value }) })),
+          React.createElement('div', { className: 'md:col-span-2' }, React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Warehouse Address'), React.createElement('textarea', { className: 'border rounded px-3 py-2 w-full', rows: 2, value: editForm.warehouse_address || '', onChange: e => setEditForm({ ...editForm, warehouse_address: e.target.value }) }))
         ),
-        React.createElement('div', { className:'mt-8 pt-6 border-t border-gray-300' },
-          React.createElement('h3', { className:'text-lg font-bold mb-4 flex items-center gap-2' },
+        React.createElement('div', { className: 'mt-8 pt-6 border-t border-gray-300' },
+          React.createElement('h3', { className: 'text-lg font-bold mb-4 flex items-center gap-2' },
             React.createElement('span', null, '👥'),
             'Contact Persons'
           ),
-          React.createElement('div', { className:'bg-gray-50 p-4 rounded-lg mb-4' },
-            React.createElement('h4', { className:'font-semibold text-sm mb-3' }, 'Add New Contact'),
-            React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-2 gap-3' },
-              React.createElement('input', { className:'border rounded px-3 py-2', placeholder:'Name *', value:contactForm.name, onChange:e=>setContactForm({...contactForm, name:e.target.value}) }),
-              React.createElement('input', { className:'border rounded px-3 py-2', placeholder:'Title/Position', value:contactForm.title, onChange:e=>setContactForm({...contactForm, title:e.target.value}) }),
-              React.createElement('input', { className:'border rounded px-3 py-2', placeholder:'Phone', value:contactForm.phone, onChange:e=>setContactForm({...contactForm, phone:e.target.value}) }),
-              React.createElement('input', { className:'border rounded px-3 py-2', placeholder:'Email', value:contactForm.email, onChange:e=>setContactForm({...contactForm, email:e.target.value}) }),
-              React.createElement('label', { className:'flex items-center gap-2 col-span-full' },
-                React.createElement('input', { type:'checkbox', checked:contactForm.is_primary, onChange:e=>setContactForm({...contactForm, is_primary:e.target.checked}) }),
-                React.createElement('span', { className:'text-sm' }, 'Primary Contact')
+          React.createElement('div', { className: 'bg-gray-50 p-4 rounded-lg mb-4' },
+            React.createElement('h4', { className: 'font-semibold text-sm mb-3' }, 'Add New Contact'),
+            React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-3' },
+              React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Name *', value: contactForm.name, onChange: e => setContactForm({ ...contactForm, name: e.target.value }) }),
+              React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Title/Position', value: contactForm.title, onChange: e => setContactForm({ ...contactForm, title: e.target.value }) }),
+              React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Phone', value: contactForm.phone, onChange: e => setContactForm({ ...contactForm, phone: e.target.value }) }),
+              React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Email', value: contactForm.email, onChange: e => setContactForm({ ...contactForm, email: e.target.value }) }),
+              React.createElement('label', { className: 'flex items-center gap-2 col-span-full' },
+                React.createElement('input', { type: 'checkbox', checked: contactForm.is_primary, onChange: e => setContactForm({ ...contactForm, is_primary: e.target.checked }) }),
+                React.createElement('span', { className: 'text-sm' }, 'Primary Contact')
               ),
-              React.createElement('textarea', { className:'border rounded px-3 py-2 col-span-full', rows:2, placeholder:'Notes', value:contactForm.notes, onChange:e=>setContactForm({...contactForm, notes:e.target.value}) }),
-              React.createElement('button', { onClick:addContact, disabled:!contactForm.name, className:'px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 flex items-center gap-2' },
+              React.createElement('textarea', { className: 'border rounded px-3 py-2 col-span-full', rows: 2, placeholder: 'Notes', value: contactForm.notes, onChange: e => setContactForm({ ...contactForm, notes: e.target.value }) }),
+              React.createElement('button', { onClick: addContact, disabled: !contactForm.name, className: 'px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 flex items-center gap-2' },
                 React.createElement('span', null, '➕'),
                 'Add Contact'
               )
             )
           ),
-          React.createElement('div', { className:'space-y-2' },
+          React.createElement('div', { className: 'space-y-2' },
             contacts.length === 0 ? (
-              React.createElement('p', { className:'text-sm text-gray-500 italic text-center py-4' }, 'No contacts added yet')
+              React.createElement('p', { className: 'text-sm text-gray-500 italic text-center py-4' }, 'No contacts added yet')
             ) : (
               contacts.map(contact => (
-                React.createElement('div', { key:contact.id, className:'bg-white border rounded-lg p-3' },
+                React.createElement('div', { key: contact.id, className: 'bg-white border rounded-lg p-3' },
                   editingContactId === contact.id ? (
-                    React.createElement('div', { className:'grid grid-cols-2 gap-2' },
-                      React.createElement('input', { className:'border rounded px-2 py-1 text-sm', value:contact.name, onChange:e=>updateContact(contact.id, 'name', e.target.value) }),
-                      React.createElement('input', { className:'border rounded px-2 py-1 text-sm', value:contact.title || '', onChange:e=>updateContact(contact.id, 'title', e.target.value) }),
-                      React.createElement('input', { className:'border rounded px-2 py-1 text-sm', value:contact.phone || '', onChange:e=>updateContact(contact.id, 'phone', e.target.value) }),
-                      React.createElement('input', { className:'border rounded px-2 py-1 text-sm', value:contact.email || '', onChange:e=>updateContact(contact.id, 'email', e.target.value) }),
-                      React.createElement('label', { className:'flex items-center gap-1 col-span-2 text-sm' },
-                        React.createElement('input', { type:'checkbox', checked:!!contact.is_primary, onChange:e=>updateContact(contact.id, 'is_primary', e.target.checked?1:0) }),
+                    React.createElement('div', { className: 'grid grid-cols-2 gap-2' },
+                      React.createElement('input', { className: 'border rounded px-2 py-1 text-sm', value: contact.name, onChange: e => updateContact(contact.id, 'name', e.target.value) }),
+                      React.createElement('input', { className: 'border rounded px-2 py-1 text-sm', value: contact.title || '', onChange: e => updateContact(contact.id, 'title', e.target.value) }),
+                      React.createElement('input', { className: 'border rounded px-2 py-1 text-sm', value: contact.phone || '', onChange: e => updateContact(contact.id, 'phone', e.target.value) }),
+                      React.createElement('input', { className: 'border rounded px-2 py-1 text-sm', value: contact.email || '', onChange: e => updateContact(contact.id, 'email', e.target.value) }),
+                      React.createElement('label', { className: 'flex items-center gap-1 col-span-2 text-sm' },
+                        React.createElement('input', { type: 'checkbox', checked: !!contact.is_primary, onChange: e => updateContact(contact.id, 'is_primary', e.target.checked ? 1 : 0) }),
                         'Primary'
                       ),
-                      React.createElement('div', { className:'col-span-2 flex gap-2' },
-                        React.createElement('button', { onClick:()=>saveContactEdit(contact.id), className:'px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700' }, '💾 Save'),
-                        React.createElement('button', { onClick:()=>setEditingContactId(null), className:'px-3 py-1 bg-gray-300 text-sm rounded hover:bg-gray-400' }, 'Cancel')
+                      React.createElement('div', { className: 'col-span-2 flex gap-2' },
+                        React.createElement('button', { onClick: () => saveContactEdit(contact.id), className: 'px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700' }, '💾 Save'),
+                        React.createElement('button', { onClick: () => setEditingContactId(null), className: 'px-3 py-1 bg-gray-300 text-sm rounded hover:bg-gray-400' }, 'Cancel')
                       )
                     )
                   ) : (
-                    React.createElement('div', { className:'flex justify-between items-start' },
-                      React.createElement('div', { className:'flex-1' },
-                        React.createElement('div', { className:'font-semibold flex items-center gap-2' },
+                    React.createElement('div', { className: 'flex justify-between items-start' },
+                      React.createElement('div', { className: 'flex-1' },
+                        React.createElement('div', { className: 'font-semibold flex items-center gap-2' },
                           contact.name,
-                          !!contact.is_primary && React.createElement('span', { className:'text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded' }, '⭐ Primary')
+                          !!contact.is_primary && React.createElement('span', { className: 'text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded' }, '⭐ Primary')
                         ),
-                        contact.title && React.createElement('div', { className:'text-sm text-gray-600' }, contact.title),
-                        React.createElement('div', { className:'text-sm text-gray-700 mt-1' },
-                          contact.phone && React.createElement('span', { className:'mr-3' }, '📞 ', contact.phone),
+                        contact.title && React.createElement('div', { className: 'text-sm text-gray-600' }, contact.title),
+                        React.createElement('div', { className: 'text-sm text-gray-700 mt-1' },
+                          contact.phone && React.createElement('span', { className: 'mr-3' }, '📞 ', contact.phone),
                           contact.email && React.createElement('span', null, '✉️ ', contact.email)
                         ),
-                        contact.notes && React.createElement('div', { className:'text-xs text-gray-500 mt-1' }, contact.notes)
+                        contact.notes && React.createElement('div', { className: 'text-xs text-gray-500 mt-1' }, contact.notes)
                       ),
-                      React.createElement('div', { className:'flex gap-2 ml-2' },
-                        React.createElement('button', { onClick:()=>setEditingContactId(contact.id), className:'text-blue-600 hover:text-blue-800 text-sm' }, '✏️'),
-                        React.createElement('button', { onClick:()=>deleteContact(contact.id), className:'text-red-600 hover:text-red-800 text-sm' }, '🗑️')
+                      React.createElement('div', { className: 'flex gap-2 ml-2' },
+                        React.createElement('button', { onClick: () => setEditingContactId(contact.id), className: 'text-blue-600 hover:text-blue-800 text-sm' }, '✏️'),
+                        React.createElement('button', { onClick: () => deleteContact(contact.id), className: 'text-red-600 hover:text-red-800 text-sm' }, '🗑️')
                       )
                     )
                   )
@@ -8114,12 +8435,12 @@ function CustomerManagementEx({ customers, onRefresh }){
             )
           )
         ),
-        React.createElement('div', { className:'flex justify-end gap-3 mt-6' },
-          React.createElement('button', { onClick:()=>setEditingCustomer(null), className:'px-4 py-2 border rounded text-gray-700 hover:bg-gray-100 flex items-center gap-2' },
+        React.createElement('div', { className: 'flex justify-end gap-3 mt-6' },
+          React.createElement('button', { onClick: () => setEditingCustomer(null), className: 'px-4 py-2 border rounded text-gray-700 hover:bg-gray-100 flex items-center gap-2' },
             React.createElement('span', { className: 'text-base' }, '❌'),
             'Cancel'
           ),
-          React.createElement('button', { onClick:saveEdit, className:'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2' },
+          React.createElement('button', { onClick: saveEdit, className: 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2' },
             React.createElement('span', { className: 'text-base' }, '💾'),
             'Save Changes'
           )
@@ -8129,8 +8450,8 @@ function CustomerManagementEx({ customers, onRefresh }){
   );
 }
 
-function VendorManagement({ vendors, onRefresh }){
-  const [form, setForm] = useState({ id:'', name:'', contact_person:'', phone:'', email:'', office_address:'', vendor_type:'Other', material_type:'', city:'', country:'' });
+function VendorManagement({ vendors, onRefresh }) {
+  const [form, setForm] = useState({ id: '', name: '', contact_person: '', phone: '', email: '', office_address: '', vendor_type: 'Other', material_type: '', city: '', country: '' });
   const [editingVendor, setEditingVendor] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [localVendors, setLocalVendors] = useState(vendors || []);
@@ -8139,14 +8460,14 @@ function VendorManagement({ vendors, onRefresh }){
     setLocalVendors(vendors || []);
   }, [vendors]);
 
-  async function add(){
+  async function add() {
     if (!form.id || !form.name) {
       alert('Please fill in Vendor ID and Name');
       return;
     }
-    const res = await fetch(`${API_URL}/vendors`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(form) });
+    const res = await fetch(`${API_URL}/vendors`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
     if (res.ok) {
-      setForm({ id:'', name:'', contact_person:'', phone:'', email:'', office_address:'', vendor_type:'Other', material_type:'', city:'', country:'' });
+      setForm({ id: '', name: '', contact_person: '', phone: '', email: '', office_address: '', vendor_type: 'Other', material_type: '', city: '', country: '' });
       await refreshVendors();
       if (onRefresh) await onRefresh();
     } else {
@@ -8155,7 +8476,7 @@ function VendorManagement({ vendors, onRefresh }){
     }
   }
 
-  async function refreshVendors(){
+  async function refreshVendors() {
     try {
       const resp = await fetch(`${API_URL}/vendors`);
       if (resp.ok) {
@@ -8167,8 +8488,8 @@ function VendorManagement({ vendors, onRefresh }){
     }
   }
 
-  async function saveEdit(){
-    const res = await fetch(`${API_URL}/vendors/${editForm.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(editForm) });
+  async function saveEdit() {
+    const res = await fetch(`${API_URL}/vendors/${editForm.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editForm) });
     if (res.ok) {
       setEditingVendor(null);
       await refreshVendors();
@@ -8178,9 +8499,9 @@ function VendorManagement({ vendors, onRefresh }){
     }
   }
 
-  async function del(id){
-    if(!confirm('Delete vendor?')) return;
-    const res = await fetch(`${API_URL}/vendors/${id}`, { method:'DELETE' });
+  async function del(id) {
+    if (!confirm('Delete vendor?')) return;
+    const res = await fetch(`${API_URL}/vendors/${id}`, { method: 'DELETE' });
     if (res.ok) {
       await refreshVendors();
       if (onRefresh) await onRefresh();
@@ -8199,7 +8520,7 @@ function VendorManagement({ vendors, onRefresh }){
     { key: 'material_type', label: 'Material Type' }
   ];
 
-  function handleRowClick(vendor){
+  function handleRowClick(vendor) {
     setEditForm({ ...vendor });
     setEditingVendor(vendor);
   }
@@ -8207,7 +8528,7 @@ function VendorManagement({ vendors, onRefresh }){
   const [bulkImportStatus, setBulkImportStatus] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
-  async function handleBulkImport(e){
+  async function handleBulkImport(e) {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -8236,24 +8557,24 @@ function VendorManagement({ vendors, onRefresh }){
     }
   }
 
-  return React.createElement('div', { className:'space-y-4' },
+  return React.createElement('div', { className: 'space-y-4' },
     React.createElement(Section, { title: 'Add Vendor' },
       React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-3' },
-        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Vendor ID*', value: form.id, onChange: e=>setForm({...form,id:e.target.value}) }),
-        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Name*', value: form.name, onChange: e=>setForm({...form,name:e.target.value}) }),
-        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Contact Person', value: form.contact_person, onChange: e=>setForm({...form,contact_person:e.target.value}) }),
-        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Phone', value: form.phone, onChange: e=>setForm({...form,phone:e.target.value}) }),
-        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Email', value: form.email, onChange: e=>setForm({...form,email:e.target.value}) }),
-        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Office Address', value: form.office_address, onChange: e=>setForm({...form,office_address:e.target.value}) }),
-        React.createElement('select', { className: 'border rounded px-3 py-2', value: form.vendor_type, onChange: e=>setForm({...form,vendor_type:e.target.value}) },
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Vendor ID*', value: form.id, onChange: e => setForm({ ...form, id: e.target.value }) }),
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Name*', value: form.name, onChange: e => setForm({ ...form, name: e.target.value }) }),
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Contact Person', value: form.contact_person, onChange: e => setForm({ ...form, contact_person: e.target.value }) }),
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Phone', value: form.phone, onChange: e => setForm({ ...form, phone: e.target.value }) }),
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Email', value: form.email, onChange: e => setForm({ ...form, email: e.target.value }) }),
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Office Address', value: form.office_address, onChange: e => setForm({ ...form, office_address: e.target.value }) }),
+        React.createElement('select', { className: 'border rounded px-3 py-2', value: form.vendor_type, onChange: e => setForm({ ...form, vendor_type: e.target.value }) },
           React.createElement('option', { value: 'Other' }, 'Type: Other'),
           React.createElement('option', { value: 'Steel' }, 'Type: Steel'),
           React.createElement('option', { value: 'Copper' }, 'Type: Copper'),
           React.createElement('option', { value: 'Job Work' }, 'Type: Job Work')
         ),
-        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Material Type', value: form.material_type, onChange: e=>setForm({...form,material_type:e.target.value}) }),
-        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'City', value: form.city, onChange: e=>setForm({...form,city:e.target.value}) }),
-        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Country', value: form.country, onChange: e=>setForm({...form,country:e.target.value}) }),
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Material Type', value: form.material_type, onChange: e => setForm({ ...form, material_type: e.target.value }) }),
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'City', value: form.city, onChange: e => setForm({ ...form, city: e.target.value }) }),
+        React.createElement('input', { className: 'border rounded px-3 py-2', placeholder: 'Country', value: form.country, onChange: e => setForm({ ...form, country: e.target.value }) }),
         React.createElement('button', { onClick: add, className: 'px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700 md:col-span-3' }, 'Add Vendor')
       )
     ),
@@ -8281,30 +8602,30 @@ function VendorManagement({ vendors, onRefresh }){
       onDelete: del,
       filterOptions: [],
       defaultVisibleColumns: { id: true, name: true, contact_person: true, phone: true, email: true, vendor_type: true, material_type: true },
-      onExport: (data, cols) => downloadCSV('vendors.csv', cols.map(c=>({key:c.key,label:c.label})), data)
+      onExport: (data, cols) => downloadCSV('vendors.csv', cols.map(c => ({ key: c.key, label: c.label })), data)
     }),
     React.createElement(EditModal, { isOpen: !!editingVendor, onClose: () => setEditingVendor(null), title: `Edit Vendor: ${editForm.id || ''}` },
-      React.createElement('div', { className:'space-y-4' },
-        React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-2 gap-4' },
-          React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Vendor ID'), React.createElement('input', { className:'border rounded px-3 py-2 w-full bg-gray-100', value:editForm.id || '', disabled:true })),
-          React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Name'), React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.name || '', onChange:e=>setEditForm({...editForm, name:e.target.value}) })),
-          React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Contact Person'), React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.contact_person || '', onChange:e=>setEditForm({...editForm, contact_person:e.target.value}) })),
-          React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Phone'), React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.phone || '', onChange:e=>setEditForm({...editForm, phone:e.target.value}) })),
-          React.createElement('div', { className:'md:col-span-2' }, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Email'), React.createElement('input', { type:'email', className:'border rounded px-3 py-2 w-full', value:editForm.email || '', onChange:e=>setEditForm({...editForm, email:e.target.value}) })),
-          React.createElement('div', { className:'md:col-span-2' }, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Office Address'), React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.office_address || '', onChange:e=>setEditForm({...editForm, office_address:e.target.value}) })),
-          React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Vendor Type'), React.createElement('select', { className:'border rounded px-3 py-2 w-full', value:editForm.vendor_type || 'Other', onChange:e=>setEditForm({...editForm, vendor_type:e.target.value}) },
+      React.createElement('div', { className: 'space-y-4' },
+        React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
+          React.createElement('div', null, React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Vendor ID'), React.createElement('input', { className: 'border rounded px-3 py-2 w-full bg-gray-100', value: editForm.id || '', disabled: true })),
+          React.createElement('div', null, React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Name'), React.createElement('input', { className: 'border rounded px-3 py-2 w-full', value: editForm.name || '', onChange: e => setEditForm({ ...editForm, name: e.target.value }) })),
+          React.createElement('div', null, React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Contact Person'), React.createElement('input', { className: 'border rounded px-3 py-2 w-full', value: editForm.contact_person || '', onChange: e => setEditForm({ ...editForm, contact_person: e.target.value }) })),
+          React.createElement('div', null, React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Phone'), React.createElement('input', { className: 'border rounded px-3 py-2 w-full', value: editForm.phone || '', onChange: e => setEditForm({ ...editForm, phone: e.target.value }) })),
+          React.createElement('div', { className: 'md:col-span-2' }, React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Email'), React.createElement('input', { type: 'email', className: 'border rounded px-3 py-2 w-full', value: editForm.email || '', onChange: e => setEditForm({ ...editForm, email: e.target.value }) })),
+          React.createElement('div', { className: 'md:col-span-2' }, React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Office Address'), React.createElement('input', { className: 'border rounded px-3 py-2 w-full', value: editForm.office_address || '', onChange: e => setEditForm({ ...editForm, office_address: e.target.value }) })),
+          React.createElement('div', null, React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Vendor Type'), React.createElement('select', { className: 'border rounded px-3 py-2 w-full', value: editForm.vendor_type || 'Other', onChange: e => setEditForm({ ...editForm, vendor_type: e.target.value }) },
             React.createElement('option', { value: 'Other' }, 'Other'),
             React.createElement('option', { value: 'Steel' }, 'Steel'),
             React.createElement('option', { value: 'Copper' }, 'Copper'),
             React.createElement('option', { value: 'Job Work' }, 'Job Work')
           )),
-          React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Material Type'), React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.material_type || '', onChange:e=>setEditForm({...editForm, material_type:e.target.value}) })),
-          React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'City'), React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.city || '', onChange:e=>setEditForm({...editForm, city:e.target.value}) })),
-          React.createElement('div', null, React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Country'), React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.country || '', onChange:e=>setEditForm({...editForm, country:e.target.value}) }))
+          React.createElement('div', null, React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Material Type'), React.createElement('input', { className: 'border rounded px-3 py-2 w-full', value: editForm.material_type || '', onChange: e => setEditForm({ ...editForm, material_type: e.target.value }) })),
+          React.createElement('div', null, React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'City'), React.createElement('input', { className: 'border rounded px-3 py-2 w-full', value: editForm.city || '', onChange: e => setEditForm({ ...editForm, city: e.target.value }) })),
+          React.createElement('div', null, React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Country'), React.createElement('input', { className: 'border rounded px-3 py-2 w-full', value: editForm.country || '', onChange: e => setEditForm({ ...editForm, country: e.target.value }) }))
         ),
-        React.createElement('div', { className:'flex justify-end gap-3 mt-6' },
-          React.createElement('button', { onClick:()=>setEditingVendor(null), className:'px-4 py-2 border rounded text-gray-700 hover:bg-gray-100' }, 'Cancel'),
-          React.createElement('button', { onClick:saveEdit, className:'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700' }, 'Save Changes')
+        React.createElement('div', { className: 'flex justify-end gap-3 mt-6' },
+          React.createElement('button', { onClick: () => setEditingVendor(null), className: 'px-4 py-2 border rounded text-gray-700 hover:bg-gray-100' }, 'Cancel'),
+          React.createElement('button', { onClick: saveEdit, className: 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700' }, 'Save Changes')
         )
       )
     )
@@ -8312,67 +8633,67 @@ function VendorManagement({ vendors, onRefresh }){
 }
 
 // Assistant chat panel
-function AssistantPanel(){
-  const [messages, setMessages] = useState([{ role:'system', content:'You are the Ground Rod ERP assistant.' }]);
+function AssistantPanel() {
+  const [messages, setMessages] = useState([{ role: 'system', content: 'You are the Ground Rod ERP assistant.' }]);
   const [input, setInput] = useState('');
-  async function send(){
-    const msgs = [...messages, { role:'user', content: input }];
+  async function send() {
+    const msgs = [...messages, { role: 'user', content: input }];
     setMessages(msgs); setInput('');
-    const resp = await fetch(`${API_URL}/ai/chat`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ messages: msgs }) });
+    const resp = await fetch(`${API_URL}/ai/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: msgs }) });
     const data = await resp.json();
-    setMessages([...msgs, { role:'assistant', content: data.reply }]);
+    setMessages([...msgs, { role: 'assistant', content: data.reply }]);
   }
   return (
-    React.createElement('div', { className:'bg-white rounded-xl shadow-md p-6 border border-gray-200 max-w-3xl' },
-      React.createElement('h3', { className:'text-lg font-bold mb-4 text-gray-800' }, 'Assistant'),
-      React.createElement('div', { className:'h-64 overflow-y-auto border rounded p-3 mb-3 bg-gray-50' },
-        messages.filter(m=>m.role!=='system').map((m,i)=> (
-          React.createElement('div', { key:i, className: m.role==='user' ? 'text-right' : '' },
-            React.createElement('div', { className: 'inline-block px-3 py-2 rounded mb-2 ' + (m.role==='user'?'bg-blue-600 text-white':'bg-gray-200') }, m.content)
+    React.createElement('div', { className: 'bg-white rounded-xl shadow-md p-6 border border-gray-200 max-w-3xl' },
+      React.createElement('h3', { className: 'text-lg font-bold mb-4 text-gray-800' }, 'Assistant'),
+      React.createElement('div', { className: 'h-64 overflow-y-auto border rounded p-3 mb-3 bg-gray-50' },
+        messages.filter(m => m.role !== 'system').map((m, i) => (
+          React.createElement('div', { key: i, className: m.role === 'user' ? 'text-right' : '' },
+            React.createElement('div', { className: 'inline-block px-3 py-2 rounded mb-2 ' + (m.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-200') }, m.content)
           )
         ))
       ),
-      React.createElement('div', { className:'flex gap-2' },
-        React.createElement('input', { className:'flex-1 border rounded px-3 py-2', value:input, onChange:e=>setInput(e.target.value), placeholder:'Ask about WIP, customers, etc.' }),
-        React.createElement('button', { onClick:send, className:'px-4 py-2 bg-blue-600 text-white rounded' }, 'Send')
+      React.createElement('div', { className: 'flex gap-2' },
+        React.createElement('input', { className: 'flex-1 border rounded px-3 py-2', value: input, onChange: e => setInput(e.target.value), placeholder: 'Ask about WIP, customers, etc.' }),
+        React.createElement('button', { onClick: send, className: 'px-4 py-2 bg-blue-600 text-white rounded' }, 'Send')
       ),
-      React.createElement('p', { className:'text-xs text-gray-500 mt-2' }, 'Note: This is a local assistant with basic knowledge. For full AI responses, connect an LLM API server-side with your API key.')
+      React.createElement('p', { className: 'text-xs text-gray-500 mt-2' }, 'Note: This is a local assistant with basic knowledge. For full AI responses, connect an LLM API server-side with your API key.')
     )
   );
 }
 
 // Imports panel for PDF -> PO preview & confirm
-function ImportsPanel({ customers, vendors, products }){
+function ImportsPanel({ customers, vendors, products }) {
   const [clientPreview, setClientPreview] = useState(null);
   const [clientItems, setClientItems] = useState([]);
   const [useNewCustomer, setUseNewCustomer] = useState(false);
   const [vendorPreview, setVendorPreview] = useState(null);
-  async function uploadClient(e){
-    const f = e.target.files[0]; if(!f) return;
+  async function uploadClient(e) {
+    const f = e.target.files[0]; if (!f) return;
     const fd = new FormData(); fd.append('file', f);
-    const r = await fetch(`${API_URL}/import/client-po/preview`, { method:'POST', body: fd });
+    const r = await fetch(`${API_URL}/import/client-po/preview`, { method: 'POST', body: fd });
     const data = await r.json();
-    setClientPreview({ po: { currency:'INR', status:'Pending', notes:'', marking:'', ...(data.po||{}) }, text: data.text||'', file_token: data.file_token||'' });
+    setClientPreview({ po: { currency: 'INR', status: 'Pending', notes: '', marking: '', ...(data.po || {}) }, text: data.text || '', file_token: data.file_token || '' });
     setClientItems([]);
   }
-  async function uploadVendor(e){
-    const f = e.target.files[0]; if(!f) return;
+  async function uploadVendor(e) {
+    const f = e.target.files[0]; if (!f) return;
     const fd = new FormData(); fd.append('file', f);
-    const r = await fetch(`${API_URL}/import/vendor-po/preview`, { method:'POST', body: fd });
+    const r = await fetch(`${API_URL}/import/vendor-po/preview`, { method: 'POST', body: fd });
     setVendorPreview(await r.json());
   }
-  function updateClientPo(field, val){
-    setClientPreview(prev => ({ ...(prev||{}), po: { ...((prev&&prev.po)||{}), [field]: val } }));
+  function updateClientPo(field, val) {
+    setClientPreview(prev => ({ ...(prev || {}), po: { ...((prev && prev.po) || {}), [field]: val } }));
   }
-  function addClientItem(){ setClientItems([...clientItems, { product_id:'', quantity:0, unit_price:0, unit:'pcs' }]); }
-  function updateClientItem(i, k, v){ const arr=[...clientItems]; arr[i][k] = (k==='product_id'||k==='unit')? v : Number(v||0); setClientItems(arr); }
-  function removeClientItem(i){ const arr=[...clientItems]; arr.splice(i,1); setClientItems(arr); }
-  async function confirmClient(){
-    const po = (clientPreview&&clientPreview.po) || {};
+  function addClientItem() { setClientItems([...clientItems, { product_id: '', quantity: 0, unit_price: 0, unit: 'pcs' }]); }
+  function updateClientItem(i, k, v) { const arr = [...clientItems]; arr[i][k] = (k === 'product_id' || k === 'unit') ? v : Number(v || 0); setClientItems(arr); }
+  function removeClientItem(i) { const arr = [...clientItems]; arr.splice(i, 1); setClientItems(arr); }
+  async function confirmClient() {
+    const po = (clientPreview && clientPreview.po) || {};
     const payload = {
       id: po.id,
       customer_id: useNewCustomer ? '' : po.customer_id || '',
-      customer_name: useNewCustomer ? (po.customer_name||'') : '',
+      customer_name: useNewCustomer ? (po.customer_name || '') : '',
       po_date: po.po_date,
       due_date: po.due_date,
       currency: po.currency || 'INR',
@@ -8382,85 +8703,85 @@ function ImportsPanel({ customers, vendors, products }){
       items: clientItems,
       file_token: clientPreview.file_token || ''
     };
-    const r = await fetch(`${API_URL}/import/client-po/confirm`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const r = await fetch(`${API_URL}/import/client-po/confirm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const res = await r.json();
-    if(!r.ok){ alert(res.error||'Failed to register'); return; }
-    alert(res.message||'Registered');
+    if (!r.ok) { alert(res.error || 'Failed to register'); return; }
+    alert(res.message || 'Registered');
   }
-  async function confirmVendor(){
+  async function confirmVendor() {
     const vpo = vendorPreview?.vpo || {}; const body = JSON.stringify(vpo);
-    const r = await fetch(`${API_URL}/import/vendor-po/confirm`, { method:'POST', headers:{'Content-Type':'application/json'}, body });
-    alert((await r.json()).message||'OK');
+    const r = await fetch(`${API_URL}/import/vendor-po/confirm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+    alert((await r.json()).message || 'OK');
   }
   return (
-    React.createElement('div', { className:'space-y-6' },
-      React.createElement(Section, { title:'Import Client PO (PDF)' },
-        React.createElement('input', { type:'file', accept:'application/pdf', onChange:uploadClient }),
-        clientPreview && React.createElement('div', { className:'mt-3 space-y-4' },
-          React.createElement('div', { className:'text-sm text-gray-700 mb-2' }, 'Preview (editable before confirm):'),
-          React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-3 gap-3' },
-            React.createElement('label', { className:'text-xs font-semibold text-gray-600' }, 'PO ID'),
-            React.createElement('input', { className:'border rounded px-2 py-1 md:col-span-2', placeholder:'PO-1001', value:clientPreview.po?.id||'', onChange:e=>updateClientPo('id', e.target.value) }),
+    React.createElement('div', { className: 'space-y-6' },
+      React.createElement(Section, { title: 'Import Client PO (PDF)' },
+        React.createElement('input', { type: 'file', accept: 'application/pdf', onChange: uploadClient }),
+        clientPreview && React.createElement('div', { className: 'mt-3 space-y-4' },
+          React.createElement('div', { className: 'text-sm text-gray-700 mb-2' }, 'Preview (editable before confirm):'),
+          React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-3' },
+            React.createElement('label', { className: 'text-xs font-semibold text-gray-600' }, 'PO ID'),
+            React.createElement('input', { className: 'border rounded px-2 py-1 md:col-span-2', placeholder: 'PO-1001', value: clientPreview.po?.id || '', onChange: e => updateClientPo('id', e.target.value) }),
 
-            React.createElement('label', { className:'text-xs font-semibold text-gray-600' }, 'Customer'),
-            React.createElement('div', { className:'md:col-span-2 flex gap-2 items-center' },
-              React.createElement('select', { className:'border rounded px-2 py-1', value: useNewCustomer ? '' : (clientPreview.po?.customer_id||''), onChange:e=>{ setUseNewCustomer(false); updateClientPo('customer_id', e.target.value) } },
-                React.createElement('option', { value:'' }, '-- Select existing --'),
-                customers.map(c=> React.createElement('option', { key:c.id, value:c.id }, `${c.id} - ${c.name}`))
+            React.createElement('label', { className: 'text-xs font-semibold text-gray-600' }, 'Customer'),
+            React.createElement('div', { className: 'md:col-span-2 flex gap-2 items-center' },
+              React.createElement('select', { className: 'border rounded px-2 py-1', value: useNewCustomer ? '' : (clientPreview.po?.customer_id || ''), onChange: e => { setUseNewCustomer(false); updateClientPo('customer_id', e.target.value) } },
+                React.createElement('option', { value: '' }, '-- Select existing --'),
+                customers.map(c => React.createElement('option', { key: c.id, value: c.id }, `${c.id} - ${c.name}`))
               ),
-              React.createElement('span', { className:'text-xs text-gray-500' }, 'or'),
-              React.createElement('input', { className:'border rounded px-2 py-1 flex-1', placeholder:'New customer name', value: useNewCustomer ? (clientPreview.po?.customer_name||'') : '', onChange:e=>{ setUseNewCustomer(true); updateClientPo('customer_name', e.target.value); updateClientPo('customer_id','') } })
+              React.createElement('span', { className: 'text-xs text-gray-500' }, 'or'),
+              React.createElement('input', { className: 'border rounded px-2 py-1 flex-1', placeholder: 'New customer name', value: useNewCustomer ? (clientPreview.po?.customer_name || '') : '', onChange: e => { setUseNewCustomer(true); updateClientPo('customer_name', e.target.value); updateClientPo('customer_id', '') } })
             ),
 
-            React.createElement('label', { className:'text-xs font-semibold text-gray-600' }, 'PO Date'),
-            React.createElement('input', { className:'border rounded px-2 py-1 md:col-span-2', type:'date', value:clientPreview.po?.po_date||'', onChange:e=>updateClientPo('po_date', e.target.value) }),
+            React.createElement('label', { className: 'text-xs font-semibold text-gray-600' }, 'PO Date'),
+            React.createElement('input', { className: 'border rounded px-2 py-1 md:col-span-2', type: 'date', value: clientPreview.po?.po_date || '', onChange: e => updateClientPo('po_date', e.target.value) }),
 
-            React.createElement('label', { className:'text-xs font-semibold text-gray-600' }, 'Due Date'),
-            React.createElement('input', { className:'border rounded px-2 py-1 md:col-span-2', type:'date', value:clientPreview.po?.due_date||'', onChange:e=>updateClientPo('due_date', e.target.value) }),
+            React.createElement('label', { className: 'text-xs font-semibold text-gray-600' }, 'Due Date'),
+            React.createElement('input', { className: 'border rounded px-2 py-1 md:col-span-2', type: 'date', value: clientPreview.po?.due_date || '', onChange: e => updateClientPo('due_date', e.target.value) }),
 
-            React.createElement('label', { className:'text-xs font-semibold text-gray-600' }, 'Currency'),
-            React.createElement('input', { className:'border rounded px-2 py-1 md:col-span-2', placeholder:'INR', value:clientPreview.po?.currency||'INR', onChange:e=>updateClientPo('currency', e.target.value) }),
+            React.createElement('label', { className: 'text-xs font-semibold text-gray-600' }, 'Currency'),
+            React.createElement('input', { className: 'border rounded px-2 py-1 md:col-span-2', placeholder: 'INR', value: clientPreview.po?.currency || 'INR', onChange: e => updateClientPo('currency', e.target.value) }),
 
-            React.createElement('label', { className:'text-xs font-semibold text-gray-600' }, 'Status'),
-            React.createElement('select', { className:'border rounded px-2 py-1 md:col-span-2', value:clientPreview.po?.status||'Pending', onChange:e=>updateClientPo('status', e.target.value) },
-              ['Pending','Confirmed','In Production','Completed','Cancelled'].map(s=> React.createElement('option', { key:s, value:s }, s))
+            React.createElement('label', { className: 'text-xs font-semibold text-gray-600' }, 'Status'),
+            React.createElement('select', { className: 'border rounded px-2 py-1 md:col-span-2', value: clientPreview.po?.status || 'Pending', onChange: e => updateClientPo('status', e.target.value) },
+              ['Pending', 'Confirmed', 'In Production', 'Completed', 'Cancelled'].map(s => React.createElement('option', { key: s, value: s }, s))
             ),
 
-            React.createElement('label', { className:'text-xs font-semibold text-gray-600' }, 'Notes'),
-            React.createElement('input', { className:'border rounded px-2 py-1 md:col-span-2', placeholder:'Optional notes', value:clientPreview.po?.notes||'', onChange:e=>updateClientPo('notes', e.target.value) })
+            React.createElement('label', { className: 'text-xs font-semibold text-gray-600' }, 'Notes'),
+            React.createElement('input', { className: 'border rounded px-2 py-1 md:col-span-2', placeholder: 'Optional notes', value: clientPreview.po?.notes || '', onChange: e => updateClientPo('notes', e.target.value) })
           ),
 
-          React.createElement('div', { className:'pt-2 border-t' },
-            React.createElement('div', { className:'flex justify-between items-center mb-2' },
-              React.createElement('h4', { className:'font-semibold' }, 'Line Items (optional)'),
-              React.createElement('button', { className:'px-3 py-1 bg-blue-600 text-white rounded text-sm', onClick:addClientItem }, 'Add Item')
+          React.createElement('div', { className: 'pt-2 border-t' },
+            React.createElement('div', { className: 'flex justify-between items-center mb-2' },
+              React.createElement('h4', { className: 'font-semibold' }, 'Line Items (optional)'),
+              React.createElement('button', { className: 'px-3 py-1 bg-blue-600 text-white rounded text-sm', onClick: addClientItem }, 'Add Item')
             ),
-            React.createElement('div', { className:'overflow-x-auto' },
-              React.createElement('table', { className:'min-w-full border-collapse' },
+            React.createElement('div', { className: 'overflow-x-auto' },
+              React.createElement('table', { className: 'min-w-full border-collapse' },
                 React.createElement('thead', null,
-                  React.createElement('tr', { className:'bg-gray-100' }, ['Product','New Product?','New Product ID','Description','Steel Dia','Dia Unit','Length','Len Unit','Coating (µm)','Qty','Unit Price','Unit','Actions'].map(h=> React.createElement('th', { key:h, className:'p-2' }, h)))
+                  React.createElement('tr', { className: 'bg-gray-100' }, ['Product', 'New Product?', 'New Product ID', 'Description', 'Steel Dia', 'Dia Unit', 'Length', 'Len Unit', 'Coating (µm)', 'Qty', 'Unit Price', 'Unit', 'Actions'].map(h => React.createElement('th', { key: h, className: 'p-2' }, h)))
                 ),
                 React.createElement('tbody', null,
                   clientItems.map((it, i) => (
-                    React.createElement('tr', { key:i, className:'border-b' },
-                      React.createElement('td', { className:'p-2' },
-                        React.createElement('select', { className:'border rounded px-2 py-1', value:it.product_id||'', onChange:e=>updateClientItem(i,'product_id', e.target.value) },
-                          React.createElement('option', { value:'' }, '-- Select --'),
-                          products.map(p => React.createElement('option', { key:p.id, value:p.id }, `${p.id} - ${p.description}`))
+                    React.createElement('tr', { key: i, className: 'border-b' },
+                      React.createElement('td', { className: 'p-2' },
+                        React.createElement('select', { className: 'border rounded px-2 py-1', value: it.product_id || '', onChange: e => updateClientItem(i, 'product_id', e.target.value) },
+                          React.createElement('option', { value: '' }, '-- Select --'),
+                          products.map(p => React.createElement('option', { key: p.id, value: p.id }, `${p.id} - ${p.description}`))
                         )
                       ),
-                      React.createElement('td', { className:'p-2 text-center' }, React.createElement('input', { type:'checkbox', checked:it.new_product||false, onChange:e=>updateClientItem(i,'new_product', e.target.checked) })),
-                      React.createElement('td', { className:'p-2' }, React.createElement('input', { className:'border rounded px-2 py-1 w-32', placeholder:'Optional', value:it.new_product_id||'', onChange:e=>updateClientItem(i,'new_product_id', e.target.value) })),
-                      React.createElement('td', { className:'p-2' }, React.createElement('input', { className:'border rounded px-2 py-1', placeholder:'Description', value:it.description||'', onChange:e=>updateClientItem(i,'description', e.target.value) })),
-                      React.createElement('td', { className:'p-2' }, React.createElement('input', { className:'border rounded px-2 py-1 w-24', type:'number', placeholder:'Dia', value:it.diameter_value||'', onChange:e=>updateClientItem(i,'diameter_value', e.target.value) })),
-                      React.createElement('td', { className:'p-2' }, React.createElement('select', { className:'border rounded px-2 py-1', value:it.diameter_unit||'mm', onChange:e=>updateClientItem(i,'diameter_unit', e.target.value) }, ['mm','in'].map(u=> React.createElement('option', { key:u, value:u }, u)))),
-                      React.createElement('td', { className:'p-2' }, React.createElement('input', { className:'border rounded px-2 py-1 w-24', type:'number', placeholder:'Length', value:it.length_value||'', onChange:e=>updateClientItem(i,'length_value', e.target.value) })),
-                      React.createElement('td', { className:'p-2' }, React.createElement('select', { className:'border rounded px-2 py-1', value:it.length_unit||'mm', onChange:e=>updateClientItem(i,'length_unit', e.target.value) }, ['mm','in','ft'].map(u=> React.createElement('option', { key:u, value:u }, u)))),
-                      React.createElement('td', { className:'p-2' }, React.createElement('input', { className:'border rounded px-2 py-1 w-24', type:'number', placeholder:'µm', value:it.coating_um||'', onChange:e=>updateClientItem(i,'coating_um', e.target.value) })),
-                      React.createElement('td', { className:'p-2' }, React.createElement('input', { type:'number', className:'border rounded px-2 py-1 w-24', value:it.quantity, onChange:e=>updateClientItem(i,'quantity', e.target.value) })),
-                      React.createElement('td', { className:'p-2' }, React.createElement('input', { type:'number', className:'border rounded px-2 py-1 w-24', value:it.unit_price, onChange:e=>updateClientItem(i,'unit_price', e.target.value) })),
-                      React.createElement('td', { className:'p-2' }, React.createElement('select', { className:'border rounded px-2 py-1', value:it.unit||'pcs', onChange:e=>updateClientItem(i,'unit', e.target.value) }, ['pcs','kg','litre'].map(u=> React.createElement('option', { key:u, value:u }, u)))) ,
-                      React.createElement('td', { className:'p-2 text-right' }, React.createElement('button', { className:'px-2 py-1 bg-red-600 text-white rounded text-sm', onClick:()=>removeClientItem(i) }, 'Remove'))
+                      React.createElement('td', { className: 'p-2 text-center' }, React.createElement('input', { type: 'checkbox', checked: it.new_product || false, onChange: e => updateClientItem(i, 'new_product', e.target.checked) })),
+                      React.createElement('td', { className: 'p-2' }, React.createElement('input', { className: 'border rounded px-2 py-1 w-32', placeholder: 'Optional', value: it.new_product_id || '', onChange: e => updateClientItem(i, 'new_product_id', e.target.value) })),
+                      React.createElement('td', { className: 'p-2' }, React.createElement('input', { className: 'border rounded px-2 py-1', placeholder: 'Description', value: it.description || '', onChange: e => updateClientItem(i, 'description', e.target.value) })),
+                      React.createElement('td', { className: 'p-2' }, React.createElement('input', { className: 'border rounded px-2 py-1 w-24', type: 'number', placeholder: 'Dia', value: it.diameter_value || '', onChange: e => updateClientItem(i, 'diameter_value', e.target.value) })),
+                      React.createElement('td', { className: 'p-2' }, React.createElement('select', { className: 'border rounded px-2 py-1', value: it.diameter_unit || 'mm', onChange: e => updateClientItem(i, 'diameter_unit', e.target.value) }, ['mm', 'in'].map(u => React.createElement('option', { key: u, value: u }, u)))),
+                      React.createElement('td', { className: 'p-2' }, React.createElement('input', { className: 'border rounded px-2 py-1 w-24', type: 'number', placeholder: 'Length', value: it.length_value || '', onChange: e => updateClientItem(i, 'length_value', e.target.value) })),
+                      React.createElement('td', { className: 'p-2' }, React.createElement('select', { className: 'border rounded px-2 py-1', value: it.length_unit || 'mm', onChange: e => updateClientItem(i, 'length_unit', e.target.value) }, ['mm', 'in', 'ft'].map(u => React.createElement('option', { key: u, value: u }, u)))),
+                      React.createElement('td', { className: 'p-2' }, React.createElement('input', { className: 'border rounded px-2 py-1 w-24', type: 'number', placeholder: 'µm', value: it.coating_um || '', onChange: e => updateClientItem(i, 'coating_um', e.target.value) })),
+                      React.createElement('td', { className: 'p-2' }, React.createElement('input', { type: 'number', className: 'border rounded px-2 py-1 w-24', value: it.quantity, onChange: e => updateClientItem(i, 'quantity', e.target.value) })),
+                      React.createElement('td', { className: 'p-2' }, React.createElement('input', { type: 'number', className: 'border rounded px-2 py-1 w-24', value: it.unit_price, onChange: e => updateClientItem(i, 'unit_price', e.target.value) })),
+                      React.createElement('td', { className: 'p-2' }, React.createElement('select', { className: 'border rounded px-2 py-1', value: it.unit || 'pcs', onChange: e => updateClientItem(i, 'unit', e.target.value) }, ['pcs', 'kg', 'litre'].map(u => React.createElement('option', { key: u, value: u }, u)))),
+                      React.createElement('td', { className: 'p-2 text-right' }, React.createElement('button', { className: 'px-2 py-1 bg-red-600 text-white rounded text-sm', onClick: () => removeClientItem(i) }, 'Remove'))
                     )
                   ))
                 )
@@ -8468,83 +8789,85 @@ function ImportsPanel({ customers, vendors, products }){
             )
           ),
 
-          React.createElement('div', { className:'mt-3 flex gap-2' },
-            React.createElement('button', { onClick:()=>confirmClient(), className:'px-3 py-2 bg-green-600 text-white rounded' }, 'Confirm & Register'),
+          React.createElement('div', { className: 'mt-3 flex gap-2' },
+            React.createElement('button', { onClick: () => confirmClient(), className: 'px-3 py-2 bg-green-600 text-white rounded' }, 'Confirm & Register'),
             React.createElement('details', null,
               React.createElement('summary', null, 'Raw Text'),
-              React.createElement('pre', { className:'mt-2 p-2 border rounded bg-gray-50 whitespace-pre-wrap' }, clientPreview.text || '(no text)')
+              React.createElement('pre', { className: 'mt-2 p-2 border rounded bg-gray-50 whitespace-pre-wrap' }, clientPreview.text || '(no text)')
             )
           )
         )
       ),
-      React.createElement(Section, { title:'Import Vendor PO (PDF)' },
-        React.createElement('input', { type:'file', accept:'application/pdf', onChange:uploadVendor }),
-        vendorPreview && React.createElement('div', { className:'mt-3 space-y-4' },
-          React.createElement('div', { className:'text-sm text-gray-700 mb-2' }, 'Preview (editable before confirm):'),
-          React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-3 gap-3' },
-            React.createElement('label', { className:'text-xs font-semibold text-gray-600' }, 'VPO ID'),
-            React.createElement('input', { className:'border rounded px-2 py-1 md:col-span-2', placeholder:'VPO-1001', defaultValue:vendorPreview.vpo?.id||'', onChange:e=>vendorPreview.vpo.id=e.target.value }),
+      React.createElement(Section, { title: 'Import Vendor PO (PDF)' },
+        React.createElement('input', { type: 'file', accept: 'application/pdf', onChange: uploadVendor }),
+        vendorPreview && React.createElement('div', { className: 'mt-3 space-y-4' },
+          React.createElement('div', { className: 'text-sm text-gray-700 mb-2' }, 'Preview (editable before confirm):'),
+          React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-3' },
+            React.createElement('label', { className: 'text-xs font-semibold text-gray-600' }, 'VPO ID'),
+            React.createElement('input', { className: 'border rounded px-2 py-1 md:col-span-2', placeholder: 'VPO-1001', defaultValue: vendorPreview.vpo?.id || '', onChange: e => vendorPreview.vpo.id = e.target.value }),
 
-            React.createElement('label', { className:'text-xs font-semibold text-gray-600' }, 'Vendor'),
-            React.createElement('div', { className:'md:col-span-2 flex gap-2 items-center' },
-              React.createElement('select', { className:'border rounded px-2 py-1', defaultValue:vendorPreview.vpo?.vendor_id||'', onChange:e=>vendorPreview.vpo.vendor_id=e.target.value },
-                React.createElement('option', { value:'' }, '-- Select existing --'),
-                vendors.map(v=> React.createElement('option', { key:v.id, value:v.id }, `${v.id} - ${v.name}`))
+            React.createElement('label', { className: 'text-xs font-semibold text-gray-600' }, 'Vendor'),
+            React.createElement('div', { className: 'md:col-span-2 flex gap-2 items-center' },
+              React.createElement('select', { className: 'border rounded px-2 py-1', defaultValue: vendorPreview.vpo?.vendor_id || '', onChange: e => vendorPreview.vpo.vendor_id = e.target.value },
+                React.createElement('option', { value: '' }, '-- Select existing --'),
+                vendors.map(v => React.createElement('option', { key: v.id, value: v.id }, `${v.id} - ${v.name}`))
               ),
-              React.createElement('span', { className:'text-xs text-gray-500' }, 'or'),
-              React.createElement('input', { className:'border rounded px-2 py-1 flex-1', placeholder:'New vendor name', onChange:e=>{ vendorPreview.vpo.vendor_name = e.target.value; vendorPreview.vpo.vendor_id=''; setVendorPreview({ ...vendorPreview }); } })
+              React.createElement('span', { className: 'text-xs text-gray-500' }, 'or'),
+              React.createElement('input', { className: 'border rounded px-2 py-1 flex-1', placeholder: 'New vendor name', onChange: e => { vendorPreview.vpo.vendor_name = e.target.value; vendorPreview.vpo.vendor_id = ''; setVendorPreview({ ...vendorPreview }); } })
             ),
 
-            React.createElement('label', { className:'text-xs font-semibold text-gray-600' }, 'Contact Person'),
-            React.createElement('input', { className:'border rounded px-2 py-1 md:col-span-2', placeholder:'Optional', onChange:e=>{ vendorPreview.vpo.contact_person = e.target.value; setVendorPreview({ ...vendorPreview }); } }),
+            React.createElement('label', { className: 'text-xs font-semibold text-gray-600' }, 'Contact Person'),
+            React.createElement('input', { className: 'border rounded px-2 py-1 md:col-span-2', placeholder: 'Optional', onChange: e => { vendorPreview.vpo.contact_person = e.target.value; setVendorPreview({ ...vendorPreview }); } }),
 
-            React.createElement('label', { className:'text-xs font-semibold text-gray-600' }, 'Phone'),
-            React.createElement('input', { className:'border rounded px-2 py-1 md:col-span-2', placeholder:'+1-555-0100', onChange:e=>{ vendorPreview.vpo.phone = e.target.value; setVendorPreview({ ...vendorPreview }); } }),
+            React.createElement('label', { className: 'text-xs font-semibold text-gray-600' }, 'Phone'),
+            React.createElement('input', { className: 'border rounded px-2 py-1 md:col-span-2', placeholder: '+1-555-0100', onChange: e => { vendorPreview.vpo.phone = e.target.value; setVendorPreview({ ...vendorPreview }); } }),
 
-            React.createElement('label', { className:'text-xs font-semibold text-gray-600' }, 'Email'),
-            React.createElement('input', { className:'border rounded px-2 py-1 md:col-span-2', placeholder:'vendor@example.com', onChange:e=>{ vendorPreview.vpo.email = e.target.value; setVendorPreview({ ...vendorPreview }); } }),
+            React.createElement('label', { className: 'text-xs font-semibold text-gray-600' }, 'Email'),
+            React.createElement('input', { className: 'border rounded px-2 py-1 md:col-span-2', placeholder: 'vendor@example.com', onChange: e => { vendorPreview.vpo.email = e.target.value; setVendorPreview({ ...vendorPreview }); } }),
 
-            React.createElement('label', { className:'text-xs font-semibold text-gray-600' }, 'PO Date'),
-            React.createElement('input', { className:'border rounded px-2 py-1 md:col-span-2', type:'date', defaultValue:vendorPreview.vpo?.po_date||'' , onChange:e=>{ vendorPreview.vpo.po_date=e.target.value; setVendorPreview({ ...vendorPreview }); } }),
+            React.createElement('label', { className: 'text-xs font-semibold text-gray-600' }, 'PO Date'),
+            React.createElement('input', { className: 'border rounded px-2 py-1 md:col-span-2', type: 'date', defaultValue: vendorPreview.vpo?.po_date || '', onChange: e => { vendorPreview.vpo.po_date = e.target.value; setVendorPreview({ ...vendorPreview }); } }),
 
-            React.createElement('label', { className:'text-xs font-semibold text-gray-600' }, 'Due Date'),
-            React.createElement('input', { className:'border rounded px-2 py-1 md:col-span-2', type:'date', defaultValue:vendorPreview.vpo?.due_date||'' , onChange:e=>{ vendorPreview.vpo.due_date=e.target.value; setVendorPreview({ ...vendorPreview }); } })
+            React.createElement('label', { className: 'text-xs font-semibold text-gray-600' }, 'Due Date'),
+            React.createElement('input', { className: 'border rounded px-2 py-1 md:col-span-2', type: 'date', defaultValue: vendorPreview.vpo?.due_date || '', onChange: e => { vendorPreview.vpo.due_date = e.target.value; setVendorPreview({ ...vendorPreview }); } })
           ),
 
-          React.createElement('div', { className:'mt-3 flex gap-2' },
-            React.createElement('button', { onClick:async ()=>{
-              const vpo = vendorPreview.vpo || {};
-              const payload = { id:vpo.id, vendor_id:vpo.vendor_id||'', vendor_name:vpo.vendor_name||'', contact_person:vpo.contact_person||'', phone:vpo.phone||'', email:vpo.email||'', po_date:vpo.po_date, due_date:vpo.due_date, status:'Pending', notes:'', items: [], file_token: vendorPreview.file_token||'' };
-              const r = await fetch(`${API_URL}/import/vendor-po/confirm`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-              const res = await r.json();
-              if(!r.ok){ alert(res.error||'Failed'); return; }
-              alert(res.message||'Registered');
-            }, className:'px-3 py-2 bg-green-600 text-white rounded' }, 'Confirm & Register'),
-          React.createElement('details', null,
-            React.createElement('summary', null, 'Raw Text'),
-            React.createElement('pre', { className:'mt-2 p-2 border rounded bg-gray-50 whitespace-pre-wrap' }, vendorPreview.text || '(no text)')
+          React.createElement('div', { className: 'mt-3 flex gap-2' },
+            React.createElement('button', {
+              onClick: async () => {
+                const vpo = vendorPreview.vpo || {};
+                const payload = { id: vpo.id, vendor_id: vpo.vendor_id || '', vendor_name: vpo.vendor_name || '', contact_person: vpo.contact_person || '', phone: vpo.phone || '', email: vpo.email || '', po_date: vpo.po_date, due_date: vpo.due_date, status: 'Pending', notes: '', items: [], file_token: vendorPreview.file_token || '' };
+                const r = await fetch(`${API_URL}/import/vendor-po/confirm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const res = await r.json();
+                if (!r.ok) { alert(res.error || 'Failed'); return; }
+                alert(res.message || 'Registered');
+              }, className: 'px-3 py-2 bg-green-600 text-white rounded'
+            }, 'Confirm & Register'),
+            React.createElement('details', null,
+              React.createElement('summary', null, 'Raw Text'),
+              React.createElement('pre', { className: 'mt-2 p-2 border rounded bg-gray-50 whitespace-pre-wrap' }, vendorPreview.text || '(no text)')
+            )
           )
-        )
         )
       )
     )
   );
 }
 // Extended Vendor Purchase Orders with line items (item, description, qty, unit)
-function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
-  const [form, setForm] = useState({ id:'', vendor_id:'', po_date:'', due_date:'', status:'Pending', notes:'' });
+function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }) {
+  const [form, setForm] = useState({ id: '', vendor_id: '', po_date: '', due_date: '', status: 'Pending', notes: '' });
   const [editing, setEditing] = useState(null);
   const [openItems, setOpenItems] = useState({});
   const [itemsCache, setItemsCache] = useState({});
   const [editingItems, setEditingItems] = useState({}); // Track which items are being edited
   const [rawMaterials, setRawMaterials] = useState([]);
   const [products, setProducts] = useState([]);
-  const [newItem, setNewItem] = useState({ item_type:'Raw Material', item:'', product_id:'', product_stage:'', description:'', qty:0, unit_price:0, unit:'kg' });
-  const [cols, setCols] = useState({ id:true, vendor:true, po_date:true, due_date:true, status:true, notes:true });
+  const [newItem, setNewItem] = useState({ item_type: 'Raw Material', item: '', product_id: '', product_stage: '', description: '', qty: 0, unit_price: 0, unit: 'kg' });
+  const [cols, setCols] = useState({ id: true, vendor: true, po_date: true, due_date: true, status: true, notes: true });
 
   // New state for inline item creation
   const [formItems, setFormItems] = useState([]);
-  const [tempItem, setTempItem] = useState({ item_type:'Raw Material', material_type:'', quantity:0, unit_price:0, unit:'kg' });
+  const [tempItem, setTempItem] = useState({ item_type: 'Raw Material', material_type: '', quantity: 0, unit_price: 0, unit: 'kg' });
 
   // Fetch raw materials and products list
   React.useEffect(() => {
@@ -8556,7 +8879,7 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
       setProducts(data || []);
     }).catch(() => setProducts([]));
   }, []);
-  async function add(){
+  async function add() {
     if (!form.id || !form.vendor_id || !form.po_date) {
       alert('Please fill in VPO ID, Vendor, and PO Date');
       return;
@@ -8565,8 +8888,8 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
     try {
       // Create the PO first
       const poRes = await fetch(`${API_URL}/vendor-purchase-orders`, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
       });
 
@@ -8580,7 +8903,7 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
         for (const item of formItems) {
           await fetch(`${API_URL}/vendor-purchase-orders/${form.id}/items`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               item_type: 'Raw Material',
               material_type: item.material_type,
@@ -8594,9 +8917,9 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
       }
 
       // Reset form
-      setForm({ id:'', vendor_id:'', po_date:'', due_date:'', status:'Pending', notes:'' });
+      setForm({ id: '', vendor_id: '', po_date: '', due_date: '', status: 'Pending', notes: '' });
       setFormItems([]);
-      setTempItem({ item_type:'Raw Material', material_type:'', quantity:0, unit_price:0, unit:'kg' });
+      setTempItem({ item_type: 'Raw Material', material_type: '', quantity: 0, unit_price: 0, unit: 'kg' });
       onRefresh?.();
       alert('✓ Vendor PO created successfully with ' + formItems.length + ' item(s)');
     } catch (err) {
@@ -8610,33 +8933,33 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
       return;
     }
 
-    setFormItems([...formItems, {...tempItem, line_total: tempItem.quantity * tempItem.unit_price}]);
-    setTempItem({ item_type:'Raw Material', material_type:'', quantity:0, unit_price:0, unit:'kg' });
+    setFormItems([...formItems, { ...tempItem, line_total: tempItem.quantity * tempItem.unit_price }]);
+    setTempItem({ item_type: 'Raw Material', material_type: '', quantity: 0, unit_price: 0, unit: 'kg' });
   }
 
   function removeItemFromForm(index) {
     setFormItems(formItems.filter((_, i) => i !== index));
   }
-  async function save(v){ await fetch(`${API_URL}/vendor-purchase-orders/${v.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(v) }); setEditing(null); onRefresh?.(); }
-  async function del(id){ if(!confirm('Delete Vendor PO?')) return; await fetch(`${API_URL}/vendor-purchase-orders/${id}`, { method:'DELETE' }); onRefresh?.(); }
-  async function toggleItems(vpo){
+  async function save(v) { await fetch(`${API_URL}/vendor-purchase-orders/${v.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(v) }); setEditing(null); onRefresh?.(); }
+  async function del(id) { if (!confirm('Delete Vendor PO?')) return; await fetch(`${API_URL}/vendor-purchase-orders/${id}`, { method: 'DELETE' }); onRefresh?.(); }
+  async function toggleItems(vpo) {
     const opened = !!openItems[vpo.id];
     setOpenItems({ ...openItems, [vpo.id]: !opened });
-    if (!opened && !itemsCache[vpo.id]){
+    if (!opened && !itemsCache[vpo.id]) {
       const res = await fetch(`${API_URL}/vendor-purchase-orders/${vpo.id}/items`);
       const data = await res.json();
       setItemsCache({ ...itemsCache, [vpo.id]: data });
     }
   }
-  async function addItem(vpo){
-    const res = await fetch(`${API_URL}/vendor-purchase-orders/${vpo.id}/items`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(newItem) });
-    if (res.ok){
+  async function addItem(vpo) {
+    const res = await fetch(`${API_URL}/vendor-purchase-orders/${vpo.id}/items`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newItem) });
+    if (res.ok) {
       const idata = await (await fetch(`${API_URL}/vendor-purchase-orders/${vpo.id}/items`)).json();
       setItemsCache({ ...itemsCache, [vpo.id]: idata });
-      setNewItem({ item_type:'Raw Material', item:'', product_id:'', product_stage:'', description:'', qty:0, unit_price:0, unit:'kg' });
+      setNewItem({ item_type: 'Raw Material', item: '', product_id: '', product_stage: '', description: '', qty: 0, unit_price: 0, unit: 'kg' });
     }
   }
-  async function updateItem(vpoId, itemId){
+  async function updateItem(vpoId, itemId) {
     const editedItem = editingItems[`${vpoId}-${itemId}`];
     if (!editedItem) return;
 
@@ -8647,8 +8970,8 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
     };
 
     const res = await fetch(`${API_URL}/vendor-purchase-orders/${vpoId}/items/${itemId}`, {
-      method:'PUT',
-      headers:{'Content-Type':'application/json'},
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
@@ -8656,7 +8979,7 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
       const idata = await (await fetch(`${API_URL}/vendor-purchase-orders/${vpoId}/items`)).json();
       setItemsCache({ ...itemsCache, [vpoId]: idata });
       // Clear editing state for this item
-      const newEditingItems = {...editingItems};
+      const newEditingItems = { ...editingItems };
       delete newEditingItems[`${vpoId}-${itemId}`];
       setEditingItems(newEditingItems);
     } else {
@@ -8664,7 +8987,7 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
     }
   }
 
-  function startEditingItem(vpoId, item){
+  function startEditingItem(vpoId, item) {
     const key = `${vpoId}-${item.id}`;
     setEditingItems({
       ...editingItems,
@@ -8678,7 +9001,7 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
     });
   }
 
-  function updateEditingItem(vpoId, itemId, field, value){
+  function updateEditingItem(vpoId, itemId, field, value) {
     const key = `${vpoId}-${itemId}`;
     setEditingItems({
       ...editingItems,
@@ -8688,108 +9011,108 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
       }
     });
   }
-  async function deleteItem(vpoId, itemId){
-    await fetch(`${API_URL}/vendor-purchase-orders/${vpoId}/items/${itemId}`, { method:'DELETE' });
+  async function deleteItem(vpoId, itemId) {
+    await fetch(`${API_URL}/vendor-purchase-orders/${vpoId}/items/${itemId}`, { method: 'DELETE' });
     const idata = await (await fetch(`${API_URL}/vendor-purchase-orders/${vpoId}/items`)).json();
     setItemsCache({ ...itemsCache, [vpoId]: idata });
   }
   return (
     React.createElement('div', { className: 'space-y-4' },
       React.createElement(Section, { title: 'Add Vendor PO' },
-        React.createElement('div', { className:'space-y-4' },
-          React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-6 gap-3' },
-            React.createElement('input', { className:'border rounded px-2 py-1', placeholder:'VPO ID *', value: form.id, onChange:e=>setForm({...form,id:e.target.value}) }),
-            React.createElement('select', { className:'border rounded px-2 py-1', value: form.vendor_id, onChange:e=>setForm({...form,vendor_id:e.target.value}) },
-              React.createElement('option', { value:'' }, 'Select Vendor *'),
-              vendors.map(v => React.createElement('option', { key:v.id, value:v.id }, `${v.id} - ${v.name}`))
+        React.createElement('div', { className: 'space-y-4' },
+          React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-6 gap-3' },
+            React.createElement('input', { className: 'border rounded px-2 py-1', placeholder: 'VPO ID *', value: form.id, onChange: e => setForm({ ...form, id: e.target.value }) }),
+            React.createElement('select', { className: 'border rounded px-2 py-1', value: form.vendor_id, onChange: e => setForm({ ...form, vendor_id: e.target.value }) },
+              React.createElement('option', { value: '' }, 'Select Vendor *'),
+              vendors.map(v => React.createElement('option', { key: v.id, value: v.id }, `${v.id} - ${v.name}`))
             ),
-            React.createElement('input', { className:'border rounded px-2 py-1', type:'date', placeholder:'PO Date *', value: form.po_date, onChange:e=>setForm({...form,po_date:e.target.value}) }),
-            React.createElement('input', { className:'border rounded px-2 py-1', type:'date', placeholder:'Due Date', value: form.due_date, onChange:e=>setForm({...form,due_date:e.target.value}) }),
-            React.createElement('select', { className:'border rounded px-2 py-1', value: form.status, onChange:e=>setForm({...form,status:e.target.value}) },
-              ['Pending','Ordered','In Transit','Completed','Cancelled'].map(s=> React.createElement('option', { key:s, value:s }, s))
+            React.createElement('input', { className: 'border rounded px-2 py-1', type: 'date', placeholder: 'PO Date *', value: form.po_date, onChange: e => setForm({ ...form, po_date: e.target.value }) }),
+            React.createElement('input', { className: 'border rounded px-2 py-1', type: 'date', placeholder: 'Due Date', value: form.due_date, onChange: e => setForm({ ...form, due_date: e.target.value }) }),
+            React.createElement('select', { className: 'border rounded px-2 py-1', value: form.status, onChange: e => setForm({ ...form, status: e.target.value }) },
+              ['Pending', 'Ordered', 'In Transit', 'Completed', 'Cancelled'].map(s => React.createElement('option', { key: s, value: s }, s))
             ),
-            React.createElement('input', { className:'border rounded px-2 py-1 md:col-span-6', placeholder:'Notes', value: form.notes, onChange:e=>setForm({...form,notes:e.target.value}) })
+            React.createElement('input', { className: 'border rounded px-2 py-1 md:col-span-6', placeholder: 'Notes', value: form.notes, onChange: e => setForm({ ...form, notes: e.target.value }) })
           ),
 
-          React.createElement('div', { className:'border-t pt-4' },
-            React.createElement('h4', { className:'font-semibold mb-2 text-gray-700' }, '📦 Add Items to PO'),
-            React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-6 gap-2 items-end' },
+          React.createElement('div', { className: 'border-t pt-4' },
+            React.createElement('h4', { className: 'font-semibold mb-2 text-gray-700' }, '📦 Add Items to PO'),
+            React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-6 gap-2 items-end' },
               React.createElement('div', null,
-                React.createElement('label', { className:'text-xs text-gray-600' }, 'Item Type'),
-                React.createElement('select', { className:'border rounded px-2 py-1 w-full', value: tempItem.item_type || 'Raw Material', onChange:e=>setTempItem({...tempItem, item_type:e.target.value, material_type:'', product_id:'', product_stage:''}) },
-                  React.createElement('option', { value:'Raw Material' }, 'Raw Material'),
-                  React.createElement('option', { value:'Product' }, 'Product')
+                React.createElement('label', { className: 'text-xs text-gray-600' }, 'Item Type'),
+                React.createElement('select', { className: 'border rounded px-2 py-1 w-full', value: tempItem.item_type || 'Raw Material', onChange: e => setTempItem({ ...tempItem, item_type: e.target.value, material_type: '', product_id: '', product_stage: '' }) },
+                  React.createElement('option', { value: 'Raw Material' }, 'Raw Material'),
+                  React.createElement('option', { value: 'Product' }, 'Product')
                 )
               ),
               React.createElement('div', null,
-                React.createElement('label', { className:'text-xs text-gray-600' }, (tempItem.item_type === 'Product' ? 'Product' : 'Material')),
+                React.createElement('label', { className: 'text-xs text-gray-600' }, (tempItem.item_type === 'Product' ? 'Product' : 'Material')),
                 (tempItem.item_type === 'Product'
-                  ? React.createElement('select', { className:'border rounded px-2 py-1 w-full', value: tempItem.product_id || '', onChange:e=>setTempItem({...tempItem, product_id:e.target.value}) },
-                      React.createElement('option', { value:'' }, 'Select Product'),
-                      products.map(p => React.createElement('option', { key:p.id, value:p.id }, `${p.id} - ${p.description}`))
-                    )
-                  : React.createElement('select', { className:'border rounded px-2 py-1 w-full', value: tempItem.material_type || '', onChange:e=>setTempItem({...tempItem, material_type:e.target.value}) },
-                      React.createElement('option', { value:'' }, 'Select Material'),
-                      rawMaterials.map(m => React.createElement('option', { key:m.material, value:m.material }, m.material))
-                    )
+                  ? React.createElement('select', { className: 'border rounded px-2 py-1 w-full', value: tempItem.product_id || '', onChange: e => setTempItem({ ...tempItem, product_id: e.target.value }) },
+                    React.createElement('option', { value: '' }, 'Select Product'),
+                    products.map(p => React.createElement('option', { key: p.id, value: p.id }, `${p.id} - ${p.description}`))
+                  )
+                  : React.createElement('select', { className: 'border rounded px-2 py-1 w-full', value: tempItem.material_type || '', onChange: e => setTempItem({ ...tempItem, material_type: e.target.value }) },
+                    React.createElement('option', { value: '' }, 'Select Material'),
+                    rawMaterials.map(m => React.createElement('option', { key: m.material, value: m.material }, m.material))
+                  )
                 )
               ),
               (tempItem.item_type === 'Product' && React.createElement('div', null,
-                React.createElement('label', { className:'text-xs text-gray-600' }, 'Stage'),
-                React.createElement('select', { className:'border rounded px-2 py-1 w-full', value: tempItem.product_stage || 'stamped', onChange:e=>setTempItem({...tempItem, product_stage:e.target.value}) },
-                  React.createElement('option', { value:'steel_rods' }, 'Steel Rods'),
-                  React.createElement('option', { value:'plated' }, 'Plated'),
-                  React.createElement('option', { value:'machined' }, 'Machined'),
-                  React.createElement('option', { value:'stamped' }, 'Stamped (Finished)')
+                React.createElement('label', { className: 'text-xs text-gray-600' }, 'Stage'),
+                React.createElement('select', { className: 'border rounded px-2 py-1 w-full', value: tempItem.product_stage || 'stamped', onChange: e => setTempItem({ ...tempItem, product_stage: e.target.value }) },
+                  React.createElement('option', { value: 'steel_rods' }, 'Steel Rods'),
+                  React.createElement('option', { value: 'plated' }, 'Plated'),
+                  React.createElement('option', { value: 'machined' }, 'Machined'),
+                  React.createElement('option', { value: 'stamped' }, 'Stamped (Finished)')
                 )
               )),
               React.createElement('div', null,
-                React.createElement('label', { className:'text-xs text-gray-600' }, 'Quantity'),
-                React.createElement('input', { type:'number', className:'border rounded px-2 py-1 w-full', value: tempItem.quantity || 0, onChange:e=>setTempItem({...tempItem, quantity:Number(e.target.value)}) })
+                React.createElement('label', { className: 'text-xs text-gray-600' }, 'Quantity'),
+                React.createElement('input', { type: 'number', className: 'border rounded px-2 py-1 w-full', value: tempItem.quantity || 0, onChange: e => setTempItem({ ...tempItem, quantity: Number(e.target.value) }) })
               ),
               React.createElement('div', null,
-                React.createElement('label', { className:'text-xs text-gray-600' }, 'Unit Price'),
-                React.createElement('input', { type:'number', step:'0.01', className:'border rounded px-2 py-1 w-full', value: tempItem.unit_price || 0, onChange:e=>setTempItem({...tempItem, unit_price:Number(e.target.value)}) })
+                React.createElement('label', { className: 'text-xs text-gray-600' }, 'Unit Price'),
+                React.createElement('input', { type: 'number', step: '0.01', className: 'border rounded px-2 py-1 w-full', value: tempItem.unit_price || 0, onChange: e => setTempItem({ ...tempItem, unit_price: Number(e.target.value) }) })
               ),
               React.createElement('div', null,
-                React.createElement('label', { className:'text-xs text-gray-600' }, 'Unit'),
-                React.createElement('select', { className:'border rounded px-2 py-1 w-full', value: tempItem.unit || 'kg', onChange:e=>setTempItem({...tempItem, unit:e.target.value}) },
-                  React.createElement('option', { value:'kg' }, 'kg'),
-                  React.createElement('option', { value:'pcs' }, 'pcs'),
-                  React.createElement('option', { value:'ton' }, 'ton')
+                React.createElement('label', { className: 'text-xs text-gray-600' }, 'Unit'),
+                React.createElement('select', { className: 'border rounded px-2 py-1 w-full', value: tempItem.unit || 'kg', onChange: e => setTempItem({ ...tempItem, unit: e.target.value }) },
+                  React.createElement('option', { value: 'kg' }, 'kg'),
+                  React.createElement('option', { value: 'pcs' }, 'pcs'),
+                  React.createElement('option', { value: 'ton' }, 'ton')
                 )
               ),
-              React.createElement('button', { onClick:addItemToForm, className:'px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700' }, '➕ Add Item')
+              React.createElement('button', { onClick: addItemToForm, className: 'px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700' }, '➕ Add Item')
             ),
 
-            formItems.length > 0 && React.createElement('div', { className:'mt-3' },
-              React.createElement('table', { className:'min-w-full border text-sm' },
-                React.createElement('thead', { className:'bg-gray-50' },
+            formItems.length > 0 && React.createElement('div', { className: 'mt-3' },
+              React.createElement('table', { className: 'min-w-full border text-sm' },
+                React.createElement('thead', { className: 'bg-gray-50' },
                   React.createElement('tr', null,
-                    React.createElement('th', { className:'p-2 text-left' }, 'Material'),
-                    React.createElement('th', { className:'p-2 text-right' }, 'Quantity'),
-                    React.createElement('th', { className:'p-2 text-right' }, 'Unit Price'),
-                    React.createElement('th', { className:'p-2 text-left' }, 'Unit'),
-                    React.createElement('th', { className:'p-2 text-right' }, 'Line Total'),
-                    React.createElement('th', { className:'p-2' }, 'Action')
+                    React.createElement('th', { className: 'p-2 text-left' }, 'Material'),
+                    React.createElement('th', { className: 'p-2 text-right' }, 'Quantity'),
+                    React.createElement('th', { className: 'p-2 text-right' }, 'Unit Price'),
+                    React.createElement('th', { className: 'p-2 text-left' }, 'Unit'),
+                    React.createElement('th', { className: 'p-2 text-right' }, 'Line Total'),
+                    React.createElement('th', { className: 'p-2' }, 'Action')
                   )
                 ),
                 React.createElement('tbody', null,
                   formItems.map((item, idx) => (
-                    React.createElement('tr', { key:idx, className:'border-t' },
-                      React.createElement('td', { className:'p-2' }, item.material_type),
-                      React.createElement('td', { className:'p-2 text-right' }, formatQuantity(item.quantity)),
-                      React.createElement('td', { className:'p-2 text-right' }, formatCurrency(item.unit_price)),
-                      React.createElement('td', { className:'p-2' }, item.unit),
-                      React.createElement('td', { className:'p-2 text-right font-semibold' }, formatCurrency(item.line_total)),
-                      React.createElement('td', { className:'p-2 text-center' },
-                        React.createElement('button', { onClick:()=>removeItemFromForm(idx), className:'text-red-600 hover:text-red-800' }, '🗑️')
+                    React.createElement('tr', { key: idx, className: 'border-t' },
+                      React.createElement('td', { className: 'p-2' }, item.material_type),
+                      React.createElement('td', { className: 'p-2 text-right' }, formatQuantity(item.quantity)),
+                      React.createElement('td', { className: 'p-2 text-right' }, formatCurrency(item.unit_price)),
+                      React.createElement('td', { className: 'p-2' }, item.unit),
+                      React.createElement('td', { className: 'p-2 text-right font-semibold' }, formatCurrency(item.line_total)),
+                      React.createElement('td', { className: 'p-2 text-center' },
+                        React.createElement('button', { onClick: () => removeItemFromForm(idx), className: 'text-red-600 hover:text-red-800' }, '🗑️')
                       )
                     )
                   )),
-                  React.createElement('tr', { className:'border-t bg-gray-50 font-bold' },
-                    React.createElement('td', { colSpan:4, className:'p-2 text-right' }, 'Total:'),
-                    React.createElement('td', { className:'p-2 text-right' }, formatCurrency(formItems.reduce((sum, item) => sum + item.line_total, 0))),
+                  React.createElement('tr', { className: 'border-t bg-gray-50 font-bold' },
+                    React.createElement('td', { colSpan: 4, className: 'p-2 text-right' }, 'Total:'),
+                    React.createElement('td', { className: 'p-2 text-right' }, formatCurrency(formItems.reduce((sum, item) => sum + item.line_total, 0))),
                     React.createElement('td', null)
                   )
                 )
@@ -8797,8 +9120,8 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
             )
           ),
 
-          React.createElement('div', { className:'flex justify-end' },
-            React.createElement('button', { onClick:add, disabled:!form.id || !form.vendor_id || !form.po_date, className:'px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold flex items-center gap-2' },
+          React.createElement('div', { className: 'flex justify-end' },
+            React.createElement('button', { onClick: add, disabled: !form.id || !form.vendor_id || !form.po_date, className: 'px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold flex items-center gap-2' },
               React.createElement('span', null, '✓'),
               'Create Vendor PO' + (formItems.length > 0 ? ` with ${formItems.length} item(s)` : '')
             )
@@ -8806,55 +9129,57 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
         )
       ),
       React.createElement(Section, { title: 'Vendor Purchase Orders' },
-        React.createElement('div', { className:'mb-3 flex flex-wrap gap-3 items-center' },
-          React.createElement('span', { className:'text-sm text-gray-700' }, 'Columns:'),
-          [['id','VPO ID'],['vendor','Vendor'],['po_date','PO Date'],['due_date','Due Date'],['status','Status'],['notes','Notes']].map(([k,label]) => (
-            React.createElement('label', { key:k, className:'text-sm flex items-center gap-1' },
-              React.createElement('input', { type:'checkbox', checked: cols[k], onChange:e=>setCols({ ...cols, [k]: e.target.checked }) }), label
+        React.createElement('div', { className: 'mb-3 flex flex-wrap gap-3 items-center' },
+          React.createElement('span', { className: 'text-sm text-gray-700' }, 'Columns:'),
+          [['id', 'VPO ID'], ['vendor', 'Vendor'], ['po_date', 'PO Date'], ['due_date', 'Due Date'], ['status', 'Status'], ['notes', 'Notes']].map(([k, label]) => (
+            React.createElement('label', { key: k, className: 'text-sm flex items-center gap-1' },
+              React.createElement('input', { type: 'checkbox', checked: cols[k], onChange: e => setCols({ ...cols, [k]: e.target.checked }) }), label
             )
           )),
-          React.createElement('button', { className:'ml-auto px-3 py-2 bg-gray-700 text-white rounded', onClick:()=>{
-            const headers = [];
-            if (cols.id) headers.push({ key:'id', label:'VPO ID' });
-            if (cols.vendor) headers.push({ key:'vendor_name', label:'Vendor' });
-            if (cols.po_date) headers.push({ key:'po_date', label:'PO Date' });
-            if (cols.due_date) headers.push({ key:'due_date', label:'Due Date' });
-            if (cols.status) headers.push({ key:'status', label:'Status' });
-            if (cols.notes) headers.push({ key:'notes', label:'Notes' });
-            downloadCSV('vendor-pos.csv', headers, purchaseOrders);
-          }}, 'Export CSV')
+          React.createElement('button', {
+            className: 'ml-auto px-3 py-2 bg-gray-700 text-white rounded', onClick: () => {
+              const headers = [];
+              if (cols.id) headers.push({ key: 'id', label: 'VPO ID' });
+              if (cols.vendor) headers.push({ key: 'vendor_name', label: 'Vendor' });
+              if (cols.po_date) headers.push({ key: 'po_date', label: 'PO Date' });
+              if (cols.due_date) headers.push({ key: 'due_date', label: 'Due Date' });
+              if (cols.status) headers.push({ key: 'status', label: 'Status' });
+              if (cols.notes) headers.push({ key: 'notes', label: 'Notes' });
+              downloadCSV('vendor-pos.csv', headers, purchaseOrders);
+            }
+          }, 'Export CSV')
         ),
         React.createElement('div', { className: 'overflow-x-auto' },
-          React.createElement('table', { className:'min-w-full border-collapse' },
+          React.createElement('table', { className: 'min-w-full border-collapse' },
             React.createElement('thead', null,
-              React.createElement('tr', { className:'bg-gray-100' },
-                cols.id && React.createElement('th', { className:'p-2' }, 'VPO ID'),
-                cols.vendor && React.createElement('th', { className:'p-2' }, 'Vendor'),
-                cols.po_date && React.createElement('th', { className:'p-2' }, 'PO Date'),
-                cols.due_date && React.createElement('th', { className:'p-2' }, 'Due Date'),
-                cols.status && React.createElement('th', { className:'p-2' }, 'Status'),
-                cols.notes && React.createElement('th', { className:'p-2' }, 'Notes'),
-                React.createElement('th', { className:'p-2' }, 'Actions')
+              React.createElement('tr', { className: 'bg-gray-100' },
+                cols.id && React.createElement('th', { className: 'p-2' }, 'VPO ID'),
+                cols.vendor && React.createElement('th', { className: 'p-2' }, 'Vendor'),
+                cols.po_date && React.createElement('th', { className: 'p-2' }, 'PO Date'),
+                cols.due_date && React.createElement('th', { className: 'p-2' }, 'Due Date'),
+                cols.status && React.createElement('th', { className: 'p-2' }, 'Status'),
+                cols.notes && React.createElement('th', { className: 'p-2' }, 'Notes'),
+                React.createElement('th', { className: 'p-2' }, 'Actions')
               )
             ),
             React.createElement('tbody', null,
               purchaseOrders.map(vpo => {
                 const edit = editing === vpo.id;
-                return React.createElement('tr', { key:vpo.id, className:'border-b' },
-                  cols.id && React.createElement('td', { className:'p-2 font-mono' }, vpo.id),
-                  cols.vendor && React.createElement('td', { className:'p-2' }, edit ? React.createElement('select', { className:'border rounded px-2 py-1', defaultValue:vpo.vendor_id, onChange:e=>vpo.vendor_id=e.target.value }, vendors.map(v=> React.createElement('option', { key:v.id, value:v.id }, `${v.id} - ${v.name}`))) : vpo.vendor_name ),
-                  cols.po_date && React.createElement('td', { className:'p-2' }, edit ? React.createElement('input', { type:'date', className:'border rounded px-2 py-1', defaultValue:vpo.po_date, onChange:e=>vpo.po_date=e.target.value }) : vpo.po_date),
-                  cols.due_date && React.createElement('td', { className:'p-2' }, edit ? React.createElement('input', { type:'date', className:'border rounded px-2 py-1', defaultValue:vpo.due_date, onChange:e=>vpo.due_date=e.target.value }) : vpo.due_date),
-                  cols.status && React.createElement('td', { className:'p-2' }, edit ? React.createElement('select', { className:'border rounded px-2 py-1', defaultValue:vpo.status, onChange:e=>vpo.status=e.target.value }, ['Pending','Ordered','In Transit','Completed','Cancelled'].map(s=> React.createElement('option', { key:s, value:s }, s))) : vpo.status),
-                  cols.notes && React.createElement('td', { className:'p-2' }, edit ? React.createElement('input', { className:'border rounded px-2 py-1 w-full', defaultValue:vpo.notes, onChange:e=>vpo.notes=e.target.value }) : (vpo.notes || '')),
-                  React.createElement('td', { className:'p-2 text-right space-x-2' },
+                return React.createElement('tr', { key: vpo.id, className: 'border-b' },
+                  cols.id && React.createElement('td', { className: 'p-2 font-mono' }, vpo.id),
+                  cols.vendor && React.createElement('td', { className: 'p-2' }, edit ? React.createElement('select', { className: 'border rounded px-2 py-1', defaultValue: vpo.vendor_id, onChange: e => vpo.vendor_id = e.target.value }, vendors.map(v => React.createElement('option', { key: v.id, value: v.id }, `${v.id} - ${v.name}`))) : vpo.vendor_name),
+                  cols.po_date && React.createElement('td', { className: 'p-2' }, edit ? React.createElement('input', { type: 'date', className: 'border rounded px-2 py-1', defaultValue: vpo.po_date, onChange: e => vpo.po_date = e.target.value }) : vpo.po_date),
+                  cols.due_date && React.createElement('td', { className: 'p-2' }, edit ? React.createElement('input', { type: 'date', className: 'border rounded px-2 py-1', defaultValue: vpo.due_date, onChange: e => vpo.due_date = e.target.value }) : vpo.due_date),
+                  cols.status && React.createElement('td', { className: 'p-2' }, edit ? React.createElement('select', { className: 'border rounded px-2 py-1', defaultValue: vpo.status, onChange: e => vpo.status = e.target.value }, ['Pending', 'Ordered', 'In Transit', 'Completed', 'Cancelled'].map(s => React.createElement('option', { key: s, value: s }, s))) : vpo.status),
+                  cols.notes && React.createElement('td', { className: 'p-2' }, edit ? React.createElement('input', { className: 'border rounded px-2 py-1 w-full', defaultValue: vpo.notes, onChange: e => vpo.notes = e.target.value }) : (vpo.notes || '')),
+                  React.createElement('td', { className: 'p-2 text-right space-x-2' },
                     edit ? React.createElement(React.Fragment, null,
-                      React.createElement('button', { onClick:()=>save(vpo), className:'px-2 py-1 bg-green-600 text-white rounded text-sm' }, 'Save'),
-                      React.createElement('button', { onClick:()=>setEditing(null), className:'px-2 py-1 border rounded text-sm' }, 'Cancel')
+                      React.createElement('button', { onClick: () => save(vpo), className: 'px-2 py-1 bg-green-600 text-white rounded text-sm' }, 'Save'),
+                      React.createElement('button', { onClick: () => setEditing(null), className: 'px-2 py-1 border rounded text-sm' }, 'Cancel')
                     ) : React.createElement(React.Fragment, null,
-                      React.createElement('button', { onClick:()=>setEditing(vpo.id), className:'px-2 py-1 bg-blue-600 text-white rounded text-sm' }, 'Edit'),
-                      React.createElement('button', { onClick:()=>toggleItems(vpo), className:'px-2 py-1 border rounded text-sm' }, openItems[vpo.id] ? 'Hide Items' : 'Items'),
-                      React.createElement('button', { onClick:()=>del(vpo.id), className:'px-2 py-1 bg-red-600 text-white rounded text-sm' }, 'Delete')
+                      React.createElement('button', { onClick: () => setEditing(vpo.id), className: 'px-2 py-1 bg-blue-600 text-white rounded text-sm' }, 'Edit'),
+                      React.createElement('button', { onClick: () => toggleItems(vpo), className: 'px-2 py-1 border rounded text-sm' }, openItems[vpo.id] ? 'Hide Items' : 'Items'),
+                      React.createElement('button', { onClick: () => del(vpo.id), className: 'px-2 py-1 bg-red-600 text-white rounded text-sm' }, 'Delete')
                     )
                   )
                 );
@@ -8863,87 +9188,87 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
           )
         ),
         Object.keys(openItems).filter(id => openItems[id]).map(id => (
-          React.createElement('div', { key:id, className:'mt-3 ml-2 border-l-4 border-blue-300 pl-4' },
-            React.createElement('div', { className:'text-sm font-semibold text-gray-700 mb-2' }, `Items for VPO ${id}`),
-            React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-7 gap-2 mb-2' },
-              React.createElement('select', { className:'border rounded px-2 py-1', value:newItem.item_type, onChange:e=>setNewItem({...newItem,item_type:e.target.value, item:'', product_id:'', product_stage:''}) },
-                React.createElement('option', { value:'Raw Material' }, 'Raw Material'),
-                React.createElement('option', { value:'Product' }, 'Product')
+          React.createElement('div', { key: id, className: 'mt-3 ml-2 border-l-4 border-blue-300 pl-4' },
+            React.createElement('div', { className: 'text-sm font-semibold text-gray-700 mb-2' }, `Items for VPO ${id}`),
+            React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-7 gap-2 mb-2' },
+              React.createElement('select', { className: 'border rounded px-2 py-1', value: newItem.item_type, onChange: e => setNewItem({ ...newItem, item_type: e.target.value, item: '', product_id: '', product_stage: '' }) },
+                React.createElement('option', { value: 'Raw Material' }, 'Raw Material'),
+                React.createElement('option', { value: 'Product' }, 'Product')
               ),
               newItem.item_type === 'Raw Material'
-                ? React.createElement('select', { className:'border rounded px-2 py-1', value:newItem.item, onChange:e=>setNewItem({...newItem,item:e.target.value}) },
-                    React.createElement('option', { value:'' }, 'Select Material'),
-                    rawMaterials.map(rm => React.createElement('option', { key:rm.material, value:rm.material }, rm.material))
-                  )
-                : React.createElement('select', { className:'border rounded px-2 py-1', value:newItem.product_id, onChange:e=>setNewItem({...newItem,product_id:e.target.value}) },
-                    React.createElement('option', { value:'' }, 'Select Product'),
-                    products.map(p => React.createElement('option', { key:p.id, value:p.id }, `${p.id} - ${p.description}`))
-                  ),
-              newItem.item_type === 'Product' && React.createElement('select', { className:'border rounded px-2 py-1', value:newItem.product_stage, onChange:e=>setNewItem({...newItem,product_stage:e.target.value}) },
-                React.createElement('option', { value:'' }, 'Select Stage'),
-                React.createElement('option', { value:'steel_rods' }, 'Steel Rods'),
-                React.createElement('option', { value:'plated' }, 'Plated'),
-                React.createElement('option', { value:'quality_checked' }, 'Quality Checked'),
-                React.createElement('option', { value:'stamped' }, 'Stamped'),
-                React.createElement('option', { value:'packaged' }, 'Packaged')
+                ? React.createElement('select', { className: 'border rounded px-2 py-1', value: newItem.item, onChange: e => setNewItem({ ...newItem, item: e.target.value }) },
+                  React.createElement('option', { value: '' }, 'Select Material'),
+                  rawMaterials.map(rm => React.createElement('option', { key: rm.material, value: rm.material }, rm.material))
+                )
+                : React.createElement('select', { className: 'border rounded px-2 py-1', value: newItem.product_id, onChange: e => setNewItem({ ...newItem, product_id: e.target.value }) },
+                  React.createElement('option', { value: '' }, 'Select Product'),
+                  products.map(p => React.createElement('option', { key: p.id, value: p.id }, `${p.id} - ${p.description}`))
+                ),
+              newItem.item_type === 'Product' && React.createElement('select', { className: 'border rounded px-2 py-1', value: newItem.product_stage, onChange: e => setNewItem({ ...newItem, product_stage: e.target.value }) },
+                React.createElement('option', { value: '' }, 'Select Stage'),
+                React.createElement('option', { value: 'steel_rods' }, 'Steel Rods'),
+                React.createElement('option', { value: 'plated' }, 'Plated'),
+                React.createElement('option', { value: 'quality_checked' }, 'Quality Checked'),
+                React.createElement('option', { value: 'stamped' }, 'Stamped'),
+                React.createElement('option', { value: 'packaged' }, 'Packaged')
               ),
-              React.createElement('input', { className:'border rounded px-2 py-1', type:'number', placeholder:'Quantity', value:newItem.qty, onChange:e=>setNewItem({...newItem,qty:Number(e.target.value||0)}) }),
-              React.createElement('input', { className:'border rounded px-2 py-1', type:'number', placeholder:'Unit Price', value:newItem.unit_price, onChange:e=>setNewItem({...newItem,unit_price:Number(e.target.value||0)}) }),
-              React.createElement('select', { className:'border rounded px-2 py-1', value:newItem.unit, onChange:e=>setNewItem({...newItem,unit:e.target.value}) }, ['kg','pcs','litre','MT'].map(u=> React.createElement('option', { key:u, value:u }, u))),
-              React.createElement('button', { className:'px-3 py-1 bg-green-600 text-white rounded', onClick:()=>addItem({ id }) }, 'Add')
+              React.createElement('input', { className: 'border rounded px-2 py-1', type: 'number', placeholder: 'Quantity', value: newItem.qty, onChange: e => setNewItem({ ...newItem, qty: Number(e.target.value || 0) }) }),
+              React.createElement('input', { className: 'border rounded px-2 py-1', type: 'number', placeholder: 'Unit Price', value: newItem.unit_price, onChange: e => setNewItem({ ...newItem, unit_price: Number(e.target.value || 0) }) }),
+              React.createElement('select', { className: 'border rounded px-2 py-1', value: newItem.unit, onChange: e => setNewItem({ ...newItem, unit: e.target.value }) }, ['kg', 'pcs', 'litre', 'MT'].map(u => React.createElement('option', { key: u, value: u }, u))),
+              React.createElement('button', { className: 'px-3 py-1 bg-green-600 text-white rounded', onClick: () => addItem({ id }) }, 'Add')
             ),
-            React.createElement('div', { className:'overflow-x-auto' },
-              React.createElement('table', { className:'min-w-full border-collapse' },
+            React.createElement('div', { className: 'overflow-x-auto' },
+              React.createElement('table', { className: 'min-w-full border-collapse' },
                 React.createElement('thead', null,
-                  React.createElement('tr', { className:'bg-gray-100' }, ['Type','Item','Stage','Quantity','Unit Price','Unit','Line Total','Actions'].map(h=> React.createElement('th', { key:h, className:'p-2 text-sm text-center border' }, h)))
+                  React.createElement('tr', { className: 'bg-gray-100' }, ['Type', 'Item', 'Stage', 'Quantity', 'Unit Price', 'Unit', 'Line Total', 'Actions'].map(h => React.createElement('th', { key: h, className: 'p-2 text-sm text-center border' }, h)))
                 ),
                 React.createElement('tbody', null,
-                  (itemsCache[id]||[]).map(it => {
+                  (itemsCache[id] || []).map(it => {
                     const editKey = `${id}-${it.id}`;
                     const isEditing = !!editingItems[editKey];
                     const editData = editingItems[editKey] || {};
 
-                    return React.createElement('tr', { key:it.id, className:'border-b' },
-                      React.createElement('td', { className:'p-2 text-sm text-center border' }, it.item_type || 'Raw Material'),
-                      React.createElement('td', { className:'p-2 text-sm text-center border' }, it.product_id || it.material_type || it.item),
-                      React.createElement('td', { className:'p-2 text-sm text-center border' }, it.product_stage ? it.product_stage.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-'),
-                      React.createElement('td', { className:'p-2 text-center border' },
+                    return React.createElement('tr', { key: it.id, className: 'border-b' },
+                      React.createElement('td', { className: 'p-2 text-sm text-center border' }, it.item_type || 'Raw Material'),
+                      React.createElement('td', { className: 'p-2 text-sm text-center border' }, it.product_id || it.material_type || it.item),
+                      React.createElement('td', { className: 'p-2 text-sm text-center border' }, it.product_stage ? it.product_stage.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-'),
+                      React.createElement('td', { className: 'p-2 text-center border' },
                         React.createElement('input', {
-                          type:'number',
-                          className:'border rounded px-2 py-1 w-24 text-center',
+                          type: 'number',
+                          className: 'border rounded px-2 py-1 w-24 text-center',
                           value: isEditing ? editData.quantity : (it.quantity || it.qty),
                           onChange: e => {
                             if (!isEditing) startEditingItem(id, it);
-                            updateEditingItem(id, it.id, 'quantity', Number(e.target.value||0));
+                            updateEditingItem(id, it.id, 'quantity', Number(e.target.value || 0));
                           }
                         })
                       ),
-                      React.createElement('td', { className:'p-2 text-center border' },
+                      React.createElement('td', { className: 'p-2 text-center border' },
                         React.createElement('input', {
-                          type:'number',
-                          className:'border rounded px-2 py-1 w-24 text-center',
+                          type: 'number',
+                          className: 'border rounded px-2 py-1 w-24 text-center',
                           value: isEditing ? editData.unit_price : (it.unit_price || 0),
                           onChange: e => {
                             if (!isEditing) startEditingItem(id, it);
-                            updateEditingItem(id, it.id, 'unit_price', Number(e.target.value||0));
+                            updateEditingItem(id, it.id, 'unit_price', Number(e.target.value || 0));
                           }
                         })
                       ),
-                      React.createElement('td', { className:'p-2 text-sm text-center border' }, it.unit || 'kg'),
-                      React.createElement('td', { className:'p-2 text-sm text-center font-semibold border' },
+                      React.createElement('td', { className: 'p-2 text-sm text-center border' }, it.unit || 'kg'),
+                      React.createElement('td', { className: 'p-2 text-sm text-center font-semibold border' },
                         (isEditing
                           ? (editData.quantity * editData.unit_price).toFixed(2)
                           : ((it.quantity || it.qty || 0) * (it.unit_price || 0)).toFixed(2)
                         )
                       ),
-                      React.createElement('td', { className:'p-2 text-center border space-x-2' },
+                      React.createElement('td', { className: 'p-2 text-center border space-x-2' },
                         React.createElement('button', {
-                          className:'px-2 py-1 bg-blue-600 text-white rounded text-sm',
+                          className: 'px-2 py-1 bg-blue-600 text-white rounded text-sm',
                           onClick: () => updateItem(id, it.id),
                           disabled: !isEditing
                         }, 'Save'),
                         React.createElement('button', {
-                          className:'px-2 py-1 bg-red-600 text-white rounded text-sm',
+                          className: 'px-2 py-1 bg-red-600 text-white rounded text-sm',
                           onClick: () => deleteItem(id, it.id)
                         }, 'Delete')
                       )
@@ -8960,8 +9285,8 @@ function VendorPurchaseOrdersEx({ purchaseOrders, vendors, onRefresh }){
 }
 
 // Extended Products table with required columns
-function ProductMasterEx({ products, calculateWeights, onRefresh }){
-  const [form, setForm] = useState({ id:'', description:'', diameter:0, diameterUnit:'mm', length:0, lengthUnit:'mm', coating:0, width:0, height:0, thickness:0, rectUnit:'mm', weightUnit:'kg', product_type:'ground_rod', custom_bom:false, base_product_id:'', threading:'Plain' });
+function ProductMasterEx({ products, calculateWeights, onRefresh }) {
+  const [form, setForm] = useState({ id: '', description: '', diameter: 0, diameterUnit: 'mm', length: 0, lengthUnit: 'mm', coating: 0, width: 0, height: 0, thickness: 0, rectUnit: 'mm', weightUnit: 'kg', product_type: 'ground_rod', custom_bom: false, base_product_id: '', threading: 'Plain' });
   const [bomItems, setBomItems] = useState([]);
   const [editingProduct, setEditingProduct] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -9000,7 +9325,7 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
     return kg;
   }
 
-  async function add(){
+  async function add() {
     const diameterMM = convertToMM(form.diameter, form.diameterUnit);
     const lengthMM = convertToMM(form.length, form.lengthUnit);
     const widthMM = convertToMM(form.width, form.rectUnit);
@@ -9021,25 +9346,25 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
       threading: form.threading || 'Plain'
     };
 
-    await fetch(`${API_URL}/products`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(productData) });
+    await fetch(`${API_URL}/products`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(productData) });
 
     // If custom BOM, add BOM items
     if (form.custom_bom && bomItems.length > 0) {
       for (const item of bomItems) {
         await fetch(`${API_URL}/bom`, {
           method: 'POST',
-          headers: {'Content-Type':'application/json'},
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ product_id: form.id, material: item.material, qty_per_unit: item.qty })
         });
       }
     }
 
-    setForm({ id:'', description:'', diameter:0, diameterUnit:'mm', length:0, lengthUnit:'mm', coating:0, width:0, height:0, thickness:0, rectUnit:'mm', weightUnit:'kg', product_type:'ground_rod', custom_bom:false, base_product_id:'', threading:'Plain' });
+    setForm({ id: '', description: '', diameter: 0, diameterUnit: 'mm', length: 0, lengthUnit: 'mm', coating: 0, width: 0, height: 0, thickness: 0, rectUnit: 'mm', weightUnit: 'kg', product_type: 'ground_rod', custom_bom: false, base_product_id: '', threading: 'Plain' });
     setBomItems([]);
     onRefresh?.();
   }
 
-  async function handleBulkImport(e){
+  async function handleBulkImport(e) {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -9088,20 +9413,20 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
     }
   }
 
-  async function saveEdit(){
+  async function saveEdit() {
     const diameterMM = editForm.diameterUnit ? convertToMM(editForm.steel_diameter, editForm.diameterUnit) : Number(editForm.steel_diameter);
     const lengthMM = editForm.lengthUnit ? convertToMM(editForm.length, editForm.lengthUnit) : Number(editForm.length);
     const urlId = editForm.originalId || editForm.id;
-    await fetch(`${API_URL}/products/${encodeURIComponent(urlId)}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...editForm, steel_diameter:diameterMM, length:lengthMM, copper_coating:Number(editForm.copper_coating), base_product_id:editForm.base_product_id || editForm.id, threading:editForm.threading || 'Plain' }) });
+    await fetch(`${API_URL}/products/${encodeURIComponent(urlId)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...editForm, steel_diameter: diameterMM, length: lengthMM, copper_coating: Number(editForm.copper_coating), base_product_id: editForm.base_product_id || editForm.id, threading: editForm.threading || 'Plain' }) });
     setEditingProduct(null);
     onRefresh?.();
   }
 
-  async function deleteProduct(id){
+  async function deleteProduct(id) {
     if (!confirm(`⚠️ Delete product "${id}"?\n\nThis action cannot be undone.`)) return;
 
     try {
-      const res = await fetch(`${API_URL}/products/${id}`, { method:'DELETE' });
+      const res = await fetch(`${API_URL}/products/${id}`, { method: 'DELETE' });
       if (res.ok) {
         alert('✅ Product deleted successfully');
         if (onRefresh) await onRefresh();
@@ -9115,7 +9440,7 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
 
           if (forceDelete) {
             // Call force delete endpoint
-            const forceRes = await fetch(`${API_URL}/products/${id}/force`, { method:'DELETE' });
+            const forceRes = await fetch(`${API_URL}/products/${id}/force`, { method: 'DELETE' });
             if (forceRes.ok) {
               alert('✅ Product and all references deleted successfully');
               if (onRefresh) await onRefresh();
@@ -9136,48 +9461,60 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
   }
 
   const columns = [
-        { key: 'id', label: 'Product ID' },
+    { key: 'id', label: 'Product ID' },
     { key: 'description', label: 'Description' },
     { key: 'threading', label: 'Threading', render: (val) => val || 'Plain' },
     { key: 'base_product_id', label: 'Base Product', render: (val, row) => val || row.id },
     { key: 'steel_diameter', label: 'Steel Dia (mm)', render: (val) => val || '-' },
-    { key: 'steel_diameter_in', label: 'Steel Dia (in)', render: (val, row) => row.steel_diameter ? (row.steel_diameter/25.4).toFixed(3) : '-' },
+    { key: 'steel_diameter_in', label: 'Steel Dia (in)', render: (val, row) => row.steel_diameter ? (row.steel_diameter / 25.4).toFixed(3) : '-' },
     { key: 'length', label: 'Length (mm)', render: (val) => val || '-' },
-    { key: 'length_m', label: 'Length (m)', render: (val, row) => row.length ? (row.length/1000).toFixed(2) : '-' },
-    { key: 'length_ft', label: 'Length (ft)', render: (val, row) => row.length ? (row.length/304.8).toFixed(2) : '-' },
+    { key: 'length_m', label: 'Length (m)', render: (val, row) => row.length ? (row.length / 1000).toFixed(2) : '-' },
+    { key: 'length_ft', label: 'Length (ft)', render: (val, row) => row.length ? (row.length / 304.8).toFixed(2) : '-' },
     { key: 'copper_coating', label: 'Copper (µm)', render: (val) => val || '-' },
-    { key: 'cbg_diameter', label: 'CBG Dia (mm)', render: (val, row) => {
-      if (!row.steel_diameter || !row.copper_coating) return '-';
-      const cbg = row.steel_diameter + (2 * row.copper_coating / 1000);
-      return cbg.toFixed(1);
-    }},
-    { key: 'cbg_diameter_in', label: 'CBG Dia (in)', render: (val, row) => {
-      if (!row.steel_diameter || !row.copper_coating) return '-';
-      const cbg = row.steel_diameter + (2 * row.copper_coating / 1000);
-      return (cbg/25.4).toFixed(3);
-    }},
-        { key: 'steel_per_unit', label: 'Steel/Unit (kg)', render: (val, row) => {
-      const bom = bomData[row.id];
-      if (!bom) return '-';
-      const steel = bom['Steel'] || bom['Steel Bar'] || 0;
-      return steel > 0 ? steel.toFixed(3) : '-';
-    }},
-    { key: 'copper_per_unit', label: 'Copper/Unit (kg)', render: (val, row) => {
-      const bom = bomData[row.id];
-      if (!bom) return '-';
-      const copper = bom['Copper Anode'] || 0;
-      return copper > 0 ? copper.toFixed(3) : '-';
-    }},
-    { key: 'cbg_weight', label: 'Weight (kg)', render: (val, row) => {
-      if (!row.steel_diameter || !row.copper_coating || !row.length) return '-';
-      const w = calculateWeights(row.steel_diameter, row.copper_coating, row.length);
-      return Number(w.cbg).toFixed(2);
-    }},
-    { key: 'cbg_weight_lbs', label: 'Weight (lbs)', render: (val, row) => {
-      if (!row.steel_diameter || !row.copper_coating || !row.length) return '-';
-      const w = calculateWeights(row.steel_diameter, row.copper_coating, row.length);
-      return (Number(w.cbg) * 2.20462).toFixed(2);
-    }}
+    {
+      key: 'cbg_diameter', label: 'CBG Dia (mm)', render: (val, row) => {
+        if (!row.steel_diameter || !row.copper_coating) return '-';
+        const cbg = row.steel_diameter + (2 * row.copper_coating / 1000);
+        return cbg.toFixed(1);
+      }
+    },
+    {
+      key: 'cbg_diameter_in', label: 'CBG Dia (in)', render: (val, row) => {
+        if (!row.steel_diameter || !row.copper_coating) return '-';
+        const cbg = row.steel_diameter + (2 * row.copper_coating / 1000);
+        return (cbg / 25.4).toFixed(3);
+      }
+    },
+    {
+      key: 'steel_per_unit', label: 'Steel/Unit (kg)', render: (val, row) => {
+        const bom = bomData[row.id];
+        if (!bom) return '-';
+        const steel = bom['Steel'] || bom['Steel Bar'] || 0;
+        return steel > 0 ? steel.toFixed(3) : '-';
+      }
+    },
+    {
+      key: 'copper_per_unit', label: 'Copper/Unit (kg)', render: (val, row) => {
+        const bom = bomData[row.id];
+        if (!bom) return '-';
+        const copper = bom['Copper Anode'] || 0;
+        return copper > 0 ? copper.toFixed(3) : '-';
+      }
+    },
+    {
+      key: 'cbg_weight', label: 'Weight (kg)', render: (val, row) => {
+        if (!row.steel_diameter || !row.copper_coating || !row.length) return '-';
+        const w = calculateWeights(row.steel_diameter, row.copper_coating, row.length);
+        return Number(w.cbg).toFixed(2);
+      }
+    },
+    {
+      key: 'cbg_weight_lbs', label: 'Weight (lbs)', render: (val, row) => {
+        if (!row.steel_diameter || !row.copper_coating || !row.length) return '-';
+        const w = calculateWeights(row.steel_diameter, row.copper_coating, row.length);
+        return (Number(w.cbg) * 2.20462).toFixed(2);
+      }
+    }
   ];
 
   const enrichedProducts = products.map(p => ({
@@ -9186,7 +9523,7 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
     copper_coating: p.copper_coating || p.coating
   }));
 
-  function handleRowClick(product){
+  function handleRowClick(product) {
     setEditForm({
       originalId: product.id,
       id: product.id,
@@ -9203,14 +9540,14 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
     setEditingProduct(product);
   }
 
-  function handleExport(data, cols){
+  function handleExport(data, cols) {
     const headers = cols.map(c => ({ key: c.key, label: c.label }));
     const rows = data.map(p => {
       const w = calculateWeights(p.steel_diameter || p.diameter, p.copper_coating || p.coating, p.length);
       return {
         ...p,
-        length_ft: p.length ? (p.length/304.8).toFixed(2) : '',
-        cbg_diameter: (p.steel_diameter + (2 * (p.copper_coating||0) / 1000)).toFixed(2),
+        length_ft: p.length ? (p.length / 304.8).toFixed(2) : '',
+        cbg_diameter: (p.steel_diameter + (2 * (p.copper_coating || 0) / 1000)).toFixed(2),
         cbg_weight: w.cbg
       };
     });
@@ -9218,123 +9555,123 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
   }
 
   return (
-    React.createElement('div', { className:'space-y-4' },
-      React.createElement(Section, { title:'Add Product' },
-        React.createElement('div', { className:'mb-4 p-3 bg-gray-50 rounded border' },
-          React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-3 gap-3 items-center' },
+    React.createElement('div', { className: 'space-y-4' },
+      React.createElement(Section, { title: 'Add Product' },
+        React.createElement('div', { className: 'mb-4 p-3 bg-gray-50 rounded border' },
+          React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-3 items-center' },
             React.createElement('div', null,
-              React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Product Type'),
-              React.createElement('select', { className:'border rounded px-3 py-2 w-full', value:form.product_type, onChange:e=>setForm({ ...form, product_type:e.target.value }) },
-                React.createElement('option', { value:'ground_rod' }, 'Ground Rod (Auto BOM)'),
-                React.createElement('option', { value:'clamp' }, 'Clamp'),
-                React.createElement('option', { value:'assembly' }, 'Assembly'),
-                React.createElement('option', { value:'custom' }, 'Custom Product')
+              React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Product Type'),
+              React.createElement('select', { className: 'border rounded px-3 py-2 w-full', value: form.product_type, onChange: e => setForm({ ...form, product_type: e.target.value }) },
+                React.createElement('option', { value: 'ground_rod' }, 'Ground Rod (Auto BOM)'),
+                React.createElement('option', { value: 'clamp' }, 'Clamp'),
+                React.createElement('option', { value: 'assembly' }, 'Assembly'),
+                React.createElement('option', { value: 'custom' }, 'Custom Product')
               )
             ),
-            React.createElement('div', { className:'flex items-center gap-2 md:col-span-2' },
-              React.createElement('input', { type:'checkbox', id:'customBom', checked:form.custom_bom, onChange:e=>setForm({ ...form, custom_bom:e.target.checked }), className:'w-4 h-4' }),
-              React.createElement('label', { htmlFor:'customBom', className:'text-sm font-semibold text-gray-700 cursor-pointer' }, 'Use Custom BOM (Manual material entry - disables auto-calculation)')
+            React.createElement('div', { className: 'flex items-center gap-2 md:col-span-2' },
+              React.createElement('input', { type: 'checkbox', id: 'customBom', checked: form.custom_bom, onChange: e => setForm({ ...form, custom_bom: e.target.checked }), className: 'w-4 h-4' }),
+              React.createElement('label', { htmlFor: 'customBom', className: 'text-sm font-semibold text-gray-700 cursor-pointer' }, 'Use Custom BOM (Manual material entry - disables auto-calculation)')
             )
           )
         ),
-        React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-8 gap-3' },
+        React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-8 gap-3' },
           React.createElement('div', null,
-            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Product ID'),
-            React.createElement('input', { className:'border rounded px-3 py-2 w-full', placeholder:'e.g. CE1034', value:form.id, onChange:e=>setForm({ ...form, id:e.target.value }) })
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Product ID'),
+            React.createElement('input', { className: 'border rounded px-3 py-2 w-full', placeholder: 'e.g. CE1034', value: form.id, onChange: e => setForm({ ...form, id: e.target.value }) })
           ),
-          React.createElement('div', { className:'md:col-span-2' },
-            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Description'),
-            React.createElement('input', { className:'border rounded px-3 py-2 w-full', placeholder:'e.g. 14.2mm x 3000mm Ground Rod', value:form.description, onChange:e=>setForm({ ...form, description:e.target.value }) })
+          React.createElement('div', { className: 'md:col-span-2' },
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Description'),
+            React.createElement('input', { className: 'border rounded px-3 py-2 w-full', placeholder: 'e.g. 14.2mm x 3000mm Ground Rod', value: form.description, onChange: e => setForm({ ...form, description: e.target.value }) })
           ),
           React.createElement('div', null,
-            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Threading'),
-            React.createElement('select', { className:'border rounded px-3 py-2 w-full', value:form.threading, onChange:e=>setForm({ ...form, threading:e.target.value }) },
-              React.createElement('option', { value:'Plain' }, 'Plain'),
-              React.createElement('option', { value:'Threaded' }, 'Threaded'),
-              React.createElement('option', { value:'Partially Threaded' }, 'Partially Threaded')
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Threading'),
+            React.createElement('select', { className: 'border rounded px-3 py-2 w-full', value: form.threading, onChange: e => setForm({ ...form, threading: e.target.value }) },
+              React.createElement('option', { value: 'Plain' }, 'Plain'),
+              React.createElement('option', { value: 'Threaded' }, 'Threaded'),
+              React.createElement('option', { value: 'Partially Threaded' }, 'Partially Threaded')
             )
           ),
           React.createElement('div', null,
-            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Base Product ID'),
-            React.createElement('input', { className:'border rounded px-3 py-2 w-full', placeholder:'Leave empty for base product', value:form.base_product_id, onChange:e=>setForm({ ...form, base_product_id:e.target.value }) }),
-            React.createElement('p', { className:'text-xs text-gray-500 mt-1' }, 'Link to base product for threading variants')
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Base Product ID'),
+            React.createElement('input', { className: 'border rounded px-3 py-2 w-full', placeholder: 'Leave empty for base product', value: form.base_product_id, onChange: e => setForm({ ...form, base_product_id: e.target.value }) }),
+            React.createElement('p', { className: 'text-xs text-gray-500 mt-1' }, 'Link to base product for threading variants')
           ),
           (form.product_type === 'ground_rod' || !form.custom_bom) && React.createElement('div', null,
-            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Steel Diameter'),
-            React.createElement('div', { className:'flex gap-1' },
-              React.createElement('input', { className:'border rounded px-3 py-2 w-20', type:'number', step:'0.01', placeholder:'14.2', value:form.diameter, onChange:e=>setForm({ ...form, diameter:e.target.value }) }),
-              React.createElement('select', { className:'border rounded px-2 py-2 w-16 text-xs', value:form.diameterUnit, onChange:e=>setForm({ ...form, diameterUnit:e.target.value }) },
-                React.createElement('option', { value:'mm' }, 'mm'),
-                React.createElement('option', { value:'inches' }, 'in')
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Steel Diameter'),
+            React.createElement('div', { className: 'flex gap-1' },
+              React.createElement('input', { className: 'border rounded px-3 py-2 w-20', type: 'number', step: '0.01', placeholder: '14.2', value: form.diameter, onChange: e => setForm({ ...form, diameter: e.target.value }) }),
+              React.createElement('select', { className: 'border rounded px-2 py-2 w-16 text-xs', value: form.diameterUnit, onChange: e => setForm({ ...form, diameterUnit: e.target.value }) },
+                React.createElement('option', { value: 'mm' }, 'mm'),
+                React.createElement('option', { value: 'inches' }, 'in')
               )
             )
           ),
           (form.product_type === 'ground_rod' || !form.custom_bom) && React.createElement('div', null,
-            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Length'),
-            React.createElement('div', { className:'flex gap-1' },
-              React.createElement('input', { className:'border rounded px-3 py-2 w-20', type:'number', step:'0.01', placeholder:'3000', value:form.length, onChange:e=>setForm({ ...form, length:e.target.value }) }),
-              React.createElement('select', { className:'border rounded px-2 py-2 w-16 text-xs', value:form.lengthUnit, onChange:e=>setForm({ ...form, lengthUnit:e.target.value }) },
-                React.createElement('option', { value:'mm' }, 'mm'),
-                React.createElement('option', { value:'m' }, 'm'),
-                React.createElement('option', { value:'ft' }, 'ft')
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Length'),
+            React.createElement('div', { className: 'flex gap-1' },
+              React.createElement('input', { className: 'border rounded px-3 py-2 w-20', type: 'number', step: '0.01', placeholder: '3000', value: form.length, onChange: e => setForm({ ...form, length: e.target.value }) }),
+              React.createElement('select', { className: 'border rounded px-2 py-2 w-16 text-xs', value: form.lengthUnit, onChange: e => setForm({ ...form, lengthUnit: e.target.value }) },
+                React.createElement('option', { value: 'mm' }, 'mm'),
+                React.createElement('option', { value: 'm' }, 'm'),
+                React.createElement('option', { value: 'ft' }, 'ft')
               )
             )
           ),
           (form.product_type === 'ground_rod' || form.product_type === 'clamp' || !form.custom_bom) && React.createElement('div', null,
-            React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Copper Coating (µm)'),
-            React.createElement('input', { className:'border rounded px-3 py-2 w-full', type:'number', placeholder:'250', value:form.coating, onChange:e=>setForm({ ...form, coating:e.target.value }) })
+            React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Copper Coating (µm)'),
+            React.createElement('input', { className: 'border rounded px-3 py-2 w-full', type: 'number', placeholder: '250', value: form.coating, onChange: e => setForm({ ...form, coating: e.target.value }) })
           ),
           (form.product_type === 'clamp' && !form.custom_bom) && React.createElement(React.Fragment, null,
-            React.createElement('div', { className:'md:col-span-8' },
-              React.createElement('div', { className:'grid grid-cols-4 gap-2' },
+            React.createElement('div', { className: 'md:col-span-8' },
+              React.createElement('div', { className: 'grid grid-cols-4 gap-2' },
                 React.createElement('div', null,
-                  React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Width (mm)'),
-                  React.createElement('input', { className:'border rounded px-2 py-1 w-full', type:'number', step:'0.01', placeholder:'50', value:form.width, onChange:e=>setForm({ ...form, width:e.target.value }) })
+                  React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Width (mm)'),
+                  React.createElement('input', { className: 'border rounded px-2 py-1 w-full', type: 'number', step: '0.01', placeholder: '50', value: form.width, onChange: e => setForm({ ...form, width: e.target.value }) })
                 ),
                 React.createElement('div', null,
-                  React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Height (mm)'),
-                  React.createElement('input', { className:'border rounded px-2 py-1 w-full', type:'number', step:'0.01', placeholder:'25', value:form.height, onChange:e=>setForm({ ...form, height:e.target.value }) })
+                  React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Height (mm)'),
+                  React.createElement('input', { className: 'border rounded px-2 py-1 w-full', type: 'number', step: '0.01', placeholder: '25', value: form.height, onChange: e => setForm({ ...form, height: e.target.value }) })
                 ),
                 React.createElement('div', null,
-                  React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Thickness (mm)'),
-                  React.createElement('input', { className:'border rounded px-2 py-1 w-full', type:'number', step:'0.01', placeholder:'5', value:form.thickness, onChange:e=>setForm({ ...form, thickness:e.target.value }) })
+                  React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Thickness (mm)'),
+                  React.createElement('input', { className: 'border rounded px-2 py-1 w-full', type: 'number', step: '0.01', placeholder: '5', value: form.thickness, onChange: e => setForm({ ...form, thickness: e.target.value }) })
                 ),
                 React.createElement('div', null,
-                  React.createElement('label', { className:'block text-xs font-semibold text-gray-700 mb-1' }, 'Length (mm)'),
-                  React.createElement('input', { className:'border rounded px-2 py-1 w-full', type:'number', step:'0.01', placeholder:'100', value:form.length, onChange:e=>setForm({ ...form, length:e.target.value }) })
+                  React.createElement('label', { className: 'block text-xs font-semibold text-gray-700 mb-1' }, 'Length (mm)'),
+                  React.createElement('input', { className: 'border rounded px-2 py-1 w-full', type: 'number', step: '0.01', placeholder: '100', value: form.length, onChange: e => setForm({ ...form, length: e.target.value }) })
                 )
               )
             )
           ),
-          React.createElement('div', { className:'md:col-span-2 flex items-end' },
-            React.createElement('button', { onClick:add, className:'px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700 w-full' }, 'Add Product')
+          React.createElement('div', { className: 'md:col-span-2 flex items-end' },
+            React.createElement('button', { onClick: add, className: 'px-4 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700 w-full' }, 'Add Product')
           )
         ),
-        form.custom_bom && React.createElement('div', { className:'mt-4 p-3 bg-amber-50 border border-amber-200 rounded' },
-          React.createElement('h4', { className:'font-semibold text-sm mb-2' }, 'Custom BOM Materials'),
-          React.createElement('div', { className:'space-y-2' },
+        form.custom_bom && React.createElement('div', { className: 'mt-4 p-3 bg-amber-50 border border-amber-200 rounded' },
+          React.createElement('h4', { className: 'font-semibold text-sm mb-2' }, 'Custom BOM Materials'),
+          React.createElement('div', { className: 'space-y-2' },
             bomItems.map((item, idx) =>
-              React.createElement('div', { key:idx, className:'flex gap-2 items-center' },
-                React.createElement('span', { className:'text-sm flex-1' }, `${item.material}: ${item.qty} kg`),
+              React.createElement('div', { key: idx, className: 'flex gap-2 items-center' },
+                React.createElement('span', { className: 'text-sm flex-1' }, `${item.material}: ${item.qty} kg`),
                 React.createElement('button', {
-                  onClick: () => setBomItems(bomItems.filter((_,i) => i !== idx)),
-                  className:'text-red-600 text-xs px-2 py-1 hover:bg-red-50 rounded'
+                  onClick: () => setBomItems(bomItems.filter((_, i) => i !== idx)),
+                  className: 'text-red-600 text-xs px-2 py-1 hover:bg-red-50 rounded'
                 }, 'Remove')
               )
             )
           ),
-          React.createElement('div', { className:'grid grid-cols-3 gap-2 mt-3' },
+          React.createElement('div', { className: 'grid grid-cols-3 gap-2 mt-3' },
             React.createElement('input', {
-              placeholder:'Material name',
-              id:'bomMaterial',
-              className:'border rounded px-2 py-1 text-sm col-span-2'
+              placeholder: 'Material name',
+              id: 'bomMaterial',
+              className: 'border rounded px-2 py-1 text-sm col-span-2'
             }),
             React.createElement('input', {
-              placeholder:'Qty (kg)',
-              id:'bomQty',
-              type:'number',
-              step:'0.001',
-              className:'border rounded px-2 py-1 text-sm'
+              placeholder: 'Qty (kg)',
+              id: 'bomQty',
+              type: 'number',
+              step: '0.001',
+              className: 'border rounded px-2 py-1 text-sm'
             })
           ),
           React.createElement('button', {
@@ -9347,7 +9684,7 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
                 document.getElementById('bomQty').value = '';
               }
             },
-            className:'mt-2 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700'
+            className: 'mt-2 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700'
           }, 'Add Material to BOM')
         )
       ),
@@ -9383,57 +9720,57 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
         onClose: () => setEditingProduct(null),
         title: `Edit Product: ${editForm.id || ''}`
       },
-        React.createElement('div', { className:'space-y-4' },
-          React.createElement('div', { className:'grid grid-cols-1 md:grid-cols-2 gap-4' },
+        React.createElement('div', { className: 'space-y-4' },
+          React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
             React.createElement('div', null,
-              React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Product ID'),
-              React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.id || '', onChange:e=>setEditForm({...editForm, id:e.target.value}) })
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Product ID'),
+              React.createElement('input', { className: 'border rounded px-3 py-2 w-full', value: editForm.id || '', onChange: e => setEditForm({ ...editForm, id: e.target.value }) })
             ),
-            React.createElement('div', { className:'md:col-span-1' },
-              React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Description'),
-              React.createElement('input', { className:'border rounded px-3 py-2 w-full', value:editForm.description || '', onChange:e=>setEditForm({...editForm, description:e.target.value}) })
+            React.createElement('div', { className: 'md:col-span-1' },
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Description'),
+              React.createElement('input', { className: 'border rounded px-3 py-2 w-full', value: editForm.description || '', onChange: e => setEditForm({ ...editForm, description: e.target.value }) })
             ),
             React.createElement('div', null,
-              React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Threading'),
-              React.createElement('select', { className:'border rounded px-3 py-2 w-full', value:editForm.threading || 'Plain', onChange:e=>setEditForm({...editForm, threading:e.target.value}) },
-                React.createElement('option', { value:'Plain' }, 'Plain'),
-                React.createElement('option', { value:'Threaded' }, 'Threaded'),
-                React.createElement('option', { value:'Partially Threaded' }, 'Partially Threaded')
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Threading'),
+              React.createElement('select', { className: 'border rounded px-3 py-2 w-full', value: editForm.threading || 'Plain', onChange: e => setEditForm({ ...editForm, threading: e.target.value }) },
+                React.createElement('option', { value: 'Plain' }, 'Plain'),
+                React.createElement('option', { value: 'Threaded' }, 'Threaded'),
+                React.createElement('option', { value: 'Partially Threaded' }, 'Partially Threaded')
               )
             ),
             React.createElement('div', null,
-              React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Base Product ID'),
-              React.createElement('input', { className:'border rounded px-3 py-2 w-full', placeholder:'Link to base product', value:editForm.base_product_id || '', onChange:e=>setEditForm({...editForm, base_product_id:e.target.value}) })
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Base Product ID'),
+              React.createElement('input', { className: 'border rounded px-3 py-2 w-full', placeholder: 'Link to base product', value: editForm.base_product_id || '', onChange: e => setEditForm({ ...editForm, base_product_id: e.target.value }) })
             ),
             React.createElement('div', null,
-              React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Steel Diameter'),
-              React.createElement('div', { className:'flex gap-2' },
-                React.createElement('input', { className:'border rounded px-3 py-2 flex-1', type:'number', step:'0.01', value:editForm.steel_diameter || '', onChange:e=>setEditForm({...editForm, steel_diameter:e.target.value}) }),
-                React.createElement('select', { className:'border rounded px-3 py-2 w-20', value:editForm.diameterUnit || 'mm', onChange:e=>setEditForm({...editForm, diameterUnit:e.target.value}) },
-                  React.createElement('option', { value:'mm' }, 'mm'),
-                  React.createElement('option', { value:'inches' }, 'in')
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Steel Diameter'),
+              React.createElement('div', { className: 'flex gap-2' },
+                React.createElement('input', { className: 'border rounded px-3 py-2 flex-1', type: 'number', step: '0.01', value: editForm.steel_diameter || '', onChange: e => setEditForm({ ...editForm, steel_diameter: e.target.value }) }),
+                React.createElement('select', { className: 'border rounded px-3 py-2 w-20', value: editForm.diameterUnit || 'mm', onChange: e => setEditForm({ ...editForm, diameterUnit: e.target.value }) },
+                  React.createElement('option', { value: 'mm' }, 'mm'),
+                  React.createElement('option', { value: 'inches' }, 'in')
                 )
               )
             ),
             React.createElement('div', null,
-              React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Length'),
-              React.createElement('div', { className:'flex gap-2' },
-                React.createElement('input', { className:'border rounded px-3 py-2 flex-1', type:'number', step:'0.01', value:editForm.length || '', onChange:e=>setEditForm({...editForm, length:e.target.value}) }),
-                React.createElement('select', { className:'border rounded px-3 py-2 w-20', value:editForm.lengthUnit || 'mm', onChange:e=>setEditForm({...editForm, lengthUnit:e.target.value}) },
-                  React.createElement('option', { value:'mm' }, 'mm'),
-                  React.createElement('option', { value:'m' }, 'm'),
-                  React.createElement('option', { value:'ft' }, 'ft')
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Length'),
+              React.createElement('div', { className: 'flex gap-2' },
+                React.createElement('input', { className: 'border rounded px-3 py-2 flex-1', type: 'number', step: '0.01', value: editForm.length || '', onChange: e => setEditForm({ ...editForm, length: e.target.value }) }),
+                React.createElement('select', { className: 'border rounded px-3 py-2 w-20', value: editForm.lengthUnit || 'mm', onChange: e => setEditForm({ ...editForm, lengthUnit: e.target.value }) },
+                  React.createElement('option', { value: 'mm' }, 'mm'),
+                  React.createElement('option', { value: 'm' }, 'm'),
+                  React.createElement('option', { value: 'ft' }, 'ft')
                 )
               )
             ),
             React.createElement('div', null,
-              React.createElement('label', { className:'block text-sm font-semibold text-gray-700 mb-1' }, 'Copper Coating (µm)'),
-              React.createElement('input', { className:'border rounded px-3 py-2 w-full', type:'number', value:editForm.copper_coating || '', onChange:e=>setEditForm({...editForm, copper_coating:e.target.value}) })
+              React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Copper Coating (µm)'),
+              React.createElement('input', { className: 'border rounded px-3 py-2 w-full', type: 'number', value: editForm.copper_coating || '', onChange: e => setEditForm({ ...editForm, copper_coating: e.target.value }) })
             ),
-            editForm.steel_diameter && editForm.copper_coating && editForm.length && React.createElement('div', { className:'md:col-span-2 bg-blue-50 border border-blue-200 rounded p-4' },
-              React.createElement('h4', { className:'font-semibold text-blue-900 mb-2' }, 'Calculated Values'),
-              React.createElement('div', { className:'grid grid-cols-3 gap-3 text-sm' },
-                (()=>{
+            editForm.steel_diameter && editForm.copper_coating && editForm.length && React.createElement('div', { className: 'md:col-span-2 bg-blue-50 border border-blue-200 rounded p-4' },
+              React.createElement('h4', { className: 'font-semibold text-blue-900 mb-2' }, 'Calculated Values'),
+              React.createElement('div', { className: 'grid grid-cols-3 gap-3 text-sm' },
+                (() => {
                   const diamMM = editForm.diameterUnit ? convertToMM(editForm.steel_diameter, editForm.diameterUnit) : Number(editForm.steel_diameter);
                   const lenMM = editForm.lengthUnit ? convertToMM(editForm.length, editForm.lengthUnit) : Number(editForm.length);
                   const cbgDiamMM = diamMM + (2 * Number(editForm.copper_coating) / 1000);
@@ -9441,20 +9778,20 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
                   const selectedWeightUnit = editForm.weightUnit || 'kg';
                   const displayWeight = selectedWeightUnit === 'lbs' ? convertWeight(Number(weights.cbg), 'lbs').toFixed(3) : weights.cbg;
                   return [
-                    React.createElement('div', { key:'diam' }, `CBG Dia: ${cbgDiamMM.toFixed(2)} mm (${(cbgDiamMM/25.4).toFixed(3)} in)`),
-                    React.createElement('div', { key:'weight' }, `Weight: ${displayWeight} ${selectedWeightUnit}`),
-                    React.createElement('select', { key:'unit', className:'border rounded px-2 py-1 text-xs', value:selectedWeightUnit, onChange:e=>setEditForm({...editForm, weightUnit:e.target.value}) },
-                      React.createElement('option', { value:'kg' }, 'kg'),
-                      React.createElement('option', { value:'lbs' }, 'lbs')
+                    React.createElement('div', { key: 'diam' }, `CBG Dia: ${cbgDiamMM.toFixed(2)} mm (${(cbgDiamMM / 25.4).toFixed(3)} in)`),
+                    React.createElement('div', { key: 'weight' }, `Weight: ${displayWeight} ${selectedWeightUnit}`),
+                    React.createElement('select', { key: 'unit', className: 'border rounded px-2 py-1 text-xs', value: selectedWeightUnit, onChange: e => setEditForm({ ...editForm, weightUnit: e.target.value }) },
+                      React.createElement('option', { value: 'kg' }, 'kg'),
+                      React.createElement('option', { value: 'lbs' }, 'lbs')
                     )
                   ];
                 })()
               )
             )
           ),
-          React.createElement('div', { className:'flex justify-end gap-3 mt-6' },
-            React.createElement('button', { onClick:()=>setEditingProduct(null), className:'px-4 py-2 border rounded text-gray-700 hover:bg-gray-100' }, 'Cancel'),
-            React.createElement('button', { onClick:saveEdit, className:'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700' }, 'Save Changes')
+          React.createElement('div', { className: 'flex justify-end gap-3 mt-6' },
+            React.createElement('button', { onClick: () => setEditingProduct(null), className: 'px-4 py-2 border rounded text-gray-700 hover:bg-gray-100' }, 'Cancel'),
+            React.createElement('button', { onClick: saveEdit, className: 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700' }, 'Save Changes')
           )
         )
       )
@@ -9462,7 +9799,7 @@ function ProductMasterEx({ products, calculateWeights, onRefresh }){
   );
 }
 
-function MetricCard({ title, value, color }){
+function MetricCard({ title, value, color }) {
   const colors = { blue: 'from-blue-400 to-blue-600 border-blue-300', green: 'from-green-400 to-green-600 border-green-300', orange: 'from-orange-400 to-orange-600 border-orange-300', red: 'from-red-400 to-red-600 border-red-300' };
   return React.createElement('div', { className: `bg-gradient-to-br ${colors[color]} rounded-xl shadow-lg p-6 border-2 text-white` },
     React.createElement('div', { className: 'text-sm font-bold opacity-90 mb-2' }, title),
@@ -9471,12 +9808,12 @@ function MetricCard({ title, value, color }){
 }
 
 // MetricCard with drill (click navigates to Inventory with filters)
-function MetricCardDrill({ id, title, value, color }){
+function MetricCardDrill({ id, title, value, color }) {
   const colors = { blue: 'from-blue-400 to-blue-600 border-blue-300', green: 'from-green-400 to-green-600 border-green-300', orange: 'from-orange-400 to-orange-600 border-orange-300', red: 'from-red-400 to-red-600 border-red-300' };
   const icons = { wip: '⚙️', finished: '✅', pending: '🕐', overdue: '⚠️' };
   const handleClick = () => {
     // Simple drill: navigate to Inventory tab
-    const ev = new CustomEvent('dash-drill', { detail: { metric: id }});
+    const ev = new CustomEvent('dash-drill', { detail: { metric: id } });
     window.dispatchEvent(ev);
   };
   return React.createElement('button', { onClick: handleClick, className: `text-left w-full bg-gradient-to-br ${colors[color]} rounded-xl shadow-lg p-6 border-2 text-white hover:scale-105 transition-transform` },
@@ -9492,7 +9829,7 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(React.createElement(GroundRodERP));
 
 // CSV export helper
-function downloadCSV(filename, headers, rows){
+function downloadCSV(filename, headers, rows) {
   const escape = (v) => {
     if (v === null || v === undefined) return '';
     const s = String(v).replace(/"/g, '""');
