@@ -4074,550 +4074,544 @@ function ClientPurchaseOrders({ purchaseOrders, products, customers, onRefresh }
                         )
                       )
                     )
-                  )
-                )
-              )
-
-            )
-          ),
-          // New product details row (if checkbox is checked)
-          item.new_product && React.createElement('tr', { className: 'bg-blue-50' },
-            React.createElement('td', { colSpan: 8, className: 'p-3 border' },
-              React.createElement('div', { className: 'space-y-2' },
-                React.createElement('h5', { className: 'font-semibold text-sm mb-2' }, 'New Product Specifications'),
-                React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-2' },
-                  React.createElement('div', null,
-                    React.createElement('label', { className: 'text-xs' }, 'Product ID'),
-                    React.createElement('input', {
-                      className: 'border rounded px-2 py-1 w-full text-sm',
-                      placeholder: 'e.g., R-100',
-                      value: item.new_product_id,
-                      onChange: e => updateNewItem(idx, 'new_product_id', e.target.value)
-                    })
                   ),
-                  React.createElement('div', null,
-                    React.createElement('label', { className: 'text-xs' }, 'Description'),
-                    React.createElement('input', {
-                      className: 'border rounded px-2 py-1 w-full text-sm',
-                      placeholder: 'Product description',
-                      value: item.description,
-                      onChange: e => updateNewItem(idx, 'description', e.target.value)
-                    })
-                  ),
-                  React.createElement('div', null,
-                    React.createElement('label', { className: 'text-xs' }, 'Steel Dia (mm)'),
-                    React.createElement('input', {
-                      type: 'number',
-                      step: '0.1',
-                      className: 'border rounded px-2 py-1 w-full text-sm',
-                      value: item.steel_diameter,
-                      onChange: e => updateNewItem(idx, 'steel_diameter', e.target.value)
-                    })
-                  ),
-                  React.createElement('div', null,
-                    React.createElement('label', { className: 'text-xs' }, 'Copper Coating (µm)'),
-                    React.createElement('input', {
-                      type: 'number',
-                      className: 'border rounded px-2 py-1 w-full text-sm',
-                      value: item.copper_coating,
-                      onChange: e => updateNewItem(idx, 'copper_coating', e.target.value)
-                    })
-                  ),
-                  React.createElement('div', null,
-                    React.createElement('label', { className: 'text-xs' }, 'Length'),
-                    React.createElement('input', {
-                      type: 'number',
-                      step: '0.1',
-                      className: 'border rounded px-2 py-1 w-full text-sm',
-                      value: item.length,
-                      onChange: e => updateNewItem(idx, 'length', e.target.value)
-                    })
-                  ),
-                  React.createElement('div', null,
-                    React.createElement('label', { className: 'text-xs' }, 'Unit'),
-                    React.createElement('select', {
-                      className: 'border rounded px-2 py-1 w-full text-sm',
-                      value: item.length_unit,
-                      onChange: e => updateNewItem(idx, 'length_unit', e.target.value)
-                    },
-                      LENGTH_UNITS.map(u => React.createElement('option', { key: u, value: u }, u))
+                  // New product details row (if checkbox is checked)
+                  item.new_product && React.createElement('tr', { className: 'bg-blue-50' },
+                    React.createElement('td', { colSpan: 8, className: 'p-3 border' },
+                      React.createElement('div', { className: 'space-y-2' },
+                        React.createElement('h5', { className: 'font-semibold text-sm mb-2' }, 'New Product Specifications'),
+                        React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-2' },
+                          React.createElement('div', null,
+                            React.createElement('label', { className: 'text-xs' }, 'Product ID'),
+                            React.createElement('input', {
+                              className: 'border rounded px-2 py-1 w-full text-sm',
+                              placeholder: 'e.g., R-100',
+                              value: item.new_product_id,
+                              onChange: e => updateNewItem(idx, 'new_product_id', e.target.value)
+                            })
+                          ),
+                          React.createElement('div', null,
+                            React.createElement('label', { className: 'text-xs' }, 'Description'),
+                            React.createElement('input', {
+                              className: 'border rounded px-2 py-1 w-full text-sm',
+                              placeholder: 'Product description',
+                              value: item.description,
+                              onChange: e => updateNewItem(idx, 'description', e.target.value)
+                            })
+                          ),
+                          React.createElement('div', null,
+                            React.createElement('label', { className: 'text-xs' }, 'Steel Dia (mm)'),
+                            React.createElement('input', {
+                              type: 'number',
+                              step: '0.1',
+                              className: 'border rounded px-2 py-1 w-full text-sm',
+                              value: item.steel_diameter,
+                              onChange: e => updateNewItem(idx, 'steel_diameter', e.target.value)
+                            })
+                          ),
+                          React.createElement('div', null,
+                            React.createElement('label', { className: 'text-xs' }, 'Copper Coating (µm)'),
+                            React.createElement('input', {
+                              type: 'number',
+                              className: 'border rounded px-2 py-1 w-full text-sm',
+                              value: item.copper_coating,
+                              onChange: e => updateNewItem(idx, 'copper_coating', e.target.value)
+                            })
+                          ),
+                          React.createElement('div', null,
+                            React.createElement('label', { className: 'text-xs' }, 'Length'),
+                            React.createElement('input', {
+                              type: 'number',
+                              step: '0.1',
+                              className: 'border rounded px-2 py-1 w-full text-sm',
+                              value: item.length,
+                              onChange: e => updateNewItem(idx, 'length', e.target.value)
+                            })
+                          ),
+                          React.createElement('div', null,
+                            React.createElement('label', { className: 'text-xs' }, 'Unit'),
+                            React.createElement('select', {
+                              className: 'border rounded px-2 py-1 w-full text-sm',
+                              value: item.length_unit,
+                              onChange: e => updateNewItem(idx, 'length_unit', e.target.value)
+                            },
+                              LENGTH_UNITS.map(u => React.createElement('option', { key: u, value: u }, u))
+                            )
+                          )
+                        ),
+                        // Auto-calculated values
+                        item.calculated_weights && React.createElement('div', { className: 'bg-white border rounded p-2 mt-2' },
+                          React.createElement('h6', { className: 'text-xs font-semibold mb-1' }, 'Auto-Calculated:'),
+                          React.createElement('div', { className: 'grid grid-cols-4 gap-2 text-xs' },
+                            React.createElement('div', null, `CBG Dia: ${item.calculated_weights.cbgDiameter} mm`),
+                            React.createElement('div', null, `Steel: ${item.calculated_weights.steelWeight} kg`),
+                            React.createElement('div', null, `Copper: ${item.calculated_weights.copperWeight} kg`),
+                            React.createElement('div', null, `Total: ${item.calculated_weights.totalWeight} kg`)
+                          )
+                        )
+                      )
                     )
-                  )
-                ),
-                // Auto-calculated values
-                item.calculated_weights && React.createElement('div', { className: 'bg-white border rounded p-2 mt-2' },
-                  React.createElement('h6', { className: 'text-xs font-semibold mb-1' }, 'Auto-Calculated:'),
-                  React.createElement('div', { className: 'grid grid-cols-4 gap-2 text-xs' },
-                    React.createElement('div', null, `CBG Dia: ${item.calculated_weights.cbgDiameter} mm`),
-                    React.createElement('div', null, `Steel: ${item.calculated_weights.steelWeight} kg`),
-                    React.createElement('div', null, `Copper: ${item.calculated_weights.copperWeight} kg`),
-                    React.createElement('div', null, `Total: ${item.calculated_weights.totalWeight} kg`)
-                  )
-                )
-              )
+                  ))))),
+
+          // Submit button
+          React.createElement('div', { className: 'flex justify-end mt-4' },
+            React.createElement('button', {
+              className: 'px-6 py-2 bg-green-600 text-white rounded font-semibold flex items-center gap-2',
+              onClick: add
+            },
+              React.createElement('span', { className: 'text-base' }, '➕'),
+              'Create Purchase Order'
             )
           )
         ),
 
-        // Submit button
-        React.createElement('div', { className: 'flex justify-end mt-4' },
-          React.createElement('button', {
-            className: 'px-6 py-2 bg-green-600 text-white rounded font-semibold flex items-center gap-2',
-            onClick: add
-          },
-            React.createElement('span', { className: 'text-base' }, '➕'),
-            'Create Purchase Order'
-          )
-        )
-      ),
+        // List of existing POs with EnhancedTable
+        React.createElement('div', { ref: listSectionRef },
+          React.createElement(EnhancedTable, {
+            title: 'Client Purchase Orders',
+            data: localOrders,
+            columns: [
+              { key: 'id', label: 'PO ID' },
+              { key: 'customer_name', label: 'Customer' },
+              { key: 'po_date', label: 'PO Date' },
+              { key: 'due_date', label: 'Due Date' },
+              { key: 'expected_delivery_date', label: 'Expected Delivery', render: (val) => val || '-' },
+              { key: 'currency', label: 'Currency', render: (val) => val || 'INR' },
+              { key: 'advance_percent', label: 'Advance %', render: (val) => val ? `${val}%` : '-' },
+              {
+                key: 'balance_payment_terms', label: 'Balance Payment', render: (val) => {
+                  if (!val) return '-';
+                  const terms = {
+                    'on_dispatch': 'On Dispatch',
+                    'at_door_delivery': 'At Door Delivery',
+                    '30_days_net_bl': '30 Days Net B/L',
+                    '45_days_net_bl': '45 Days Net B/L',
+                    '60_days_net_bl': '60 Days Net B/L',
+                    '75_days_net_bl': '75 Days Net B/L',
+                    '90_days_net_bl': '90 Days Net B/L'
+                  };
+                  return terms[val] || val;
+                }
+              },
+              { key: 'mode_of_delivery', label: 'Delivery Mode', render: (val) => val || '-' },
+              {
+                key: 'status', label: 'Status', render: (val) => {
+                  const statusConfig = {
+                    'Pending': { icon: '🕐', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+                    'Confirmed': { icon: '✅', color: 'bg-blue-100 text-blue-800 border-blue-300' },
+                    'In Production': { icon: '⚙️', color: 'bg-purple-100 text-purple-800 border-purple-300' },
+                    'Completed': { icon: '✔️', color: 'bg-green-100 text-green-800 border-green-300' },
+                    'Cancelled': { icon: '❌', color: 'bg-red-100 text-red-800 border-red-300' }
+                  };
+                  const config = statusConfig[val] || { icon: '❓', color: 'bg-gray-100 text-gray-800 border-gray-300' };
+                  return React.createElement('span', { className: `inline-flex items-center gap-1 px-2 py-1 rounded border font-semibold text-xs ${config.color}` },
+                    React.createElement('span', null, config.icon),
+                    val
+                  );
+                }
+              },
+              { key: 'notes', label: 'Notes', render: (val) => val || '-' },
+              { key: 'pdf_path', label: 'PDF', render: (val) => val ? React.createElement('a', { href: `${window.location.origin}/${val}`, target: '_blank', className: 'text-blue-600 hover:underline' }, '📄 View') : '-' }
+            ],
+            primaryKey: 'id',
+            onRowClick: handleRowClick,
+            onDelete: del,
+            onExport: (data, cols) => downloadCSV('client-purchase-orders.csv', cols.filter(c => c.key !== 'pdf_path').map(c => ({ key: c.key, label: c.label })), data),
+            filterOptions: [
+              { key: 'customer_name', label: 'Customer', values: [...new Set(localOrders.map(po => po.customer_name).filter(Boolean))] },
+              { key: 'status', label: 'Status', values: ['Pending', 'Confirmed', 'In Production', 'Completed', 'Cancelled'] },
+              { key: 'mode_of_delivery', label: 'Delivery Mode', values: [...new Set(localOrders.map(po => po.mode_of_delivery).filter(Boolean))] }
+            ],
+            defaultVisibleColumns: { id: true, customer_name: true, po_date: true, due_date: true, expected_delivery_date: true, currency: true, advance_percent: true, balance_payment_terms: true, mode_of_delivery: true, status: true, notes: false, pdf_path: true },
+            actions: (po) => [
+              React.createElement('button', {
+                key: 'view-items',
+                onClick: (e) => { e.stopPropagation(); toggleRowExpansion(po.id); },
+                className: 'px-2 py-1 bg-blue-600 text-white rounded text-sm mr-2 flex items-center gap-1'
+              },
+                React.createElement('span', null, expandedRows[po.id] ? '🔼' : '👁️'),
+                expandedRows[po.id] ? 'Hide Items' : 'View Items'
+              )
+            ]
+          }),
 
-      // List of existing POs with EnhancedTable
-      React.createElement('div', { ref: listSectionRef },
-        React.createElement(EnhancedTable, {
-          title: 'Client Purchase Orders',
-          data: localOrders,
-          columns: [
-            { key: 'id', label: 'PO ID' },
-            { key: 'customer_name', label: 'Customer' },
-            { key: 'po_date', label: 'PO Date' },
-            { key: 'due_date', label: 'Due Date' },
-            { key: 'expected_delivery_date', label: 'Expected Delivery', render: (val) => val || '-' },
-            { key: 'currency', label: 'Currency', render: (val) => val || 'INR' },
-            { key: 'advance_percent', label: 'Advance %', render: (val) => val ? `${val}%` : '-' },
-            {
-              key: 'balance_payment_terms', label: 'Balance Payment', render: (val) => {
-                if (!val) return '-';
-                const terms = {
-                  'on_dispatch': 'On Dispatch',
-                  'at_door_delivery': 'At Door Delivery',
-                  '30_days_net_bl': '30 Days Net B/L',
-                  '45_days_net_bl': '45 Days Net B/L',
-                  '60_days_net_bl': '60 Days Net B/L',
-                  '75_days_net_bl': '75 Days Net B/L',
-                  '90_days_net_bl': '90 Days Net B/L'
-                };
-                return terms[val] || val;
-              }
-            },
-            { key: 'mode_of_delivery', label: 'Delivery Mode', render: (val) => val || '-' },
-            {
-              key: 'status', label: 'Status', render: (val) => {
-                const statusConfig = {
-                  'Pending': { icon: '🕐', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-                  'Confirmed': { icon: '✅', color: 'bg-blue-100 text-blue-800 border-blue-300' },
-                  'In Production': { icon: '⚙️', color: 'bg-purple-100 text-purple-800 border-purple-300' },
-                  'Completed': { icon: '✔️', color: 'bg-green-100 text-green-800 border-green-300' },
-                  'Cancelled': { icon: '❌', color: 'bg-red-100 text-red-800 border-red-300' }
-                };
-                const config = statusConfig[val] || { icon: '❓', color: 'bg-gray-100 text-gray-800 border-gray-300' };
-                return React.createElement('span', { className: `inline-flex items-center gap-1 px-2 py-1 rounded border font-semibold text-xs ${config.color}` },
-                  React.createElement('span', null, config.icon),
-                  val
-                );
-              }
-            },
-            { key: 'notes', label: 'Notes', render: (val) => val || '-' },
-            { key: 'pdf_path', label: 'PDF', render: (val) => val ? React.createElement('a', { href: `${window.location.origin}/${val}`, target: '_blank', className: 'text-blue-600 hover:underline' }, '📄 View') : '-' }
-          ],
-          primaryKey: 'id',
-          onRowClick: handleRowClick,
-          onDelete: del,
-          onExport: (data, cols) => downloadCSV('client-purchase-orders.csv', cols.filter(c => c.key !== 'pdf_path').map(c => ({ key: c.key, label: c.label })), data),
-          filterOptions: [
-            { key: 'customer_name', label: 'Customer', values: [...new Set(localOrders.map(po => po.customer_name).filter(Boolean))] },
-            { key: 'status', label: 'Status', values: ['Pending', 'Confirmed', 'In Production', 'Completed', 'Cancelled'] },
-            { key: 'mode_of_delivery', label: 'Delivery Mode', values: [...new Set(localOrders.map(po => po.mode_of_delivery).filter(Boolean))] }
-          ],
-          defaultVisibleColumns: { id: true, customer_name: true, po_date: true, due_date: true, expected_delivery_date: true, currency: true, advance_percent: true, balance_payment_terms: true, mode_of_delivery: true, status: true, notes: false, pdf_path: true },
-          actions: (po) => [
-            React.createElement('button', {
-              key: 'view-items',
-              onClick: (e) => { e.stopPropagation(); toggleRowExpansion(po.id); },
-              className: 'px-2 py-1 bg-blue-600 text-white rounded text-sm mr-2 flex items-center gap-1'
-            },
-              React.createElement('span', null, expandedRows[po.id] ? '🔼' : '👁️'),
-              expandedRows[po.id] ? 'Hide Items' : 'View Items'
-            )
-          ]
-        }),
-
-        // Expandable line items rows
-        Object.keys(expandedRows).filter(poId => expandedRows[poId]).map(poId => {
-          const items = lineItems[poId] || [];
-          return React.createElement('div', { key: `expanded-${poId}`, className: 'ml-8 mr-8 mb-4 border-l-4 border-blue-400 bg-blue-50 rounded p-4' },
-            React.createElement('h4', { className: 'font-semibold text-lg mb-3 text-blue-800' }, `Line Items for PO: ${poId}`),
-            items.length === 0 ? React.createElement('div', { className: 'text-gray-500 text-sm' }, 'No line items found') :
-              React.createElement('div', { className: 'overflow-x-auto' },
-                React.createElement('table', { className: 'min-w-full border-collapse text-sm bg-white' },
-                  React.createElement('thead', null,
-                    React.createElement('tr', { className: 'bg-blue-100 border-b-2 border-blue-300' },
-                      ['Product', 'Description', 'Quantity', 'Unit Price', 'Marking', 'Due Date', 'Line Total'].map(h =>
-                        React.createElement('th', { key: h, className: 'p-3 text-left font-semibold text-gray-700' }, h)
+          // Expandable line items rows
+          Object.keys(expandedRows).filter(poId => expandedRows[poId]).map(poId => {
+            const items = lineItems[poId] || [];
+            return React.createElement('div', { key: `expanded-${poId}`, className: 'ml-8 mr-8 mb-4 border-l-4 border-blue-400 bg-blue-50 rounded p-4' },
+              React.createElement('h4', { className: 'font-semibold text-lg mb-3 text-blue-800' }, `Line Items for PO: ${poId}`),
+              items.length === 0 ? React.createElement('div', { className: 'text-gray-500 text-sm' }, 'No line items found') :
+                React.createElement('div', { className: 'overflow-x-auto' },
+                  React.createElement('table', { className: 'min-w-full border-collapse text-sm bg-white' },
+                    React.createElement('thead', null,
+                      React.createElement('tr', { className: 'bg-blue-100 border-b-2 border-blue-300' },
+                        ['Product', 'Description', 'Quantity', 'Unit Price', 'Marking', 'Due Date', 'Line Total'].map(h =>
+                          React.createElement('th', { key: h, className: 'p-3 text-left font-semibold text-gray-700' }, h)
+                        )
+                      )
+                    ),
+                    React.createElement('tbody', null,
+                      items.map((item, idx) =>
+                        React.createElement('tr', { key: idx, className: 'border-b hover:bg-blue-50' },
+                          React.createElement('td', { className: 'p-3 font-mono text-blue-600' }, item.product_id),
+                          React.createElement('td', { className: 'p-3' }, item.description || '-'),
+                          React.createElement('td', { className: 'p-3 text-right font-semibold' }, formatQuantity(item.quantity)),
+                          React.createElement('td', { className: 'p-3 text-right' }, formatCurrency(item.unit_price || 0, localOrders.find(po => po.id === poId)?.currency || 'INR')),
+                          React.createElement('td', { className: 'p-3 text-sm text-gray-700' }, item.marking || '-'),
+                          React.createElement('td', { className: 'p-3' }, item.due_date || '-'),
+                          React.createElement('td', { className: 'p-3 text-right font-bold text-green-700' }, formatCurrency((item.quantity * item.unit_price) || 0, localOrders.find(po => po.id === poId)?.currency || 'INR'))
+                        )
                       )
                     )
                   ),
-                  React.createElement('tbody', null,
-                    items.map((item, idx) =>
-                      React.createElement('tr', { key: idx, className: 'border-b hover:bg-blue-50' },
-                        React.createElement('td', { className: 'p-3 font-mono text-blue-600' }, item.product_id),
-                        React.createElement('td', { className: 'p-3' }, item.description || '-'),
-                        React.createElement('td', { className: 'p-3 text-right font-semibold' }, formatQuantity(item.quantity)),
-                        React.createElement('td', { className: 'p-3 text-right' }, formatCurrency(item.unit_price || 0, localOrders.find(po => po.id === poId)?.currency || 'INR')),
-                        React.createElement('td', { className: 'p-3 text-sm text-gray-700' }, item.marking || '-'),
-                        React.createElement('td', { className: 'p-3' }, item.due_date || '-'),
-                        React.createElement('td', { className: 'p-3 text-right font-bold text-green-700' }, formatCurrency((item.quantity * item.unit_price) || 0, localOrders.find(po => po.id === poId)?.currency || 'INR'))
-                      )
+                  React.createElement('div', { className: 'mt-3 text-right text-sm' },
+                    React.createElement('span', { className: 'font-semibold' }, 'Total: '),
+                    React.createElement('span', { className: 'text-lg font-bold text-green-700' },
+                      formatCurrency(items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0), localOrders.find(po => po.id === poId)?.currency || 'INR')
                     )
                   )
-                ),
-                React.createElement('div', { className: 'mt-3 text-right text-sm' },
-                  React.createElement('span', { className: 'font-semibold' }, 'Total: '),
-                  React.createElement('span', { className: 'text-lg font-bold text-green-700' },
-                    formatCurrency(items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0), localOrders.find(po => po.id === poId)?.currency || 'INR')
-                  )
                 )
-              )
-          );
-        }),
+            );
+          }),
 
-        // Edit Modal
-        React.createElement(EditModal, {
-          isOpen: editingPO !== null,
-          onClose: () => {
-            setEditingPO(null);
-            setEditPdfFile(null);
+          // Edit Modal
+          React.createElement(EditModal, {
+            isOpen: editingPO !== null,
+            onClose: () => {
+              setEditingPO(null);
+              setEditPdfFile(null);
+            },
+            onSave: saveEdit,
+            title: `Edit Client PO: ${editForm.id || ''}`
           },
-          onSave: saveEdit,
-          title: `Edit Client PO: ${editForm.id || ''}`
-        },
-          editingPO && React.createElement('div', { className: 'space-y-6' },
-            // PO Header Fields
-            React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
-              React.createElement('div', null,
-                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'PO ID'),
-                React.createElement('input', {
-                  className: 'border rounded px-3 py-2 w-full bg-gray-100',
-                  value: editForm.id || '',
-                  disabled: true
-                }),
-                React.createElement('p', { className: 'text-xs text-gray-500 mt-1' }, 'PO ID cannot be changed after creation')
-              ),
-              React.createElement('div', null,
-                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Customer'),
-                React.createElement('select', {
-                  className: 'border rounded px-3 py-2 w-full',
-                  value: editForm.customer_id || '',
-                  onChange: e => setEditForm({ ...editForm, customer_id: e.target.value })
-                },
-                  React.createElement('option', { value: '' }, 'Select Customer'),
-                  customers.map(c => React.createElement('option', { key: c.id, value: c.id }, `${c.id} - ${c.name}`))
-                )
-              ),
-              React.createElement('div', null,
-                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'PO Date'),
-                React.createElement('input', {
-                  type: 'date',
-                  className: 'border rounded px-3 py-2 w-full',
-                  value: editForm.po_date || '',
-                  onChange: e => setEditForm({ ...editForm, po_date: e.target.value })
-                })
-              ),
-              React.createElement('div', null,
-                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Due Date'),
-                React.createElement('input', {
-                  type: 'date',
-                  className: 'border rounded px-3 py-2 w-full',
-                  value: editForm.due_date || '',
-                  onChange: e => setEditForm({ ...editForm, due_date: e.target.value })
-                })
-              ),
-              React.createElement('div', null,
-                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Currency'),
-                React.createElement('select', {
-                  className: 'border rounded px-3 py-2 w-full',
-                  value: editForm.currency || 'INR',
-                  onChange: e => setEditForm({ ...editForm, currency: e.target.value })
-                },
-                  ['INR', 'USD', 'EUR', 'AED'].map(c => React.createElement('option', { key: c, value: c }, c))
-                )
-              ),
-              React.createElement('div', null,
-                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Status'),
-                React.createElement('select', {
-                  className: 'border rounded px-3 py-2 w-full',
-                  value: editForm.status || 'Pending',
-                  onChange: e => setEditForm({ ...editForm, status: e.target.value })
-                },
-                  ['Pending', 'Confirmed', 'In Production', 'Completed', 'Cancelled'].map(s =>
-                    React.createElement('option', { key: s, value: s }, s)
-                  )
-                )
-              ),
-              React.createElement('div', { className: 'md:col-span-2' },
-                React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Notes'),
-                React.createElement('textarea', {
-                  className: 'border rounded px-3 py-2 w-full',
-                  rows: 2,
-                  value: editForm.notes || '',
-                  onChange: e => setEditForm({ ...editForm, notes: e.target.value })
-                })
-              )
-            ),
-
-            // Payment & Delivery Terms Section
-            React.createElement('div', { className: 'border-t pt-4 mt-4' },
-              React.createElement('h4', { className: 'font-semibold text-md mb-3 text-gray-800' }, 'Payment & Delivery Terms'),
+            editingPO && React.createElement('div', { className: 'space-y-6' },
+              // PO Header Fields
               React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
                 React.createElement('div', null,
-                  React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Advance Payment (%)'),
+                  React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'PO ID'),
                   React.createElement('input', {
-                    type: 'number',
-                    min: '0',
-                    max: '100',
-                    className: 'border rounded px-3 py-2 w-full',
-                    value: editForm.advance_percent || 0,
-                    onChange: e => setEditForm({ ...editForm, advance_percent: Number(e.target.value) })
-                  })
+                    className: 'border rounded px-3 py-2 w-full bg-gray-100',
+                    value: editForm.id || '',
+                    disabled: true
+                  }),
+                  React.createElement('p', { className: 'text-xs text-gray-500 mt-1' }, 'PO ID cannot be changed after creation')
                 ),
                 React.createElement('div', null,
-                  React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Balance Payment Terms'),
+                  React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Customer'),
                   React.createElement('select', {
                     className: 'border rounded px-3 py-2 w-full',
-                    value: editForm.balance_payment_terms || 'on_dispatch',
-                    onChange: e => setEditForm({ ...editForm, balance_payment_terms: e.target.value })
+                    value: editForm.customer_id || '',
+                    onChange: e => setEditForm({ ...editForm, customer_id: e.target.value })
                   },
-                    React.createElement('option', { value: 'on_dispatch' }, 'On Dispatch'),
-                    React.createElement('option', { value: 'at_door_delivery' }, 'At Door Delivery'),
-                    React.createElement('option', { value: '30_days_net_bl' }, '30 Days Net B/L'),
-                    React.createElement('option', { value: '45_days_net_bl' }, '45 Days Net B/L'),
-                    React.createElement('option', { value: '60_days_net_bl' }, '60 Days Net B/L'),
-                    React.createElement('option', { value: '75_days_net_bl' }, '75 Days Net B/L'),
-                    React.createElement('option', { value: '90_days_net_bl' }, '90 Days Net B/L')
+                    React.createElement('option', { value: '' }, 'Select Customer'),
+                    customers.map(c => React.createElement('option', { key: c.id, value: c.id }, `${c.id} - ${c.name}`))
                   )
                 ),
                 React.createElement('div', null,
-                  React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Mode of Delivery'),
-                  React.createElement('select', {
-                    className: 'border rounded px-3 py-2 w-full',
-                    value: editForm.mode_of_delivery || 'FOB',
-                    onChange: e => setEditForm({ ...editForm, mode_of_delivery: e.target.value })
-                  },
-                    React.createElement('option', { value: 'FOB' }, 'FOB'),
-                    React.createElement('option', { value: 'CIF' }, 'CIF'),
-                    React.createElement('option', { value: 'Factory ex works' }, 'Factory ex works'),
-                    React.createElement('option', { value: 'Door Delivery to Warehouse' }, 'Door Delivery to Warehouse'),
-                    React.createElement('option', { value: 'DDP' }, 'DDP')
-                  )
-                ),
-                React.createElement('div', null,
-                  React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Expected Delivery Date'),
+                  React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'PO Date'),
                   React.createElement('input', {
                     type: 'date',
                     className: 'border rounded px-3 py-2 w-full',
-                    value: editForm.expected_delivery_date || '',
-                    onChange: e => setEditForm({ ...editForm, expected_delivery_date: e.target.value })
+                    value: editForm.po_date || '',
+                    onChange: e => setEditForm({ ...editForm, po_date: e.target.value })
                   })
                 ),
-                editingPO.pdf_path && React.createElement('div', { className: 'md:col-span-2' },
-                  React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Current PDF'),
-                  React.createElement('a', {
-                    href: `${window.location.origin}/${editingPO.pdf_path}`,
-                    target: '_blank',
-                    className: 'text-blue-600 hover:underline flex items-center gap-2'
+                React.createElement('div', null,
+                  React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Due Date'),
+                  React.createElement('input', {
+                    type: 'date',
+                    className: 'border rounded px-3 py-2 w-full',
+                    value: editForm.due_date || '',
+                    onChange: e => setEditForm({ ...editForm, due_date: e.target.value })
+                  })
+                ),
+                React.createElement('div', null,
+                  React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Currency'),
+                  React.createElement('select', {
+                    className: 'border rounded px-3 py-2 w-full',
+                    value: editForm.currency || 'INR',
+                    onChange: e => setEditForm({ ...editForm, currency: e.target.value })
                   },
-                    React.createElement('span', null, '📄'),
-                    React.createElement('span', null, 'View Client PO PDF')
+                    ['INR', 'USD', 'EUR', 'AED'].map(c => React.createElement('option', { key: c, value: c }, c))
+                  )
+                ),
+                React.createElement('div', null,
+                  React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Status'),
+                  React.createElement('select', {
+                    className: 'border rounded px-3 py-2 w-full',
+                    value: editForm.status || 'Pending',
+                    onChange: e => setEditForm({ ...editForm, status: e.target.value })
+                  },
+                    ['Pending', 'Confirmed', 'In Production', 'Completed', 'Cancelled'].map(s =>
+                      React.createElement('option', { key: s, value: s }, s)
+                    )
                   )
                 ),
                 React.createElement('div', { className: 'md:col-span-2' },
-                  React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' },
-                    editingPO.pdf_path ? 'Upload New PDF (Optional - replaces current PDF)' : 'Upload PDF (Optional)'
-                  ),
-                  React.createElement('input', {
-                    type: 'file',
-                    accept: 'application/pdf',
+                  React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Notes'),
+                  React.createElement('textarea', {
                     className: 'border rounded px-3 py-2 w-full',
-                    onChange: e => setEditPdfFile(e.target.files[0])
-                  }),
-                  editPdfFile && React.createElement('p', { className: 'text-sm text-green-600 mt-1' },
-                    `Selected: ${editPdfFile.name}`
-                  )
+                    rows: 2,
+                    value: editForm.notes || '',
+                    onChange: e => setEditForm({ ...editForm, notes: e.target.value })
+                  })
                 )
-              )
-            ),
+              ),
 
-            // Line Items Section
-            React.createElement('div', { className: 'border-t pt-4' },
-              React.createElement('h4', { className: 'font-semibold text-lg mb-3' }, 'Line Items & Fulfillment'),
-              editLineItems.length > 0 && React.createElement('div', { className: 'overflow-x-auto' },
-                React.createElement('table', { className: 'min-w-full border-collapse text-sm' },
-                  React.createElement('thead', null,
-                    React.createElement('tr', { className: 'bg-gray-100' },
-                      ['Product', 'Description', 'Quantity', 'Delivered', 'Remaining', 'Unit Price', 'Currency', 'Marking', 'Due Date', 'Actions'].map(h =>
-                        React.createElement('th', { key: h, className: 'p-2 border' }, h)
-                      )
+              // Payment & Delivery Terms Section
+              React.createElement('div', { className: 'border-t pt-4 mt-4' },
+                React.createElement('h4', { className: 'font-semibold text-md mb-3 text-gray-800' }, 'Payment & Delivery Terms'),
+                React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
+                  React.createElement('div', null,
+                    React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Advance Payment (%)'),
+                    React.createElement('input', {
+                      type: 'number',
+                      min: '0',
+                      max: '100',
+                      className: 'border rounded px-3 py-2 w-full',
+                      value: editForm.advance_percent || 0,
+                      onChange: e => setEditForm({ ...editForm, advance_percent: Number(e.target.value) })
+                    })
+                  ),
+                  React.createElement('div', null,
+                    React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Balance Payment Terms'),
+                    React.createElement('select', {
+                      className: 'border rounded px-3 py-2 w-full',
+                      value: editForm.balance_payment_terms || 'on_dispatch',
+                      onChange: e => setEditForm({ ...editForm, balance_payment_terms: e.target.value })
+                    },
+                      React.createElement('option', { value: 'on_dispatch' }, 'On Dispatch'),
+                      React.createElement('option', { value: 'at_door_delivery' }, 'At Door Delivery'),
+                      React.createElement('option', { value: '30_days_net_bl' }, '30 Days Net B/L'),
+                      React.createElement('option', { value: '45_days_net_bl' }, '45 Days Net B/L'),
+                      React.createElement('option', { value: '60_days_net_bl' }, '60 Days Net B/L'),
+                      React.createElement('option', { value: '75_days_net_bl' }, '75 Days Net B/L'),
+                      React.createElement('option', { value: '90_days_net_bl' }, '90 Days Net B/L')
                     )
                   ),
-                  React.createElement('tbody', null,
-                    editLineItems.map((item, idx) =>
-                      React.createElement('tr', { key: idx },
-                        React.createElement('td', { className: 'p-2 border' },
-                          React.createElement('select', {
-                            className: 'border rounded px-2 py-1 w-full text-sm',
-                            value: item.product_id || '',
-                            onChange: e => {
-                              const updated = [...editLineItems];
-                              updated[idx].product_id = e.target.value;
-                              const product = products.find(p => p.id === e.target.value);
-                              if (product) updated[idx].product_description = product.description;
-                              setEditLineItems(updated);
-                            }
-                          },
-                            React.createElement('option', { value: '' }, 'Select Product'),
-                            products.map(p => React.createElement('option', { key: p.id, value: p.id }, `${p.id} - ${p.description}`))
-                          )
-                        ),
-                        React.createElement('td', { className: 'p-2 border text-sm' }, item.product_description || '-'),
-                        React.createElement('td', { className: 'p-2 border' },
-                          React.createElement('input', {
-                            type: 'number',
-                            className: 'border rounded px-2 py-1 w-20 text-right',
-                            value: item.quantity || 0,
-                            onChange: e => {
-                              const updated = [...editLineItems];
-                              updated[idx].quantity = Number(e.target.value);
-                              setEditLineItems(updated);
-                            }
-                          })
-                        ),
-                        React.createElement('td', { className: 'p-2 border text-right text-gray-600' }, item.delivered || 0),
-                        React.createElement('td', { className: 'p-2 border text-right text-gray-600' }, (item.quantity - (item.delivered || 0))),
-                        React.createElement('td', { className: 'p-2 border' },
-                          React.createElement('input', {
-                            type: 'number',
-                            step: '0.01',
-                            className: 'border rounded px-2 py-1 w-24 text-right',
-                            value: item.unit_price || 0,
-                            onChange: e => {
-                              const updated = [...editLineItems];
-                              updated[idx].unit_price = Number(e.target.value);
-                              setEditLineItems(updated);
-                            }
-                          })
-                        ),
-                        React.createElement('td', { className: 'p-2 border' },
-                          React.createElement('select', {
-                            className: 'border rounded px-2 py-1 w-20',
-                            value: item.currency || 'INR',
-                            onChange: e => {
-                              const updated = [...editLineItems];
-                              updated[idx].currency = e.target.value;
-                              setEditLineItems(updated);
-                            }
-                          },
-                            ['INR', 'USD', 'EUR', 'AED'].map(c => React.createElement('option', { key: c, value: c }, c))
-                          )
-                        ),
-                        React.createElement('td', { className: 'p-2 border' },
-                          React.createElement('input', {
-                            type: 'text',
-                            className: 'border rounded px-2 py-1 w-full text-sm',
-                            placeholder: 'Marking/Stamping',
-                            value: item.marking || '',
-                            onChange: e => {
-                              const updated = [...editLineItems];
-                              updated[idx].marking = e.target.value;
-                              setEditLineItems(updated);
-                            }
-                          })
-                        ),
-                        React.createElement('td', { className: 'p-2 border' },
-                          React.createElement('input', {
-                            type: 'date',
-                            className: 'border rounded px-2 py-1 w-full',
-                            value: item.due_date || '',
-                            onChange: e => {
-                              const updated = [...editLineItems];
-                              updated[idx].due_date = e.target.value;
-                              setEditLineItems(updated);
-                            }
-                          })
-                        ),
-                        React.createElement('td', { className: 'p-2 border text-center' },
-                          React.createElement('button', {
-                            onClick: async () => {
-                              if (item.id) {
-                                // Existing item - delete from server
-                                if (confirm('Delete this line item?')) {
-                                  try {
-                                    const encodedPoId = encodeURIComponent(editForm.id);
-                                    const res = await fetch(`${API_URL}/client-purchase-orders/${encodedPoId}/items/${item.id}`, { method: 'DELETE' });
-                                    if (res.ok) {
-                                      setEditLineItems(editLineItems.filter((_, i) => i !== idx));
-                                    } else {
-                                      alert('Failed to delete line item');
-                                    }
-                                  } catch (err) {
-                                    alert('Error deleting line item: ' + err.message);
-                                  }
-                                }
-                              } else {
-                                // New unsaved item - just remove from array
-                                setEditLineItems(editLineItems.filter((_, i) => i !== idx));
+                  React.createElement('div', null,
+                    React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Mode of Delivery'),
+                    React.createElement('select', {
+                      className: 'border rounded px-3 py-2 w-full',
+                      value: editForm.mode_of_delivery || 'FOB',
+                      onChange: e => setEditForm({ ...editForm, mode_of_delivery: e.target.value })
+                    },
+                      React.createElement('option', { value: 'FOB' }, 'FOB'),
+                      React.createElement('option', { value: 'CIF' }, 'CIF'),
+                      React.createElement('option', { value: 'Factory ex works' }, 'Factory ex works'),
+                      React.createElement('option', { value: 'Door Delivery to Warehouse' }, 'Door Delivery to Warehouse'),
+                      React.createElement('option', { value: 'DDP' }, 'DDP')
+                    )
+                  ),
+                  React.createElement('div', null,
+                    React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Expected Delivery Date'),
+                    React.createElement('input', {
+                      type: 'date',
+                      className: 'border rounded px-3 py-2 w-full',
+                      value: editForm.expected_delivery_date || '',
+                      onChange: e => setEditForm({ ...editForm, expected_delivery_date: e.target.value })
+                    })
+                  ),
+                  editingPO.pdf_path && React.createElement('div', { className: 'md:col-span-2' },
+                    React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' }, 'Current PDF'),
+                    React.createElement('a', {
+                      href: `${window.location.origin}/${editingPO.pdf_path}`,
+                      target: '_blank',
+                      className: 'text-blue-600 hover:underline flex items-center gap-2'
+                    },
+                      React.createElement('span', null, '📄'),
+                      React.createElement('span', null, 'View Client PO PDF')
+                    )
+                  ),
+                  React.createElement('div', { className: 'md:col-span-2' },
+                    React.createElement('label', { className: 'block text-sm font-semibold text-gray-700 mb-1' },
+                      editingPO.pdf_path ? 'Upload New PDF (Optional - replaces current PDF)' : 'Upload PDF (Optional)'
+                    ),
+                    React.createElement('input', {
+                      type: 'file',
+                      accept: 'application/pdf',
+                      className: 'border rounded px-3 py-2 w-full',
+                      onChange: e => setEditPdfFile(e.target.files[0])
+                    }),
+                    editPdfFile && React.createElement('p', { className: 'text-sm text-green-600 mt-1' },
+                      `Selected: ${editPdfFile.name}`
+                    )
+                  )
+                )
+              ),
+
+              // Line Items Section
+              React.createElement('div', { className: 'border-t pt-4' },
+                React.createElement('h4', { className: 'font-semibold text-lg mb-3' }, 'Line Items & Fulfillment'),
+                editLineItems.length > 0 && React.createElement('div', { className: 'overflow-x-auto' },
+                  React.createElement('table', { className: 'min-w-full border-collapse text-sm' },
+                    React.createElement('thead', null,
+                      React.createElement('tr', { className: 'bg-gray-100' },
+                        ['Product', 'Description', 'Quantity', 'Delivered', 'Remaining', 'Unit Price', 'Currency', 'Marking', 'Due Date', 'Actions'].map(h =>
+                          React.createElement('th', { key: h, className: 'p-2 border' }, h)
+                        )
+                      )
+                    ),
+                    React.createElement('tbody', null,
+                      editLineItems.map((item, idx) =>
+                        React.createElement('tr', { key: idx },
+                          React.createElement('td', { className: 'p-2 border' },
+                            React.createElement('select', {
+                              className: 'border rounded px-2 py-1 w-full text-sm',
+                              value: item.product_id || '',
+                              onChange: e => {
+                                const updated = [...editLineItems];
+                                updated[idx].product_id = e.target.value;
+                                const product = products.find(p => p.id === e.target.value);
+                                if (product) updated[idx].product_description = product.description;
+                                setEditLineItems(updated);
                               }
                             },
-                            className: 'text-red-600 hover:text-red-800 text-lg'
-                          }, '🗑️')
+                              React.createElement('option', { value: '' }, 'Select Product'),
+                              products.map(p => React.createElement('option', { key: p.id, value: p.id }, `${p.id} - ${p.description}`))
+                            )
+                          ),
+                          React.createElement('td', { className: 'p-2 border text-sm' }, item.product_description || '-'),
+                          React.createElement('td', { className: 'p-2 border' },
+                            React.createElement('input', {
+                              type: 'number',
+                              className: 'border rounded px-2 py-1 w-20 text-right',
+                              value: item.quantity || 0,
+                              onChange: e => {
+                                const updated = [...editLineItems];
+                                updated[idx].quantity = Number(e.target.value);
+                                setEditLineItems(updated);
+                              }
+                            })
+                          ),
+                          React.createElement('td', { className: 'p-2 border text-right text-gray-600' }, item.delivered || 0),
+                          React.createElement('td', { className: 'p-2 border text-right text-gray-600' }, (item.quantity - (item.delivered || 0))),
+                          React.createElement('td', { className: 'p-2 border' },
+                            React.createElement('input', {
+                              type: 'number',
+                              step: '0.01',
+                              className: 'border rounded px-2 py-1 w-24 text-right',
+                              value: item.unit_price || 0,
+                              onChange: e => {
+                                const updated = [...editLineItems];
+                                updated[idx].unit_price = Number(e.target.value);
+                                setEditLineItems(updated);
+                              }
+                            })
+                          ),
+                          React.createElement('td', { className: 'p-2 border' },
+                            React.createElement('select', {
+                              className: 'border rounded px-2 py-1 w-20',
+                              value: item.currency || 'INR',
+                              onChange: e => {
+                                const updated = [...editLineItems];
+                                updated[idx].currency = e.target.value;
+                                setEditLineItems(updated);
+                              }
+                            },
+                              ['INR', 'USD', 'EUR', 'AED'].map(c => React.createElement('option', { key: c, value: c }, c))
+                            )
+                          ),
+                          React.createElement('td', { className: 'p-2 border' },
+                            React.createElement('input', {
+                              type: 'text',
+                              className: 'border rounded px-2 py-1 w-full text-sm',
+                              placeholder: 'Marking/Stamping',
+                              value: item.marking || '',
+                              onChange: e => {
+                                const updated = [...editLineItems];
+                                updated[idx].marking = e.target.value;
+                                setEditLineItems(updated);
+                              }
+                            })
+                          ),
+                          React.createElement('td', { className: 'p-2 border' },
+                            React.createElement('input', {
+                              type: 'date',
+                              className: 'border rounded px-2 py-1 w-full',
+                              value: item.due_date || '',
+                              onChange: e => {
+                                const updated = [...editLineItems];
+                                updated[idx].due_date = e.target.value;
+                                setEditLineItems(updated);
+                              }
+                            })
+                          ),
+                          React.createElement('td', { className: 'p-2 border text-center' },
+                            React.createElement('button', {
+                              onClick: async () => {
+                                if (item.id) {
+                                  // Existing item - delete from server
+                                  if (confirm('Delete this line item?')) {
+                                    try {
+                                      const encodedPoId = encodeURIComponent(editForm.id);
+                                      const res = await fetch(`${API_URL}/client-purchase-orders/${encodedPoId}/items/${item.id}`, { method: 'DELETE' });
+                                      if (res.ok) {
+                                        setEditLineItems(editLineItems.filter((_, i) => i !== idx));
+                                      } else {
+                                        alert('Failed to delete line item');
+                                      }
+                                    } catch (err) {
+                                      alert('Error deleting line item: ' + err.message);
+                                    }
+                                  }
+                                } else {
+                                  // New unsaved item - just remove from array
+                                  setEditLineItems(editLineItems.filter((_, i) => i !== idx));
+                                }
+                              },
+                              className: 'text-red-600 hover:text-red-800 text-lg'
+                            }, '🗑️')
+                          )
                         )
                       )
                     )
                   )
+                ),
+                React.createElement('button', {
+                  onClick: () => {
+                    setEditLineItems([...editLineItems, {
+                      product_id: '',
+                      quantity: 0,
+                      delivered: 0,
+                      unit_price: 0,
+                      currency: editForm.currency || 'INR',
+                      marking: '',
+                      due_date: editForm.due_date || ''
+                    }]);
+                  },
+                  className: 'mt-3 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2'
+                },
+                  React.createElement('span', null, '➕'),
+                  'Add Item'
                 )
               ),
-              React.createElement('button', {
-                onClick: () => {
-                  setEditLineItems([...editLineItems, {
-                    product_id: '',
-                    quantity: 0,
-                    delivered: 0,
-                    unit_price: 0,
-                    currency: editForm.currency || 'INR',
-                    marking: '',
-                    due_date: editForm.due_date || ''
-                  }]);
-                },
-                className: 'mt-3 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2'
-              },
-                React.createElement('span', null, '➕'),
-                'Add Item'
-              )
-            ),
 
-            // Save/Cancel buttons
-            React.createElement('div', { className: 'flex justify-end gap-3 pt-4 border-t' },
-              React.createElement('button', {
-                onClick: () => {
-                  setEditingPO(null);
-                  setEditPdfFile(null);
+              // Save/Cancel buttons
+              React.createElement('div', { className: 'flex justify-end gap-3 pt-4 border-t' },
+                React.createElement('button', {
+                  onClick: () => {
+                    setEditingPO(null);
+                    setEditPdfFile(null);
+                  },
+                  className: 'px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-2'
                 },
-                className: 'px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-2'
-              },
-                React.createElement('span', { className: 'text-base' }, '❌'),
-                'Cancel'
-              ),
-              React.createElement('button', {
-                onClick: saveEdit,
-                className: 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2'
-              },
-                React.createElement('span', { className: 'text-base' }, '💾'),
-                'Save Changes'
+                  React.createElement('span', { className: 'text-base' }, '❌'),
+                  'Cancel'
+                ),
+                React.createElement('button', {
+                  onClick: saveEdit,
+                  className: 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2'
+                },
+                  React.createElement('span', { className: 'text-base' }, '💾'),
+                  'Save Changes'
+                )
               )
             )
           )
         )
       )
-    )
-  );
+    );
 }
 
 function VendorPurchaseOrders({ purchaseOrders, vendors, onRefresh }) {
