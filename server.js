@@ -424,6 +424,34 @@ function initializeDatabase() {
       FOREIGN KEY (customer_id) REFERENCES customers(id)
     )`);
 
+    // NEW: Inventory table (aggregated view)
+    db.run(`CREATE TABLE IF NOT EXISTS inventory (
+      product_id TEXT PRIMARY KEY,
+      steel_rods INTEGER DEFAULT 0,
+      plated INTEGER DEFAULT 0,
+      machined INTEGER DEFAULT 0,
+      qc INTEGER DEFAULT 0,
+      stamped INTEGER DEFAULT 0,
+      packed INTEGER DEFAULT 0,
+      last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (product_id) REFERENCES products(id)
+    )`);
+
+    // NEW: Stock Adjustments table (manual adjustments)
+    db.run(`CREATE TABLE IF NOT EXISTS stock_adjustments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      adjustment_date DATE NOT NULL,
+      product_id TEXT NOT NULL,
+      stage TEXT NOT NULL,
+      quantity INTEGER NOT NULL,
+      adjustment_type TEXT NOT NULL,
+      reason TEXT,
+      notes TEXT,
+      created_by TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (product_id) REFERENCES products(id)
+    )`);
+
     // Add marking column to client_purchase_orders if it does not exist
     db.run("ALTER TABLE client_purchase_orders ADD COLUMN marking TEXT", (err) => { /* ignore if already exists */ });
     // Add pdf_path column to client_purchase_orders if it does not exist
@@ -5251,6 +5279,157 @@ app.delete('/api/production/:id', (req, res) => {
           db.run('COMMIT', (commitErr) => {
             if (commitErr) return res.status(500).json({ error: commitErr.message });
             res.json({ message: 'Production entry deleted and inventory reversed' });
+          });
+        });
+      });
+    });
+  });
+});
+
+// ============= INVENTORY & STOCK ADJUSTMENTS =============
+
+// GET Inventory (aggregated view)
+app.get('/api/inventory', (req, res) => {
+  const { product_id, marking, from, to } = req.query;
+
+  let sql = `
+    SELECT i.*, p.description as product_description, p.steel_diameter, p.length
+    FROM inventory i
+    LEFT JOIN products p ON i.product_id = p.id
+    WHERE 1=1
+  `;
+  const params = [];
+
+  if (product_id) {
+    sql += ' AND i.product_id = ?';
+    params.push(product_id);
+  }
+
+  // Note: Marking filtering would require joining with inventory_allocations or similar
+  // For now, we return the aggregated inventory. 
+  // If marking filter is strictly required, we might need a more complex query.
+
+  sql += ' ORDER BY i.product_id';
+
+  db.all(sql, params, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// GET Stock Adjustments
+app.get('/api/stock-adjustments', (req, res) => {
+  const sql = `
+    SELECT sa.*, p.description as product_description
+    FROM stock_adjustments sa
+    LEFT JOIN products p ON sa.product_id = p.id
+    ORDER BY sa.adjustment_date DESC, sa.created_at DESC
+    LIMIT 100
+  `;
+
+  db.all(sql, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// POST Create Stock Adjustment
+app.post('/api/stock-adjustments', (req, res) => {
+  const { adjustment_date, product_id, stage, quantity, adjustment_type, reason, notes, created_by } = req.body;
+
+  if (!adjustment_date || !product_id || !stage || !quantity || !reason) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  // Map UI stage names to DB column names if needed
+  // UI: 'plated', 'machined', 'stamped', 'packed', 'steel_rods'
+  // DB columns match these names
+  const dbStage = stage.toLowerCase();
+  const validStages = ['steel_rods', 'plated', 'machined', 'qc', 'stamped', 'packed'];
+
+  if (!validStages.includes(dbStage)) {
+    return res.status(400).json({ error: `Invalid stage: ${stage}` });
+  }
+
+  db.serialize(() => {
+    db.run('BEGIN');
+
+    // Insert adjustment record
+    db.run(`
+      INSERT INTO stock_adjustments (adjustment_date, product_id, stage, quantity, adjustment_type, reason, notes, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [adjustment_date, product_id, dbStage, Number(quantity), adjustment_type, reason, notes || '', created_by || 'System'],
+      function (err) {
+        if (err) {
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: err.message });
+        }
+
+        const adjustmentId = this.lastID;
+
+        // Update inventory
+        // If adjustment_type is 'opening_balance' or 'return', we ADD to inventory
+        // If 'damage' or 'correction' (negative), we might need to handle sign from UI
+        // Assuming UI sends signed quantity or we handle it here.
+        // Usually stock adjustment quantity is the CHANGE amount. 
+        // If user enters +10, we add 10. If -5, we subtract 5.
+
+        db.run(`
+        INSERT INTO inventory (product_id, ${dbStage}, updated_at)
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(product_id) DO UPDATE SET
+          ${dbStage} = ${dbStage} + ?,
+          updated_at = CURRENT_TIMESTAMP
+      `, [product_id, Number(quantity), Number(quantity)], (invErr) => {
+          if (invErr) {
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: invErr.message });
+          }
+
+          db.run('COMMIT', (commitErr) => {
+            if (commitErr) return res.status(500).json({ error: commitErr.message });
+            res.json({ message: 'Stock adjustment created successfully', id: adjustmentId });
+          });
+        });
+      });
+  });
+});
+
+// DELETE Stock Adjustment (Reverse effect)
+app.delete('/api/stock-adjustments/:id', (req, res) => {
+  const { id } = req.params;
+
+  db.get('SELECT * FROM stock_adjustments WHERE id = ?', [id], (err, adjustment) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!adjustment) return res.status(404).json({ error: 'Adjustment not found' });
+
+    db.serialize(() => {
+      db.run('BEGIN');
+
+      const dbStage = adjustment.stage;
+      const quantity = adjustment.quantity;
+
+      // Reverse the inventory change (subtract the quantity)
+      db.run(`
+        UPDATE inventory
+        SET ${dbStage} = MAX(0, ${dbStage} - ?),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE product_id = ?
+      `, [quantity, adjustment.product_id], (invErr) => {
+        if (invErr) {
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: invErr.message });
+        }
+
+        db.run('DELETE FROM stock_adjustments WHERE id = ?', [id], (delErr) => {
+          if (delErr) {
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: delErr.message });
+          }
+
+          db.run('COMMIT', (commitErr) => {
+            if (commitErr) return res.status(500).json({ error: commitErr.message });
+            res.json({ message: 'Stock adjustment deleted and inventory reversed' });
           });
         });
       });
